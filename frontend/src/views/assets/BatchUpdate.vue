@@ -226,8 +226,35 @@ const loadAccounts = async () => {
 
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
     if (response && response.success) {
-      accounts.value = response.data || []
+      // 按大类别排序账户
+      const sortedAccounts = (response.data || []).sort((a, b) => {
+        // 定义大类别的优先级顺序
+        const categoryOrder = {
+          'CASH': 1,
+          'STOCKS': 2,
+          'RETIREMENT_FUND': 3,
+          'INSURANCE': 4,
+          'REAL_ESTATE': 5,
+          'CRYPTOCURRENCY': 6,
+          'PRECIOUS_METALS': 7,
+          'OTHER': 8
+        }
+
+        const orderA = categoryOrder[a.categoryType] || 999
+        const orderB = categoryOrder[b.categoryType] || 999
+
+        // 首先按大类别排序
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+
+        // 同一大类别内，按账户名称排序
+        return (a.accountName || '').localeCompare(b.accountName || '', 'zh-CN')
+      })
+
+      accounts.value = sortedAccounts
       console.log('Loaded accounts:', accounts.value)
+
       // 初始化金额输入框，为空字符串以便用户输入
       accounts.value.forEach(account => {
         accountAmounts.value[account.id] = ''
