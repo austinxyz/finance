@@ -23,10 +23,10 @@ finance/
 - Maven
 
 ### 前端
-- Vue.js 3
+- Vue.js 3 (Composition API)
 - Vue Router 4
-- Pinia (状态管理)
-- Element Plus (UI组件库)
+- Tailwind CSS (样式框架)
+- Chart.js (数据可视化)
 - Vite (构建工具)
 - Axios (HTTP客户端)
 
@@ -69,17 +69,38 @@ finance/
 CREATE DATABASE finance CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-2. 配置环境变量（与zjutennis项目使用相同的数据库连接）：
+2. 配置环境变量：
+
+复制环境变量模板文件：
 ```bash
-export DB_URL="jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
+cp .env.example .env
 ```
+
+编辑 `.env` 文件，填入你的数据库配置：
+```bash
+DB_URL=jdbc:mysql://localhost:3306/finance?ssl-mode=REQUIRED
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+**注意：** `.env` 文件包含敏感信息，已被添加到 `.gitignore`，不会被提交到版本控制。
 
 ### 后端启动
 
+确保已经配置好 `.env` 文件后：
+
 ```bash
 cd backend
+
+# 设置Java环境（如果需要）
+export JAVA_HOME=/path/to/java17
+
+# 加载环境变量
+export DB_URL="jdbc:mysql://localhost:3306/finance?ssl-mode=REQUIRED"
+export DB_USERNAME="your_username"
+export DB_PASSWORD="your_password"
+
+# 构建并运行
 mvn clean install
 mvn spring-boot:run
 ```
@@ -156,15 +177,28 @@ frontend/src/
 
 详细需求说明请查看：[需求说明.md](./requirement/需求说明.md)
 
+## 已实现功能
+
+- [x] 用户管理基础功能
+- [x] 资产账户CRUD操作
+- [x] 资产分类管理
+- [x] 时间序列资产记录
+- [x] 批量更新资产记录（支持重复检测和自动填充）
+- [x] 资产历史记录管理（增删改查）
+- [x] 资产趋势图表可视化（Chart.js）
+- [x] 多时间范围分析（本周/本月/本年/全部）
+- [x] 资产配置占比分析
+- [x] 净资产计算
+- [x] 多币种支持
+
 ## 待开发功能
 
-- [ ] 用户认证与授权
-- [ ] 资产/负债CRUD API
-- [ ] 时间序列数据记录
-- [ ] 数据分析与可视化
+- [ ] 用户认证与授权（JWT）
+- [ ] 负债管理模块
 - [ ] 智能推荐引擎
-- [ ] 报表导出功能
+- [ ] 报表导出功能（PDF/Excel）
 - [ ] 移动端适配
+- [ ] 数据备份与恢复
 
 ## 许可证
 
