@@ -1,5 +1,44 @@
 <template>
   <div class="space-y-6">
+    <!-- 货币选择器和日期选择器 -->
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">资产配置</h2>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">查询日期：</label>
+            <input
+              v-model="selectedDate"
+              type="date"
+              @change="onDateChange"
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            />
+            <button
+              v-if="selectedDate"
+              @click="clearDate"
+              class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+              清除
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <select
+              v-model="selectedCurrency"
+              @change="onCurrencyChange"
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            >
+              <option value="USD">美元 (USD)</option>
+              <option value="CNY">人民币 (CNY)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div v-if="selectedDate" class="text-sm text-gray-600">
+        显示日期: {{ selectedDate }} (如果该日期无记录，将显示该日期之前最近的一条记录)
+      </div>
+    </div>
+
     <!-- 总览卡片作为导航 -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- 净资产卡片 -->
@@ -10,9 +49,9 @@
           activeTab === 'net' ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'
         ]"
       >
-        <div class="text-xs text-gray-500 mb-1">净资产 (USD)</div>
+        <div class="text-xs text-gray-500 mb-1">净资产 ({{ selectedCurrency }})</div>
         <div class="text-2xl font-bold text-blue-600">
-          ${{ formatNumber(summary.netWorth) }}
+          {{ currencySymbol }}{{ formatNumber(convertedSummary.netWorth) }}
         </div>
         <div v-if="activeTab === 'net'" class="text-xs text-blue-600 mt-1">已选中</div>
       </button>
@@ -25,9 +64,9 @@
           activeTab === 'asset' ? 'ring-2 ring-green-500 shadow-lg' : 'hover:shadow-md'
         ]"
       >
-        <div class="text-xs text-gray-500 mb-1">总资产 (USD)</div>
+        <div class="text-xs text-gray-500 mb-1">总资产 ({{ selectedCurrency }})</div>
         <div class="text-2xl font-bold text-green-600">
-          ${{ formatNumber(summary.totalAssets) }}
+          {{ currencySymbol }}{{ formatNumber(convertedSummary.totalAssets) }}
         </div>
         <div v-if="activeTab === 'asset'" class="text-xs text-green-600 mt-1">已选中</div>
       </button>
@@ -40,9 +79,9 @@
           activeTab === 'liability' ? 'ring-2 ring-red-500 shadow-lg' : 'hover:shadow-md'
         ]"
       >
-        <div class="text-xs text-gray-500 mb-1">总负债 (USD)</div>
+        <div class="text-xs text-gray-500 mb-1">总负债 ({{ selectedCurrency }})</div>
         <div class="text-2xl font-bold text-red-600">
-          ${{ formatNumber(summary.totalLiabilities) }}
+          {{ currencySymbol }}{{ formatNumber(convertedSummary.totalLiabilities) }}
         </div>
         <div v-if="activeTab === 'liability'" class="text-xs text-red-600 mt-1">已选中</div>
       </button>
@@ -73,7 +112,7 @@
                 <span class="font-medium">{{ item.name }}</span>
               </div>
               <div class="text-right">
-                <div class="font-semibold">${{ formatNumber(getItemValue(item)) }}</div>
+                <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
                 <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
               </div>
             </div>
@@ -100,7 +139,7 @@
               <div v-if="drillDownData && drillDownData.length > 0" class="text-center p-3 bg-gray-50 rounded-lg">
                 <div class="text-xs text-gray-500">{{ selectedCategory?.name || '该类型' }}总计</div>
                 <div class="text-xl font-bold text-gray-900">
-                  ${{ formatNumber(drillDownData.reduce((sum, item) => sum + item.balance, 0)) }}
+                  {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.reduce((sum, item) => sum + item.balance, 0))) }}
                 </div>
               </div>
             </div>
@@ -139,6 +178,13 @@ const loading = ref(false)
 const loadingDrillDown = ref(false)
 const selectedCategory = ref(null)
 const drillDownData = ref(null)
+
+// 货币选择
+const selectedCurrency = ref('USD')
+const exchangeRate = ref(7.2) // USD to CNY 默认汇率
+
+// 日期选择
+const selectedDate = ref('')
 
 const summary = ref({
   totalAssets: 0,
@@ -186,6 +232,34 @@ const getItemValue = (item) => {
     return item.netValue || 0
   }
   return item.value || 0
+}
+
+// 货币符号
+const currencySymbol = computed(() => {
+  return selectedCurrency.value === 'CNY' ? '¥' : '$'
+})
+
+// 转换金额
+const convertValue = (valueInUSD) => {
+  if (selectedCurrency.value === 'CNY') {
+    return valueInUSD * exchangeRate.value
+  }
+  return valueInUSD
+}
+
+// 转换后的汇总数据
+const convertedSummary = computed(() => {
+  return {
+    totalAssets: convertValue(summary.value.totalAssets),
+    totalLiabilities: convertValue(summary.value.totalLiabilities),
+    netWorth: convertValue(summary.value.netWorth)
+  }
+})
+
+// 货币切换处理
+const onCurrencyChange = () => {
+  // 货币切换时不需要重新加载数据，只需要重新计算显示值
+  // 数据转换通过 convertValue 函数和 computed 属性自动处理
 }
 
 // 当前激活的配置数据
@@ -240,33 +314,37 @@ const drillDownChartData = computed(() => {
 })
 
 // 主饼图配置 - 带点击事件
-const mainPieChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false
-    },
-    tooltip: {
-      callbacks: {
-        label: function(context) {
-          const label = context.label || ''
-          const value = context.parsed || 0
-          const total = context.dataset.data.reduce((a, b) => a + b, 0)
-          const percentage = ((value / total) * 100).toFixed(2)
-          return `${label}: $${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+const mainPieChartOptions = computed(() => {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || ''
+            const valueInUSD = context.parsed || 0
+            const value = convertValue(valueInUSD)
+            const total = context.dataset.data.reduce((a, b) => a + b, 0)
+            const percentage = ((valueInUSD / total) * 100).toFixed(2)
+            const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+            return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+          }
         }
       }
-    }
-  },
-  onClick: (event, elements) => {
-    if (elements.length > 0) {
-      const index = elements[0].index
-      const item = currentAllocation.value.data[index]
-      selectCategory(item)
+    },
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const index = elements[0].index
+        const item = currentAllocation.value.data[index]
+        selectCategory(item)
+      }
     }
   }
-}
+})
 
 // 钻取饼图配置
 const drillDownPieChartOptions = computed(() => {
@@ -288,14 +366,18 @@ const drillDownPieChartOptions = computed(() => {
         callbacks: {
           label: function(context) {
             const label = context.label || ''
-            const value = context.parsed || 0
+            const valueInUSD = context.parsed || 0
+            const value = convertValue(valueInUSD)
             const total = context.dataset.data.reduce((a, b) => a + b, 0)
-            const percentage = ((value / total) * 100).toFixed(2)
-            return `${label}: $${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+            const percentage = ((valueInUSD / total) * 100).toFixed(2)
+            const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+            return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
           },
           footer: function(tooltipItems) {
-            const total = tooltipItems[0].dataset.data.reduce((a, b) => a + b, 0)
-            return `${selectedCategory.value?.name || '该类型'}总计: $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+            const totalInUSD = tooltipItems[0].dataset.data.reduce((a, b) => a + b, 0)
+            const total = convertValue(totalInUSD)
+            const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+            return `${selectedCategory.value?.name || '该类型'}总计: ${symbol}${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
           }
         }
       }
@@ -312,7 +394,7 @@ const formatNumber = (num) => {
 // 加载资产总览
 const loadSummary = async () => {
   try {
-    const response = await analysisAPI.getSummary()
+    const response = await analysisAPI.getSummary(null, selectedDate.value || null)
     if (response.success) {
       summary.value = response.data
     }
@@ -325,7 +407,7 @@ const loadSummary = async () => {
 const loadNetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getNetAssetAllocation()
+    const response = await analysisAPI.getNetAssetAllocation(null, selectedDate.value || null)
     if (response.success) {
       netAllocation.value = response.data
     }
@@ -340,7 +422,7 @@ const loadNetAllocation = async () => {
 const loadAssetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getAllocationByType()
+    const response = await analysisAPI.getAllocationByType(null, selectedDate.value || null)
     if (response.success) {
       assetAllocation.value = response.data
     }
@@ -355,7 +437,7 @@ const loadAssetAllocation = async () => {
 const loadLiabilityAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getLiabilityAllocation()
+    const response = await analysisAPI.getLiabilityAllocation(null, selectedDate.value || null)
     if (response.success) {
       liabilityAllocation.value = response.data
     }
@@ -364,6 +446,26 @@ const loadLiabilityAllocation = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 日期变化处理
+const onDateChange = () => {
+  // 重新加载所有数据
+  loadSummary()
+  // 重新加载当前激活的 tab 数据
+  if (activeTab.value === 'net') {
+    loadNetAllocation()
+  } else if (activeTab.value === 'asset') {
+    loadAssetAllocation()
+  } else if (activeTab.value === 'liability') {
+    loadLiabilityAllocation()
+  }
+}
+
+// 清除日期
+const clearDate = () => {
+  selectedDate.value = ''
+  onDateChange()
 }
 
 // 切换 Tab
@@ -393,53 +495,51 @@ const selectCategory = async (item) => {
       // TODO: 需要创建后端API来获取净资产类别下的账户列表
       drillDownData.value = []
     } else if (activeTab.value === 'asset') {
-      // 获取该资产类型下的所有账户
-      const response = await assetAccountAPI.getActiveAccounts()
-      if (response.success) {
-        // 根据类型过滤账户
-        const typeMap = {
-          'CASH': '现金类',
-          'STOCKS': '股票投资',
-          'RETIREMENT_FUND': '退休基金',
-          'INSURANCE': '保险',
-          'REAL_ESTATE': '房地产',
-          'CRYPTOCURRENCY': '数字货币',
-          'PRECIOUS_METALS': '贵金属',
-          'OTHER': '其他'
+      // 资产类型名称映射（中文 -> 英文）
+      const typeMap = {
+        '现金类': 'CASH',
+        '股票投资': 'STOCKS',
+        '退休基金': 'RETIREMENT_FUND',
+        '保险': 'INSURANCE',
+        '房地产': 'REAL_ESTATE',
+        '数字货币': 'CRYPTOCURRENCY',
+        '贵金属': 'PRECIOUS_METALS',
+        '其他': 'OTHER'
+      }
+
+      const categoryType = typeMap[item.name]
+      if (categoryType) {
+        const response = await analysisAPI.getAssetAccountsWithBalances(
+          categoryType,
+          null,
+          selectedDate.value || null
+        )
+        if (response.success) {
+          drillDownData.value = response.data
         }
-
-        const accounts = response.data.filter(account => {
-          return typeMap[account.categoryType] === item.name
-        })
-
-        drillDownData.value = accounts.map(account => ({
-          accountName: account.accountName,
-          balance: account.latestAmountInBaseCurrency || 0
-        }))
       }
     } else if (activeTab.value === 'liability') {
-      // 获取该负债类型下的所有账户
-      const response = await liabilityAccountAPI.getActiveAccounts()
-      if (response.success) {
-        // 根据类型过滤账户
-        const typeMap = {
-          'MORTGAGE': '房贷',
-          'AUTO_LOAN': '车贷',
-          'CREDIT_CARD': '信用卡',
-          'PERSONAL_LOAN': '个人借债',
-          'STUDENT_LOAN': '学生贷款',
-          'BUSINESS_LOAN': '商业贷款',
-          'OTHER': '其他'
+      // 负债类型名称映射（中文 -> 英文）
+      const typeMap = {
+        '房贷': 'MORTGAGE',
+        '车贷': 'AUTO_LOAN',
+        '信用卡': 'CREDIT_CARD',
+        '个人借债': 'PERSONAL_LOAN',
+        '学生贷款': 'STUDENT_LOAN',
+        '商业贷款': 'BUSINESS_LOAN',
+        '其他': 'OTHER'
+      }
+
+      const categoryType = typeMap[item.name]
+      if (categoryType) {
+        const response = await analysisAPI.getLiabilityAccountsWithBalances(
+          categoryType,
+          null,
+          selectedDate.value || null
+        )
+        if (response.success) {
+          drillDownData.value = response.data
         }
-
-        const accounts = response.data.filter(account => {
-          return typeMap[account.categoryType] === item.name
-        })
-
-        drillDownData.value = accounts.map(account => ({
-          accountName: account.accountName,
-          balance: account.latestBalanceInBaseCurrency || 0
-        }))
       }
     }
   } catch (error) {

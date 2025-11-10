@@ -1,133 +1,367 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- 页面标题和账户选择 -->
+    <!-- 页面标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">负债历史记录</h1>
-      <div class="mt-4 flex items-center gap-4 flex-wrap">
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">选择账户:</label>
-          <select
-            v-model="selectedAccountId"
-            @change="loadRecords"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-          >
-            <option :value="null">请选择账户</option>
-            <option v-for="account in accounts" :key="account.id" :value="account.id">
-              {{ account.accountName }} - {{ account.categoryName }}
-            </option>
-          </select>
-        </div>
-
-        <!-- 账户信息 -->
-        <div v-if="selectedAccount" class="flex items-center gap-4 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-          <div class="text-sm">
-            <span class="text-gray-600">所属用户:</span>
-            <span class="font-medium text-gray-900 ml-1">{{ selectedAccount.userName }}</span>
-          </div>
-          <div class="text-sm">
-            <span class="text-gray-600">币种:</span>
-            <span class="font-medium text-gray-900 ml-1">{{ selectedAccount.currency }}</span>
-          </div>
-        </div>
-
-        <button
-          v-if="selectedAccountId"
-          @click="openCreateDialog"
-          class="ml-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-2"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          添加/插入记录
-        </button>
-      </div>
+      <h1 class="text-2xl font-bold text-gray-900">负债账户与记录</h1>
+      <p class="text-sm text-gray-600 mt-1">管理账户，按负债类型查看历史记录和趋势分析</p>
     </div>
 
-    <!-- 两列布局：图表 + 历史记录 -->
-    <div v-if="selectedAccountId" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 左侧：趋势图表 -->
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">负债趋势</h2>
-          <div class="flex gap-2">
+    <!-- 负债分类 Tab -->
+    <div class="border-b border-gray-200">
+      <nav class="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+        <button
+          v-for="category in categories"
+          :key="category.type"
+          @click="selectedCategoryType = category.type"
+          :class="[
+            'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
+            selectedCategoryType === category.type
+              ? 'border-red-600 text-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ]"
+        >
+          {{ category.name }}
+        </button>
+      </nav>
+    </div>
+
+    <!-- 三列布局：账户列表 + 趋势图 + 历史记录 -->
+    <div class="grid grid-cols-12 gap-6">
+      <!-- 左侧：账户列表 -->
+      <div class="col-span-12 lg:col-span-3">
+        <div class="bg-white rounded-lg shadow border border-gray-200">
+          <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900">账户列表</h2>
             <button
-              v-for="range in timeRanges"
-              :key="range.value"
-              @click="selectedTimeRange = range.value"
-              :class="[
-                'px-2 py-1 text-xs rounded-md font-medium transition-colors',
-                selectedTimeRange === range.value
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              ]"
+              @click="openAccountDialog()"
+              class="text-red-600 hover:text-red-700 text-xs font-medium flex items-center gap-1"
             >
-              {{ range.label }}
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              添加账户
+            </button>
+          </div>
+
+          <div v-if="loadingAccounts" class="p-4 text-center text-gray-500 text-sm">
+            加载中...
+          </div>
+
+          <div v-else-if="currentCategoryAccounts.length === 0" class="p-4 text-center text-gray-500 text-sm">
+            该类型下暂无账户
+          </div>
+
+          <div v-else>
+            <div class="divide-y divide-gray-200 max-h-[calc(100vh-400px)] overflow-y-auto">
+              <div
+                v-for="account in currentCategoryAccounts"
+                :key="account.id"
+                :class="[
+                  'group relative',
+                  selectedAccount?.id === account.id
+                    ? 'bg-red-50 border-l-4 border-red-600'
+                    : 'hover:bg-gray-50 border-l-4 border-transparent'
+                ]"
+              >
+                <button
+                  @click="selectAccount(account)"
+                  class="w-full px-3 py-2 text-left transition-colors"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                      <div class="font-medium text-gray-900 text-sm truncate flex items-center gap-1">
+                        {{ account.accountName }}
+                        <span v-if="!account.isActive" class="text-xs text-gray-400 bg-gray-100 px-1 py-0.5 rounded flex-shrink-0">停用</span>
+                      </div>
+                      <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                        <span>{{ getUserName(account.userId) }}</span>
+                        <span class="text-gray-300">•</span>
+                        <span>{{ account.currency }}</span>
+                        <span v-if="account.institution" class="text-gray-300">•</span>
+                        <span v-if="account.institution" class="truncate">{{ account.institution }}</span>
+                      </div>
+                    </div>
+                    <div v-if="account.latestBalanceInBaseCurrency !== null" class="text-xs font-medium text-red-600 flex-shrink-0">
+                      ${{ formatNumber(account.latestBalanceInBaseCurrency) }}
+                    </div>
+                  </div>
+                </button>
+
+                <!-- 操作按钮 -->
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <button
+                    @click.stop="openAccountDialog(account)"
+                    class="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                    title="编辑"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    v-if="account.isActive"
+                    @click.stop="disableAccount(account)"
+                    class="p-1 text-orange-600 hover:bg-orange-50 rounded"
+                    title="停用"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 分类总和 -->
+            <div class="px-4 py-3 border-t border-gray-200 bg-red-50">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700">{{ getCategoryName(selectedCategoryType) }}总计</span>
+                <span class="text-base font-bold text-red-600">
+                  ${{ formatNumber(categoryTotal) }}
+                </span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                共 {{ currentCategoryAccounts.length }} 个账户
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中间和右侧：趋势图 + 历史记录 -->
+      <div v-if="selectedAccount" class="col-span-12 lg:col-span-9">
+        <!-- 账户信息栏 -->
+        <div class="bg-white rounded-lg shadow border border-gray-200 p-4 mb-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">{{ selectedAccount.accountName }}</h2>
+              <p class="text-sm text-gray-600 mt-1">
+                {{ selectedAccount.categoryName }} • {{ selectedAccount.currency }}
+                <span v-if="selectedAccount.institution" class="ml-2">• {{ selectedAccount.institution }}</span>
+              </p>
+            </div>
+            <button
+              @click="openCreateDialog"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              添加记录
             </button>
           </div>
         </div>
-        <div v-if="records.length > 0" class="h-96">
-          <canvas ref="chartCanvas"></canvas>
+
+        <!-- 两列：趋势图 + 历史记录 -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <!-- 趋势图 -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-semibold text-gray-900">负债趋势</h3>
+              <div class="flex gap-2">
+                <button
+                  v-for="range in timeRanges"
+                  :key="range.value"
+                  @click="selectedTimeRange = range.value"
+                  :class="[
+                    'px-2 py-1 text-xs rounded-md font-medium transition-colors',
+                    selectedTimeRange === range.value
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ]"
+                >
+                  {{ range.label }}
+                </button>
+              </div>
+            </div>
+            <div v-if="records.length > 0" class="h-80">
+              <canvas ref="chartCanvas"></canvas>
+            </div>
+            <div v-else class="h-80 flex items-center justify-center text-gray-500 text-sm">
+              暂无数据，请添加记录
+            </div>
+          </div>
+
+          <!-- 历史记录 -->
+          <div class="bg-white rounded-lg shadow border border-gray-200">
+            <div class="px-4 py-3 border-b border-gray-200">
+              <h3 class="text-base font-semibold text-gray-900">历史记录</h3>
+            </div>
+
+            <div v-if="loadingRecords" class="text-center py-8 text-gray-500 text-sm">
+              加载中...
+            </div>
+
+            <div v-else-if="filteredRecords.length === 0" class="text-center py-8 text-gray-500 text-sm">
+              暂无记录
+            </div>
+
+            <div v-else class="overflow-y-auto max-h-96">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">余额</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
+                      ${{ formatNumber(record.balanceInBaseCurrency || record.outstandingBalance || 0) }}
+                    </td>
+                    <td class="px-3 py-2 text-sm text-right">
+                      <div class="flex justify-end gap-2">
+                        <button
+                          @click="editRecord(record)"
+                          class="text-blue-600 hover:text-blue-800 text-xs"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          @click="deleteRecord(record)"
+                          class="text-red-600 hover:text-red-800 text-xs"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div v-else class="h-96 flex items-center justify-center text-gray-500 text-sm">
-          暂无数据，请添加记录
+      </div>
+
+      <!-- 未选择账户的提示 -->
+      <div v-else class="col-span-12 lg:col-span-9">
+        <div class="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">请选择账户</h3>
+          <p class="mt-1 text-sm text-gray-500">从左侧列表中选择一个账户以查看其历史记录</p>
         </div>
-      </div>
-
-      <!-- 右侧：历史记录列表 -->
-      <div class="bg-white rounded-lg shadow border border-gray-200">
-      <div class="px-4 py-3 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">历史记录</h2>
-      </div>
-
-      <div v-if="loading" class="text-center py-8 text-gray-500">
-        加载中...
-      </div>
-
-      <div v-else-if="filteredRecords.length === 0" class="text-center py-8 text-gray-500">
-        暂无记录
-      </div>
-
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
-              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">余额</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
-              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-900 text-right font-medium">
-                {{ getCurrencySymbol(record.currency) }}{{ formatNumber(record.balance) }}
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-600">{{ record.notes || '-' }}</td>
-              <td class="px-4 py-3 text-sm text-right">
-                <div class="flex justify-end gap-2">
-                  <button
-                    @click="editRecord(record)"
-                    class="text-blue-600 hover:text-blue-800 text-sm"
-                    title="编辑"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    @click="deleteRecord(record)"
-                    class="text-red-600 hover:text-red-800 text-sm"
-                    title="删除"
-                  >
-                    删除
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
+
+    <!-- 创建/编辑账户对话框 -->
+    <div
+      v-if="showAccountDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeAccountDialog"
+    >
+      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">
+          {{ editingAccount ? '编辑账户' : '添加账户' }}
+        </h2>
+        <form @submit.prevent="submitAccountForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              负债分类 *
+            </label>
+            <div class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
+              {{ getCategoryName(selectedCategoryType) }}
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              关联用户 *
+            </label>
+            <select
+              v-model="accountFormData.userId"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            >
+              <option v-for="user in users" :key="user.id" :value="user.id">
+                {{ user.fullName }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              账户名称 *
+            </label>
+            <input
+              v-model="accountFormData.accountName"
+              type="text"
+              required
+              placeholder="例如：招商银行信用卡"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">币种 *</label>
+            <select
+              v-model="accountFormData.currency"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            >
+              <option value="CNY">人民币 (CNY)</option>
+              <option value="USD">美元 (USD)</option>
+              <option value="EUR">欧元 (EUR)</option>
+              <option value="HKD">港币 (HKD)</option>
+              <option value="GBP">英镑 (GBP)</option>
+              <option value="JPY">日元 (JPY)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">机构名称</label>
+            <input
+              v-model="accountFormData.institution"
+              type="text"
+              placeholder="例如：招商银行"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">账号</label>
+            <input
+              v-model="accountFormData.accountNumber"
+              type="text"
+              placeholder="例如：**** **** **** 1234"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+            <textarea
+              v-model="accountFormData.notes"
+              rows="3"
+              placeholder="添加备注信息"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            ></textarea>
+          </div>
+
+          <div class="flex gap-3 pt-4">
+            <button
+              type="submit"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+            >
+              {{ editingAccount ? '保存' : '创建' }}
+            </button>
+            <button
+              type="button"
+              @click="closeAccountDialog"
+              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+            >
+              取消
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- 创建/编辑记录对话框 -->
@@ -140,21 +374,17 @@
         <h2 class="text-xl font-bold mb-4">
           {{ editingRecord ? '编辑记录' : '添加历史记录' }}
         </h2>
-        <p v-if="!editingRecord" class="text-sm text-gray-600 mb-4">
-          可以添加任意日期的负债记录，包括过去的历史数据
-        </p>
         <form @submit.prevent="submitForm" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               记录日期 *
-              <span class="text-xs text-gray-500 font-normal">(只能选择今天或过去的日期)</span>
             </label>
             <input
               v-model="formData.recordDate"
               type="date"
               required
               :max="new Date().toISOString().split('T')[0]"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -166,7 +396,7 @@
               step="0.01"
               required
               placeholder="例如：10000.00"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -175,7 +405,7 @@
             <select
               v-model="formData.currency"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
             >
               <option value="CNY">人民币 (CNY)</option>
               <option value="USD">美元 (USD)</option>
@@ -190,7 +420,7 @@
               v-model="formData.notes"
               rows="3"
               placeholder="添加备注信息"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
             ></textarea>
           </div>
 
@@ -217,17 +447,36 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
+import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
+import { userAPI } from '@/api/user'
 import { Chart, registerables } from 'chart.js'
 
 Chart.register(...registerables)
 
-const selectedAccountId = ref(null)
+// 负债分类类型映射
+const CATEGORY_TYPE_NAMES = {
+  'MORTGAGE': '房贷',
+  'AUTO_LOAN': '车贷',
+  'CREDIT_CARD': '信用卡',
+  'PERSONAL_LOAN': '个人借款',
+  'STUDENT_LOAN': '学生贷款',
+  'BUSINESS_LOAN': '商业贷款',
+  'OTHER': '其他'
+}
+
+const categories = ref([])
+const allCategories = ref([])  // 存储完整的分类信息（包含ID）
+const selectedCategoryType = ref('CREDIT_CARD')
 const accounts = ref([])
+const selectedAccount = ref(null)
 const records = ref([])
-const loading = ref(false)
+const users = ref([])
+const loadingAccounts = ref(false)
+const loadingRecords = ref(false)
 const showDialog = ref(false)
 const editingRecord = ref(null)
+const showAccountDialog = ref(false)
+const editingAccount = ref(null)
 const chartCanvas = ref(null)
 let chartInstance = null
 
@@ -246,10 +495,30 @@ const formData = ref({
   notes: ''
 })
 
-// 当前选中的账户
-const selectedAccount = computed(() => {
-  if (!selectedAccountId.value) return null
-  return accounts.value.find(a => a.id === selectedAccountId.value)
+const accountFormData = ref({
+  accountName: '',
+  currency: 'CNY',
+  institution: '',
+  accountNumber: '',
+  notes: '',
+  userId: 1
+})
+
+// 当前分类下的账户
+const currentCategoryAccounts = computed(() => {
+  return accounts.value.filter(account => account.categoryType === selectedCategoryType.value)
+})
+
+// 当前分类的总和（基准货币）
+const categoryTotal = computed(() => {
+  return currentCategoryAccounts.value.reduce((total, account) => {
+    // 确保正确处理 null/undefined 和数字类型转换
+    const balance = account.latestBalanceInBaseCurrency
+    if (balance === null || balance === undefined) {
+      return total
+    }
+    return total + Number(balance)
+  }, 0)
 })
 
 // 根据时间范围过滤记录
@@ -282,7 +551,7 @@ const filteredRecords = computed(() => {
 // 格式化数字
 const formatNumber = (num) => {
   if (!num) return '0.00'
-  return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return parseFloat(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // 格式化日期
@@ -305,8 +574,58 @@ const getCurrencySymbol = (currency) => {
   return currencyMap[currency] || currency + ' '
 }
 
+// 获取分类名称
+const getCategoryName = (categoryType) => {
+  return CATEGORY_TYPE_NAMES[categoryType] || categoryType
+}
+
+// 获取用户名称
+const getUserName = (userId) => {
+  const user = users.value.find(u => u.id === userId)
+  return user ? user.fullName : '未知用户'
+}
+
+// 加载负债分类
+const loadCategories = async () => {
+  try {
+    // 加载分类类型
+    const typesResponse = await liabilityCategoryAPI.getTypes(1)
+    if (typesResponse.success && typesResponse.data) {
+      categories.value = typesResponse.data.map(type => ({
+        type: type,
+        name: CATEGORY_TYPE_NAMES[type] || type
+      }))
+
+      if (categories.value.length > 0) {
+        selectedCategoryType.value = categories.value[0].type
+      }
+    }
+
+    // 加载完整分类信息（包含ID）
+    const allResponse = await liabilityCategoryAPI.getAll(1)
+    if (allResponse.success && allResponse.data) {
+      allCategories.value = allResponse.data
+    }
+  } catch (error) {
+    console.error('加载分类失败:', error)
+  }
+}
+
+// 加载用户列表
+const loadUsers = async () => {
+  try {
+    const response = await userAPI.getAll()
+    if (response.success) {
+      users.value = response.data
+    }
+  } catch (error) {
+    console.error('加载用户失败:', error)
+  }
+}
+
 // 加载账户列表
 const loadAccounts = async () => {
+  loadingAccounts.value = true
   try {
     const response = await liabilityAccountAPI.getAll()
     if (response.success) {
@@ -314,19 +633,27 @@ const loadAccounts = async () => {
     }
   } catch (error) {
     console.error('加载账户失败:', error)
+  } finally {
+    loadingAccounts.value = false
   }
+}
+
+// 选择账户
+const selectAccount = async (account) => {
+  selectedAccount.value = account
+  await loadRecords()
 }
 
 // 加载记录
 const loadRecords = async () => {
-  if (!selectedAccountId.value) {
+  if (!selectedAccount.value) {
     records.value = []
     return
   }
 
-  loading.value = true
+  loadingRecords.value = true
   try {
-    const response = await liabilityRecordAPI.getByAccountId(selectedAccountId.value)
+    const response = await liabilityRecordAPI.getByAccountId(selectedAccount.value.id)
     if (response.success) {
       records.value = response.data
       await nextTick()
@@ -334,13 +661,12 @@ const loadRecords = async () => {
     }
   } catch (error) {
     console.error('加载记录失败:', error)
-    alert('加载记录失败: ' + (error.message || '未知错误'))
   } finally {
-    loading.value = false
+    loadingRecords.value = false
   }
 }
 
-// 更新图表（负债减少是好的，使用红色主题）
+// 更新图表
 const updateChart = () => {
   if (!chartCanvas.value || filteredRecords.value.length === 0) {
     if (chartInstance) {
@@ -355,7 +681,7 @@ const updateChart = () => {
   )
 
   const labels = sortedRecords.map(r => formatDate(r.recordDate))
-  const data = sortedRecords.map(r => r.balanceInBaseCurrency || r.balance)
+  const data = sortedRecords.map(r => r.balanceInBaseCurrency || r.outstandingBalance || 0)
 
   if (chartInstance) {
     chartInstance.destroy()
@@ -405,22 +731,28 @@ const updateChart = () => {
   })
 }
 
-// 监听时间范围变化，更新图表
+// 监听时间范围变化
 watch(selectedTimeRange, () => {
   updateChart()
+})
+
+// 监听分类切换
+watch(selectedCategoryType, () => {
+  selectedAccount.value = null
+  records.value = []
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
 })
 
 // 打开创建对话框
 const openCreateDialog = () => {
   editingRecord.value = null
-  // 获取当前选中账户的币种
-  const selectedAccount = accounts.value.find(a => a.id === selectedAccountId.value)
-  const defaultCurrency = selectedAccount ? selectedAccount.currency : 'CNY'
-
   formData.value = {
     recordDate: new Date().toISOString().split('T')[0],
     balance: '',
-    currency: defaultCurrency,
+    currency: selectedAccount.value?.currency || 'CNY',
     notes: ''
   }
   showDialog.value = true
@@ -431,7 +763,7 @@ const editRecord = (record) => {
   editingRecord.value = record
   formData.value = {
     recordDate: record.recordDate,
-    balance: record.balance,
+    balance: record.outstandingBalance || 0,
     currency: record.currency,
     notes: record.notes || ''
   }
@@ -457,7 +789,7 @@ const deleteRecord = async (record) => {
 const submitForm = async () => {
   try {
     const data = {
-      accountId: selectedAccountId.value,
+      accountId: selectedAccount.value.id,
       recordDate: formData.value.recordDate,
       balance: parseFloat(formData.value.balance),
       currency: formData.value.currency,
@@ -475,14 +807,11 @@ const submitForm = async () => {
     if (response.success) {
       closeDialog()
       await loadRecords()
+      await loadAccounts()
     }
   } catch (error) {
     console.error('提交失败:', error)
-    if (error.response?.data?.message) {
-      alert('操作失败: ' + error.response.data.message)
-    } else {
-      alert('操作失败，请重试')
-    }
+    alert('操作失败，请重试')
   }
 }
 
@@ -492,7 +821,109 @@ const closeDialog = () => {
   editingRecord.value = null
 }
 
-onMounted(() => {
-  loadAccounts()
+// 打开账户对话框
+const openAccountDialog = (account = null) => {
+  editingAccount.value = account
+  if (account) {
+    accountFormData.value = {
+      accountName: account.accountName,
+      currency: account.currency,
+      institution: account.institution || '',
+      accountNumber: account.accountNumber || '',
+      notes: account.notes || '',
+      userId: account.userId,
+      categoryId: account.categoryId  // 保存 categoryId 用于更新
+    }
+  } else {
+    accountFormData.value = {
+      accountName: '',
+      currency: 'CNY',
+      institution: '',
+      accountNumber: '',
+      notes: '',
+      userId: users.value.length > 0 ? users.value[0].id : 1
+    }
+  }
+  showAccountDialog.value = true
+}
+
+// 关闭账户对话框
+const closeAccountDialog = () => {
+  showAccountDialog.value = false
+  editingAccount.value = null
+}
+
+// 提交账户表单
+const submitAccountForm = async () => {
+  try {
+    let data
+
+    if (editingAccount.value) {
+      // 编辑：使用已保存的 categoryId
+      data = {
+        ...accountFormData.value,
+        isActive: true
+      }
+    } else {
+      // 创建：根据 categoryType 查找 categoryId
+      const category = allCategories.value.find(cat => cat.type === selectedCategoryType.value)
+      if (!category) {
+        alert('未找到对应的分类，请刷新页面重试')
+        return
+      }
+
+      data = {
+        ...accountFormData.value,
+        categoryId: category.id,
+        isActive: true
+      }
+    }
+
+    let response
+    if (editingAccount.value) {
+      response = await liabilityAccountAPI.update(editingAccount.value.id, data)
+    } else {
+      response = await liabilityAccountAPI.create(data)
+    }
+
+    if (response.success) {
+      closeAccountDialog()
+      await loadAccounts()
+      alert(editingAccount.value ? '账户更新成功' : '账户创建成功')
+    }
+  } catch (error) {
+    console.error('提交失败:', error)
+    alert('操作失败，请重试')
+  }
+}
+
+// 停用账户（软删除）
+const disableAccount = async (account) => {
+  if (!confirm(`确定要停用账户"${account.accountName}"吗？停用后该账户将不再显示在活跃列表中。`)) return
+
+  try {
+    const data = {
+      ...account,
+      isActive: false
+    }
+    const response = await liabilityAccountAPI.update(account.id, data)
+    if (response.success) {
+      await loadAccounts()
+      if (selectedAccount.value?.id === account.id) {
+        selectedAccount.value = null
+        records.value = []
+      }
+      alert('账户已停用')
+    }
+  } catch (error) {
+    console.error('停用账户失败:', error)
+    alert('停用失败，请重试')
+  }
+}
+
+onMounted(async () => {
+  await loadUsers()
+  await loadCategories()
+  await loadAccounts()
 })
 </script>

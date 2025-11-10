@@ -53,8 +53,8 @@ const routes = [
         name: 'AssetHistory',
         component: () => import('../views/assets/AccountHistory.vue'),
         meta: {
-          title: '历史记录',
-          description: '查看和管理资产历史记录'
+          title: '账户与记录',
+          description: '管理账户和查看历史记录'
         }
       },
       // 负债管理
@@ -90,8 +90,8 @@ const routes = [
         name: 'LiabilityHistory',
         component: () => import('../views/liabilities/LiabilityHistory.vue'),
         meta: {
-          title: '负债历史',
-          description: '查看和管理负债历史记录'
+          title: '账户与记录',
+          description: '管理账户和查看历史记录'
         }
       },
       // 数据分析
@@ -121,6 +121,16 @@ const routes = [
         meta: {
           title: '用户管理',
           description: '管理系统用户'
+        }
+      },
+      // 工具
+      {
+        path: 'tools/exchange-rates',
+        name: 'ExchangeRateManagement',
+        component: () => import('../views/tools/ExchangeRateManagement.vue'),
+        meta: {
+          title: '汇率管理',
+          description: '管理基于日期的汇率'
         }
       }
     ]

@@ -29,6 +29,9 @@ public class DataMigrationController {
     private final NetAssetCategoryAssetTypeMappingRepository assetTypeMappingRepository;
     private final NetAssetCategoryLiabilityTypeMappingRepository liabilityTypeMappingRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     // Exchange rates to USD (base currency)
     private static final Map<String, BigDecimal> EXCHANGE_RATES = new HashMap<>();
     static {
@@ -206,5 +209,37 @@ public class DataMigrationController {
         result.put("liabilityMappingsCreated", liabilityMappingCount);
 
         return ApiResponse.success("Net asset categories initialized successfully", result);
+    }
+
+    @PostMapping("/reset-exchange-rates-table")
+    public ApiResponse<Map<String, Object>> resetExchangeRatesTable() {
+        try {
+            // Drop the existing table
+            jdbcTemplate.execute("DROP TABLE IF EXISTS exchange_rates");
+
+            // Create the table with correct structure
+            String createTableSQL = """
+                CREATE TABLE exchange_rates (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    currency VARCHAR(10) NOT NULL,
+                    rate_to_usd DECIMAL(18,8) NOT NULL,
+                    effective_date DATE NOT NULL,
+                    source VARCHAR(100),
+                    notes VARCHAR(500),
+                    is_active BOOLEAN DEFAULT true,
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    UNIQUE KEY unique_currency_date (currency, effective_date)
+                )
+            """;
+            jdbcTemplate.execute(createTableSQL);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Exchange rates table has been reset successfully");
+
+            return ApiResponse.success("Table reset successfully", result);
+        } catch (Exception e) {
+            return ApiResponse.error("Failed to reset table: " + e.getMessage());
+        }
     }
 }

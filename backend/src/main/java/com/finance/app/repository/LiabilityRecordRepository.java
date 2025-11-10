@@ -26,4 +26,13 @@ public interface LiabilityRecordRepository extends JpaRepository<LiabilityRecord
     boolean existsByAccountId(Long accountId);
 
     Optional<LiabilityRecord> findByAccountIdAndRecordDate(Long accountId, LocalDate recordDate);
+
+    List<LiabilityRecord> findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
+            Long accountId, LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT r FROM LiabilityRecord r WHERE r.accountId = :accountId " +
+           "AND r.recordDate <= :asOfDate " +
+           "ORDER BY r.recordDate DESC")
+    List<LiabilityRecord> findByAccountIdAndRecordDateBeforeOrEqual(
+            @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
 }

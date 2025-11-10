@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/assets")
@@ -120,8 +122,11 @@ public class AssetController {
 
     // 批量更新资产记录
     @PostMapping("/records/batch")
-    public ApiResponse<List<AssetRecord>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
+    public ApiResponse<Map<String, Object>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
         List<AssetRecord> records = assetService.batchUpdateRecords(batchUpdate);
-        return ApiResponse.success("Batch records created successfully", records);
+        Map<String, Object> result = new HashMap<>();
+        result.put("count", records.size());
+        result.put("recordDate", batchUpdate.getRecordDate());
+        return ApiResponse.success("Batch records created successfully", result);
     }
 }

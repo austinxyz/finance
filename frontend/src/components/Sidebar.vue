@@ -29,12 +29,12 @@
       <div class="space-y-1">
         <div class="nav-section-title">资产管理</div>
         <router-link
-          to="/assets/accounts"
+          to="/assets/history"
           class="nav-item"
-          :class="isActive('/assets/accounts')"
+          :class="isActive('/assets/history')"
         >
           <Wallet class="w-5 h-5" />
-          <span>账户管理</span>
+          <span>账户与记录</span>
         </router-link>
         <router-link
           to="/assets/batch-update"
@@ -44,26 +44,18 @@
           <PenSquare class="w-5 h-5" />
           <span>批量更新</span>
         </router-link>
-        <router-link
-          to="/assets/history"
-          class="nav-item"
-          :class="isActive('/assets/history')"
-        >
-          <History class="w-5 h-5" />
-          <span>历史记录</span>
-        </router-link>
       </div>
 
       <!-- 负债管理 -->
       <div class="space-y-1">
         <div class="nav-section-title">负债管理</div>
         <router-link
-          to="/liabilities/accounts"
+          to="/liabilities/history"
           class="nav-item"
-          :class="isActive('/liabilities/accounts')"
+          :class="isActive('/liabilities/history')"
         >
           <CreditCard class="w-5 h-5" />
-          <span>账户管理</span>
+          <span>账户与记录</span>
         </router-link>
         <router-link
           to="/liabilities/batch-update"
@@ -72,14 +64,6 @@
         >
           <PenSquare class="w-5 h-5" />
           <span>批量更新</span>
-        </router-link>
-        <router-link
-          to="/liabilities/history"
-          class="nav-item"
-          :class="isActive('/liabilities/history')"
-        >
-          <History class="w-5 h-5" />
-          <span>历史记录</span>
         </router-link>
       </div>
 
@@ -101,6 +85,19 @@
         >
           <PieChart class="w-5 h-5" />
           <span>资产配置</span>
+        </router-link>
+      </div>
+
+      <!-- 工具 -->
+      <div class="space-y-1">
+        <div class="nav-section-title">工具</div>
+        <router-link
+          to="/tools/exchange-rates"
+          class="nav-item"
+          :class="isActive('/tools/exchange-rates')"
+        >
+          <DollarSign class="w-5 h-5" />
+          <span>汇率管理</span>
         </router-link>
       </div>
 
@@ -138,7 +135,8 @@ import {
   CreditCard,
   TrendingUp,
   PieChart,
-  Users
+  Users,
+  DollarSign
 } from 'lucide-vue-next';
 
 const route = useRoute();

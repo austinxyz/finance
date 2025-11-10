@@ -31,4 +31,13 @@ public interface AssetRecordRepository extends JpaRepository<AssetRecord, Long> 
     boolean existsByAccountId(Long accountId);
 
     Optional<AssetRecord> findByAccountIdAndRecordDate(Long accountId, LocalDate recordDate);
+
+    List<AssetRecord> findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
+            Long accountId, LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT r FROM AssetRecord r WHERE r.accountId = :accountId " +
+           "AND r.recordDate <= :asOfDate " +
+           "ORDER BY r.recordDate DESC")
+    List<AssetRecord> findByAccountIdAndRecordDateBeforeOrEqual(
+            @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
 }
