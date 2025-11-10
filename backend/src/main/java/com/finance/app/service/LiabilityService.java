@@ -138,14 +138,18 @@ public class LiabilityService {
         LiabilityRecord record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
 
+        // Update basic fields
+        record.setRecordDate(recordDetails.getRecordDate());
         record.setOutstandingBalance(recordDetails.getOutstandingBalance());
+        record.setCurrency(recordDetails.getCurrency());
+        record.setExchangeRate(recordDetails.getExchangeRate());
         record.setPaymentAmount(recordDetails.getPaymentAmount());
         record.setPrincipalPayment(recordDetails.getPrincipalPayment());
         record.setInterestPayment(recordDetails.getInterestPayment());
         record.setNotes(recordDetails.getNotes());
 
         // 重新计算基准货币余额
-        if (record.getExchangeRate() != null) {
+        if (record.getExchangeRate() != null && record.getOutstandingBalance() != null) {
             record.setBalanceInBaseCurrency(
                 record.getOutstandingBalance().multiply(record.getExchangeRate())
             );
