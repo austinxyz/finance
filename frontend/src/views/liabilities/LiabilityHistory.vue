@@ -791,7 +791,7 @@ const submitForm = async () => {
     const data = {
       accountId: selectedAccount.value.id,
       recordDate: formData.value.recordDate,
-      balance: parseFloat(formData.value.balance),
+      outstandingBalance: parseFloat(formData.value.balance),
       currency: formData.value.currency,
       notes: formData.value.notes,
       exchangeRate: 1.0
