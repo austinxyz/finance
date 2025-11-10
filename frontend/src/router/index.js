@@ -57,6 +57,43 @@ const routes = [
           description: '查看和管理资产历史记录'
         }
       },
+      // 负债管理
+      {
+        path: 'liabilities/accounts',
+        name: 'LiabilityAccounts',
+        component: () => import('../views/liabilities/LiabilityList.vue'),
+        meta: {
+          title: '负债账户',
+          description: '管理您的负债账户'
+        }
+      },
+      {
+        path: 'liabilities/accounts/:id',
+        name: 'LiabilityAccountDetail',
+        component: () => import('../views/liabilities/LiabilityDetail.vue'),
+        meta: {
+          title: '负债详情',
+          description: '查看负债账户记录'
+        }
+      },
+      {
+        path: 'liabilities/batch-update',
+        name: 'LiabilityBatchUpdate',
+        component: () => import('../views/liabilities/LiabilityBatchUpdate.vue'),
+        meta: {
+          title: '批量更新负债',
+          description: '批量更新负债余额'
+        }
+      },
+      {
+        path: 'liabilities/history',
+        name: 'LiabilityHistory',
+        component: () => import('../views/liabilities/LiabilityHistory.vue'),
+        meta: {
+          title: '负债历史',
+          description: '查看和管理负债历史记录'
+        }
+      },
       // 数据分析
       {
         path: 'analysis/trend',

@@ -9,6 +9,8 @@ import java.util.List;
 @Repository
 public interface LiabilityAccountRepository extends JpaRepository<LiabilityAccount, Long> {
 
+    List<LiabilityAccount> findByIsActiveTrue();
+
     List<LiabilityAccount> findByUserIdAndIsActiveTrue(Long userId);
 
     List<LiabilityAccount> findByUserIdAndCategoryId(Long userId, Long categoryId);

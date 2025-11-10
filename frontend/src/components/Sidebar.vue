@@ -54,6 +54,35 @@
         </router-link>
       </div>
 
+      <!-- 负债管理 -->
+      <div class="space-y-1">
+        <div class="nav-section-title">负债管理</div>
+        <router-link
+          to="/liabilities/accounts"
+          class="nav-item"
+          :class="isActive('/liabilities/accounts')"
+        >
+          <CreditCard class="w-5 h-5" />
+          <span>账户管理</span>
+        </router-link>
+        <router-link
+          to="/liabilities/batch-update"
+          class="nav-item"
+          :class="isActive('/liabilities/batch-update')"
+        >
+          <PenSquare class="w-5 h-5" />
+          <span>批量更新</span>
+        </router-link>
+        <router-link
+          to="/liabilities/history"
+          class="nav-item"
+          :class="isActive('/liabilities/history')"
+        >
+          <History class="w-5 h-5" />
+          <span>历史记录</span>
+        </router-link>
+      </div>
+
       <!-- 数据分析 -->
       <div class="space-y-1">
         <div class="nav-section-title">数据分析</div>
@@ -106,6 +135,7 @@ import {
   Wallet,
   PenSquare,
   History,
+  CreditCard,
   TrendingUp,
   PieChart,
   Users

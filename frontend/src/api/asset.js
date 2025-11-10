@@ -26,6 +26,12 @@ export const assetAccountAPI = {
     return request.get('/assets/accounts', { params })
   },
 
+  // 获取所有活跃账户（带最新余额）
+  getActiveAccounts(userId = null) {
+    const params = userId ? { userId } : {}
+    return request.get('/assets/accounts', { params })
+  },
+
   // 获取单个账户
   getById(id) {
     return request.get(`/assets/accounts/${id}`)

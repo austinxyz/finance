@@ -4,9 +4,19 @@ import com.finance.app.dto.AssetSummaryDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.model.AssetAccount;
 import com.finance.app.model.AssetRecord;
+import com.finance.app.model.LiabilityAccount;
+import com.finance.app.model.LiabilityRecord;
 import com.finance.app.repository.AssetAccountRepository;
 import com.finance.app.repository.AssetCategoryRepository;
 import com.finance.app.repository.AssetRecordRepository;
+import com.finance.app.repository.LiabilityAccountRepository;
+import com.finance.app.repository.LiabilityRecordRepository;
+import com.finance.app.repository.NetAssetCategoryRepository;
+import com.finance.app.repository.NetAssetCategoryAssetTypeMappingRepository;
+import com.finance.app.repository.NetAssetCategoryLiabilityTypeMappingRepository;
+import com.finance.app.model.NetAssetCategory;
+import com.finance.app.model.NetAssetCategoryAssetTypeMapping;
+import com.finance.app.model.NetAssetCategoryLiabilityTypeMapping;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +26,8 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.Map.entry;
+
 @Service
 @RequiredArgsConstructor
 public class AnalysisService {
@@ -23,10 +35,21 @@ public class AnalysisService {
     private final AssetAccountRepository accountRepository;
     private final AssetRecordRepository recordRepository;
     private final AssetCategoryRepository categoryRepository;
+    private final LiabilityAccountRepository liabilityAccountRepository;
+    private final LiabilityRecordRepository liabilityRecordRepository;
+    private final NetAssetCategoryRepository netAssetCategoryRepository;
+    private final NetAssetCategoryAssetTypeMappingRepository assetTypeMappingRepository;
+    private final NetAssetCategoryLiabilityTypeMappingRepository liabilityTypeMappingRepository;
 
     // 获取资产总览
     public AssetSummaryDTO getAssetSummary(Long userId) {
-        List<AssetAccount> accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        // 如果userId为null，获取所有活跃账户；否则只获取该用户的账户
+        List<AssetAccount> accounts;
+        if (userId == null) {
+            accounts = accountRepository.findByIsActiveTrue();
+        } else {
+            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
 
         BigDecimal totalAssets = BigDecimal.ZERO;
         Map<String, BigDecimal> assetsByCategory = new HashMap<>();
@@ -51,10 +74,27 @@ public class AnalysisService {
             }
         }
 
+        // 计算总负债
+        List<LiabilityAccount> liabilityAccounts;
+        if (userId == null) {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        BigDecimal totalLiabilities = BigDecimal.ZERO;
+        for (LiabilityAccount account : liabilityAccounts) {
+            Optional<LiabilityRecord> latestRecord = liabilityRecordRepository.findLatestByAccountId(account.getId());
+            if (latestRecord.isPresent()) {
+                BigDecimal balance = latestRecord.get().getBalanceInBaseCurrency();
+                totalLiabilities = totalLiabilities.add(balance);
+            }
+        }
+
         AssetSummaryDTO summary = new AssetSummaryDTO();
         summary.setTotalAssets(totalAssets);
-        summary.setTotalLiabilities(BigDecimal.ZERO); // TODO: 实现负债统计
-        summary.setNetWorth(totalAssets);
+        summary.setTotalLiabilities(totalLiabilities);
+        summary.setNetWorth(totalAssets.subtract(totalLiabilities));
         summary.setAssetsByCategory(assetsByCategory);
         summary.setAssetsByType(assetsByType);
 
@@ -66,7 +106,13 @@ public class AnalysisService {
         final LocalDate finalStartDate = (startDate == null) ? LocalDate.now().minusMonths(12) : startDate;
         final LocalDate finalEndDate = (endDate == null) ? LocalDate.now() : endDate;
 
-        List<AssetAccount> accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        // 如果userId为null，获取所有活跃账户；否则只获取该用户的账户
+        List<AssetAccount> accounts;
+        if (userId == null) {
+            accounts = accountRepository.findByIsActiveTrue();
+        } else {
+            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
         List<Long> accountIds = accounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
 
         if (accountIds.isEmpty()) {
@@ -203,5 +249,159 @@ public class AnalysisService {
         result.put("data", data);
 
         return result;
+    }
+
+    // 获取净资产配置（资产减去对应负债）
+    public Map<String, Object> getNetAssetAllocation(Long userId) {
+        // 获取所有净资产类别
+        List<NetAssetCategory> netAssetCategories = netAssetCategoryRepository.findAllByOrderByDisplayOrderAsc();
+
+        // 获取资产和负债数据
+        AssetSummaryDTO summary = getAssetSummary(userId);
+        Map<String, BigDecimal> assetsByType = summary.getAssetsByType();
+
+        // 计算每个负债类型的总额
+        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId);
+
+        List<Map<String, Object>> data = new ArrayList<>();
+        BigDecimal totalNetAssets = BigDecimal.ZERO;
+
+        for (NetAssetCategory netCategory : netAssetCategories) {
+            // 获取该净资产类别对应的资产类型
+            List<NetAssetCategoryAssetTypeMapping> assetMappings =
+                assetTypeMappingRepository.findByNetAssetCategoryId(netCategory.getId());
+
+            // 获取该净资产类别对应的负债类型
+            List<NetAssetCategoryLiabilityTypeMapping> liabilityMappings =
+                liabilityTypeMappingRepository.findByNetAssetCategoryId(netCategory.getId());
+
+            // 计算该类别的总资产
+            BigDecimal categoryAssets = BigDecimal.ZERO;
+            for (NetAssetCategoryAssetTypeMapping mapping : assetMappings) {
+                BigDecimal assetAmount = assetsByType.getOrDefault(mapping.getAssetType(), BigDecimal.ZERO);
+                categoryAssets = categoryAssets.add(assetAmount);
+            }
+
+            // 计算该类别的总负债
+            BigDecimal categoryLiabilities = BigDecimal.ZERO;
+            for (NetAssetCategoryLiabilityTypeMapping mapping : liabilityMappings) {
+                BigDecimal liabilityAmount = liabilitiesByType.getOrDefault(mapping.getLiabilityType(), BigDecimal.ZERO);
+                categoryLiabilities = categoryLiabilities.add(liabilityAmount);
+            }
+
+            // 计算净资产（资产 - 负债）
+            BigDecimal netAsset = categoryAssets.subtract(categoryLiabilities);
+
+            // 只添加净值大于0的类别
+            if (netAsset.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", netCategory.getName());
+                item.put("code", netCategory.getCode());
+                item.put("assets", categoryAssets);
+                item.put("liabilities", categoryLiabilities);
+                item.put("netValue", netAsset);
+                item.put("color", netCategory.getColor());
+
+                data.add(item);
+                totalNetAssets = totalNetAssets.add(netAsset);
+            }
+        }
+
+        // 计算百分比
+        for (Map<String, Object> item : data) {
+            BigDecimal netValue = (BigDecimal) item.get("netValue");
+            if (totalNetAssets.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal percentage = netValue
+                    .divide(totalNetAssets, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                item.put("percentage", percentage);
+            } else {
+                item.put("percentage", BigDecimal.ZERO);
+            }
+        }
+
+        // 按净值降序排序
+        data.sort((a, b) -> ((BigDecimal)b.get("netValue")).compareTo((BigDecimal)a.get("netValue")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", totalNetAssets);
+        result.put("data", data);
+
+        return result;
+    }
+
+    // 获取按类型的负债配置
+    public Map<String, Object> getLiabilityAllocationByType(Long userId) {
+        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId);
+
+        List<Map<String, Object>> data = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+
+        // 类型中文名映射
+        Map<String, String> typeNames = Map.ofEntries(
+            entry("MORTGAGE", "房贷"),
+            entry("AUTO_LOAN", "车贷"),
+            entry("CREDIT_CARD", "信用卡"),
+            entry("PERSONAL_LOAN", "个人借债"),
+            entry("STUDENT_LOAN", "学生贷款"),
+            entry("BUSINESS_LOAN", "商业贷款"),
+            entry("OTHER", "其他")
+        );
+
+        for (Map.Entry<String, BigDecimal> entry : liabilitiesByType.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("name", typeNames.getOrDefault(entry.getKey(), entry.getKey()));
+            item.put("value", entry.getValue());
+
+            total = total.add(entry.getValue());
+            data.add(item);
+        }
+
+        // 计算百分比
+        for (Map<String, Object> item : data) {
+            BigDecimal value = (BigDecimal) item.get("value");
+            if (total.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal percentage = value
+                    .divide(total, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                item.put("percentage", percentage);
+            } else {
+                item.put("percentage", BigDecimal.ZERO);
+            }
+        }
+
+        // 按金额降序排序
+        data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", total);
+        result.put("data", data);
+
+        return result;
+    }
+
+    // 计算每个负债类型的总额
+    private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId) {
+        List<LiabilityAccount> liabilityAccounts;
+        if (userId == null) {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        Map<String, BigDecimal> liabilitiesByType = new HashMap<>();
+
+        for (LiabilityAccount account : liabilityAccounts) {
+            Optional<LiabilityRecord> latestRecord = liabilityRecordRepository.findLatestByAccountId(account.getId());
+            if (latestRecord.isPresent()) {
+                BigDecimal balance = latestRecord.get().getBalanceInBaseCurrency();
+
+                String typeName = account.getCategory() != null ?
+                    account.getCategory().getType() : "OTHER";
+                liabilitiesByType.merge(typeName, balance, BigDecimal::add);
+            }
+        }
+
+        return liabilitiesByType;
     }
 }

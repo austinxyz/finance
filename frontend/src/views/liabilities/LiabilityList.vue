@@ -2,8 +2,8 @@
   <div class="p-6 space-y-6">
     <!-- 页面标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">资产账户</h1>
-      <p class="text-sm text-gray-600 mt-1">按分类管理您的所有资产账户</p>
+      <h1 class="text-2xl font-bold text-gray-900">负债账户</h1>
+      <p class="text-sm text-gray-600 mt-1">按分类管理您的所有负债账户</p>
     </div>
 
     <!-- 加载状态 -->
@@ -28,7 +28,7 @@
           </div>
           <button
             @click="openCreateDialog(type)"
-            class="px-3 py-1.5 bg-primary text-white rounded hover:bg-primary/90 text-xs font-medium flex items-center gap-1"
+            class="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium flex items-center gap-1"
           >
             <Plus class="w-3.5 h-3.5" />
             添加
@@ -55,14 +55,18 @@
                 <div class="flex items-center gap-2 mt-0.5">
                   <span class="text-xs text-gray-500">{{ account.categoryName }}</span>
                   <span v-if="account.institution" class="text-xs text-gray-400">· {{ account.institution }}</span>
+                  <span v-if="account.interestRate" class="text-xs text-gray-400">· {{ account.interestRate }}%</span>
                 </div>
               </div>
               <div class="flex items-center gap-2 ml-2">
                 <div class="text-right">
-                  <div class="text-sm font-semibold text-gray-900">
-                    {{ getCurrencySymbol(account.currency) }}{{ formatAmount(account.latestAmount) }}
+                  <div class="text-sm font-semibold text-red-600">
+                    {{ getCurrencySymbol(account.currency) }}{{ formatAmount(account.latestBalance) }}
                   </div>
-                  <div v-if="account.accountNumber" class="text-xs text-gray-400">
+                  <div v-if="account.monthlyPayment" class="text-xs text-gray-500">
+                    月还: {{ getCurrencySymbol(account.currency) }}{{ formatAmount(account.monthlyPayment) }}
+                  </div>
+                  <div v-else-if="account.accountNumber" class="text-xs text-gray-400">
                     {{ maskAccountNumber(account.accountNumber) }}
                   </div>
                 </div>
@@ -105,7 +109,7 @@
             <select
               v-model="formData.userId"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <option value="">请选择用户</option>
               <option v-for="user in users" :key="user.id" :value="user.id">
@@ -119,7 +123,7 @@
             <select
               v-model="formData.categoryId"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <option value="">请选择分类</option>
               <option v-for="cat in filteredCategoriesForForm" :key="cat.id" :value="cat.id">
@@ -134,8 +138,8 @@
               v-model="formData.accountName"
               type="text"
               required
-              placeholder="例如:工商银行储蓄账户"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="例如:招商银行信用卡"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
@@ -144,8 +148,8 @@
             <input
               v-model="formData.institution"
               type="text"
-              placeholder="例如：中国工商银行"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="例如：招商银行"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
@@ -155,7 +159,29 @@
               v-model="formData.accountNumber"
               type="text"
               placeholder="例如：6222021234567890"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">利率 (%)</label>
+            <input
+              v-model.number="formData.interestRate"
+              type="number"
+              step="0.01"
+              placeholder="例如：4.35"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">月还款额</label>
+            <input
+              v-model.number="formData.monthlyPayment"
+              type="number"
+              step="0.01"
+              placeholder="例如：5000"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
@@ -163,7 +189,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">币种</label>
             <select
               v-model="formData.currency"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <option value="CNY">人民币 (CNY)</option>
               <option value="USD">美元 (USD)</option>
@@ -178,14 +204,14 @@
               v-model="formData.notes"
               rows="3"
               placeholder="添加备注信息"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             ></textarea>
           </div>
 
           <div class="flex gap-3 pt-4">
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
             >
               {{ showEditDialog ? '保存' : '创建' }}
             </button>
@@ -207,7 +233,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
-import { assetCategoryAPI, assetAccountAPI, userAPI } from '@/api'
+import { liabilityCategoryAPI, liabilityAccountAPI, userAPI } from '@/api'
 
 const router = useRouter()
 const userId = ref(1) // TODO: 从用户登录状态获取
@@ -227,19 +253,19 @@ const formData = ref({
   accountName: '',
   institution: '',
   accountNumber: '',
+  interestRate: null,
+  monthlyPayment: null,
   currency: 'CNY',
   notes: ''
 })
 
 // 大分类类型标签映射
 const typeLabels = {
-  'CASH': '现金类',
-  'STOCKS': '股票投资',
-  'RETIREMENT_FUND': '退休基金',
-  'INSURANCE': '保险',
-  'REAL_ESTATE': '房地产',
-  'CRYPTOCURRENCY': '数字货币',
-  'PRECIOUS_METALS': '贵金属',
+  'MORTGAGE': '房贷',
+  'AUTO_LOAN': '车贷',
+  'CREDIT_CARD': '信用卡',
+  'PERSONAL_LOAN': '个人借债',
+  'STUDENT_LOAN': '学生贷款',
   'OTHER': '其他'
 }
 
@@ -261,7 +287,7 @@ function getAccountCountByType(type) {
 
 // 根据大分类获取总额（USD基准货币）
 function getTotalByType(type) {
-  return getAccountsByType(type).reduce((sum, acc) => sum + (acc.latestAmountInBaseCurrency || 0), 0)
+  return getAccountsByType(type).reduce((sum, acc) => sum + (acc.latestBalanceInBaseCurrency || 0), 0)
 }
 
 // 根据大分类获取总额（USD）- 现在基准货币就是USD，直接返回
@@ -311,7 +337,7 @@ function getCurrencySymbol(currency) {
 // 加载大分类类型
 async function loadCategoryTypes() {
   try {
-    const response = await assetCategoryAPI.getTypes(userId.value)
+    const response = await liabilityCategoryAPI.getTypes(userId.value)
     if (response.success) {
       categoryTypes.value = response.data
     }
@@ -335,7 +361,7 @@ async function loadUsers() {
 // 加载分类
 async function loadCategories() {
   try {
-    const response = await assetCategoryAPI.getAll(userId.value)
+    const response = await liabilityCategoryAPI.getAll(userId.value)
     if (response.success) {
       categories.value = response.data
     }
@@ -348,7 +374,7 @@ async function loadCategories() {
 async function loadAccounts() {
   loading.value = true
   try {
-    const response = await assetAccountAPI.getAll()
+    const response = await liabilityAccountAPI.getAll()
     if (response.success) {
       accounts.value = response.data
     }
@@ -367,7 +393,7 @@ function openCreateDialog(type) {
 
 // 查看账户详情
 function viewAccountDetails(account) {
-  router.push(`/assets/accounts/${account.id}`)
+  router.push(`/liabilities/accounts/${account.id}`)
 }
 
 // 编辑账户
@@ -380,6 +406,8 @@ function editAccount(account) {
     accountName: account.accountName,
     institution: account.institution || '',
     accountNumber: account.accountNumber || '',
+    interestRate: account.interestRate || null,
+    monthlyPayment: account.monthlyPayment || null,
     currency: account.currency || 'CNY',
     notes: account.notes || ''
   }
@@ -388,10 +416,10 @@ function editAccount(account) {
 
 // 删除账户
 async function deleteAccount(account) {
-  if (!confirm(`确定要删除账户"${account.accountName}"吗？\n\n提示：如果账户有资产记录，将标记为不活跃；否则将永久删除。`)) return
+  if (!confirm(`确定要删除账户"${account.accountName}"吗？\n\n提示：如果账户有负债记录，将标记为不活跃；否则将永久删除。`)) return
 
   try {
-    const response = await assetAccountAPI.delete(account.id)
+    const response = await liabilityAccountAPI.delete(account.id)
     if (response.success) {
       await loadAccounts()
     }
@@ -411,9 +439,9 @@ async function submitForm() {
 
     let response
     if (showEditDialog.value) {
-      response = await assetAccountAPI.update(currentEditId.value, data)
+      response = await liabilityAccountAPI.update(currentEditId.value, data)
     } else {
-      response = await assetAccountAPI.create(data)
+      response = await liabilityAccountAPI.create(data)
     }
 
     if (response.success) {
@@ -438,6 +466,8 @@ function closeDialog() {
     accountName: '',
     institution: '',
     accountNumber: '',
+    interestRate: null,
+    monthlyPayment: null,
     currency: 'CNY',
     notes: ''
   }

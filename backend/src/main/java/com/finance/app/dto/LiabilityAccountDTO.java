@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AssetAccountDTO {
+public class LiabilityAccountDTO {
     private Long id;
     private Long userId;
     private String userName;  // 用户名称
@@ -22,10 +22,15 @@ public class AssetAccountDTO {
     private String accountNumber;
     private String institution;
     private String currency;
+    private BigDecimal interestRate;
+    private BigDecimal originalAmount;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private BigDecimal monthlyPayment;
     private String notes;
     private Boolean isActive;
-    private BigDecimal latestAmount;  // 最近记录金额（原币种）
-    private BigDecimal latestAmountInBaseCurrency;  // 最近记录金额（基准货币）
+    private BigDecimal latestBalance;  // 最近记录余额（原币种）
+    private BigDecimal latestBalanceInBaseCurrency;  // 最近记录余额（基准货币）
     private LocalDate latestRecordDate;  // 最近记录日期
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

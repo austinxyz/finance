@@ -88,16 +88,16 @@ public class AssetController {
     }
 
     @PostMapping("/records")
-    public ApiResponse<AssetRecord> createRecord(@RequestBody AssetRecord record) {
-        AssetRecord created = assetService.createRecord(record);
+    public ApiResponse<AssetRecordDTO> createRecord(@RequestBody AssetRecord record) {
+        AssetRecordDTO created = assetService.createRecord(record);
         return ApiResponse.success("Record created successfully", created);
     }
 
     @PutMapping("/records/{id}")
-    public ApiResponse<AssetRecord> updateRecord(
+    public ApiResponse<AssetRecordDTO> updateRecord(
             @PathVariable Long id,
             @RequestBody AssetRecord record) {
-        AssetRecord updated = assetService.updateRecord(id, record);
+        AssetRecordDTO updated = assetService.updateRecord(id, record);
         return ApiResponse.success("Record updated successfully", updated);
     }
 

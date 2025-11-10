@@ -3,10 +3,10 @@
     <!-- 页面头部 -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold text-gray-900">批量更新资产</h1>
+        <h1 class="text-2xl font-bold text-gray-900">批量更新负债</h1>
         <select
           v-model="selectedCategoryType"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           <option :value="null">全部分类</option>
           <option v-for="type in categoryTypes" :key="type.value" :value="type.value">
@@ -18,12 +18,12 @@
         <input
           v-model="recordDate"
           type="date"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
         />
         <button
           @click="saveAll"
           :disabled="saving || !hasChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ saving ? '保存中...' : '保存全部' }}
         </button>
@@ -57,34 +57,34 @@
             <div class="text-xs text-gray-600">{{ account.userName || '-' }}</div>
           </div>
 
-          <!-- 最近金额和日期 -->
+          <!-- 最近余额和日期 -->
           <div class="col-span-2 text-right">
-            <div class="text-sm font-semibold text-gray-900">
-              {{ getCurrencySymbol(account.currency) }}{{ formatNumber(account.latestAmount) }}
+            <div class="text-sm font-semibold text-red-600">
+              {{ getCurrencySymbol(account.currency) }}{{ formatNumber(account.latestBalance) }}
             </div>
             <div class="text-xs text-gray-400 mt-0.5">
               {{ formatDate(account.latestRecordDate) }}
             </div>
           </div>
 
-          <!-- 新金额输入 -->
+          <!-- 新余额输入 -->
           <div class="col-span-3">
             <input
-              v-model="accountAmounts[account.id]"
+              v-model="accountBalances[account.id]"
               type="number"
               step="0.01"
-              placeholder="新金额"
-              class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="新余额"
+              class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
               @input="markAsChanged(account.id)"
             />
           </div>
 
-          <!-- 差额显示 -->
+          <!-- 差额显示（负债减少显示为绿色） -->
           <div class="col-span-3 text-right">
-            <div v-if="accountAmounts[account.id]" class="text-xs">
+            <div v-if="accountBalances[account.id]" class="text-xs">
               <span class="text-gray-500">差额: </span>
-              <span :class="getDifferenceClass(account.id, account.latestAmount)">
-                {{ formatDifference(account.id, account.latestAmount, account.currency) }}
+              <span :class="getDifferenceClass(account.id, account.latestBalance)">
+                {{ formatDifference(account.id, account.latestBalance, account.currency) }}
               </span>
             </div>
           </div>
@@ -96,14 +96,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { assetAccountAPI, assetRecordAPI } from '@/api/asset'
+import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { getExchangeRate } from '@/utils/exchangeRate'
 
 const userId = ref(1) // TODO: 从用户登录状态获取
 const loading = ref(false)
 const saving = ref(false)
 const accounts = ref([])
-const accountAmounts = ref({})
+const accountBalances = ref({})
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
 
@@ -113,13 +113,12 @@ const recordDate = ref(today)
 
 // 分类类型
 const categoryTypes = [
-  { value: 'CASH', label: '现金类' },
-  { value: 'STOCKS', label: '股票投资' },
-  { value: 'RETIREMENT_FUND', label: '退休基金' },
-  { value: 'INSURANCE', label: '保险' },
-  { value: 'REAL_ESTATE', label: '房地产' },
-  { value: 'CRYPTOCURRENCY', label: '数字货币' },
-  { value: 'PRECIOUS_METALS', label: '贵金属' },
+  { value: 'MORTGAGE', label: '房贷' },
+  { value: 'AUTO_LOAN', label: '车贷' },
+  { value: 'CREDIT_CARD', label: '信用卡' },
+  { value: 'PERSONAL_LOAN', label: '个人借款' },
+  { value: 'STUDENT_LOAN', label: '学生贷款' },
+  { value: 'BUSINESS_LOAN', label: '商业贷款' },
   { value: 'OTHER', label: '其他' }
 ]
 
@@ -137,7 +136,7 @@ const hasChanges = computed(() => changedAccounts.value.size > 0)
 // 格式化数字
 const formatNumber = (num) => {
   if (!num) return '0.00'
-  return parseFloat(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // 格式化日期
@@ -160,13 +159,12 @@ const formatDate = (dateString) => {
 // 获取大类别标签
 const getTypeLabel = (type) => {
   const typeMap = {
-    'CASH': '现金类',
-    'STOCKS': '股票投资',
-    'RETIREMENT_FUND': '退休基金',
-    'INSURANCE': '保险',
-    'REAL_ESTATE': '房地产',
-    'CRYPTOCURRENCY': '数字货币',
-    'PRECIOUS_METALS': '贵金属',
+    'MORTGAGE': '房贷',
+    'AUTO_LOAN': '车贷',
+    'CREDIT_CARD': '信用卡',
+    'PERSONAL_LOAN': '个人借款',
+    'STUDENT_LOAN': '学生贷款',
+    'BUSINESS_LOAN': '商业贷款',
     'OTHER': '其他'
   }
   return typeMap[type] || type
@@ -191,38 +189,38 @@ const getCurrencySymbol = (currency) => {
 
 // 标记为已修改
 const markAsChanged = (accountId) => {
-  const amount = accountAmounts.value[accountId]
-  if (amount && parseFloat(amount) > 0) {
+  const balance = accountBalances.value[accountId]
+  if (balance && parseFloat(balance) > 0) {
     changedAccounts.value.add(accountId)
   } else {
     changedAccounts.value.delete(accountId)
   }
 }
 
-// 计算差额
-const formatDifference = (accountId, currentAmount, currency) => {
-  const newAmount = parseFloat(accountAmounts.value[accountId])
-  if (!newAmount || isNaN(newAmount)) return ''
+// 计算差额（负债减少是好的）
+const formatDifference = (accountId, currentBalance, currency) => {
+  const newBalance = parseFloat(accountBalances.value[accountId])
+  if (!newBalance || isNaN(newBalance)) return ''
 
-  const diff = newAmount - (currentAmount || 0)
+  const diff = newBalance - (currentBalance || 0)
   const sign = diff >= 0 ? '+' : ''
   return `${sign}${getCurrencySymbol(currency)}${formatNumber(Math.abs(diff))}`
 }
 
-// 获取差额样式类
-const getDifferenceClass = (accountId, currentAmount) => {
-  const newAmount = parseFloat(accountAmounts.value[accountId])
-  if (!newAmount || isNaN(newAmount)) return ''
+// 获取差额样式类（负债减少显示为绿色，增加显示为红色）
+const getDifferenceClass = (accountId, currentBalance) => {
+  const newBalance = parseFloat(accountBalances.value[accountId])
+  if (!newBalance || isNaN(newBalance)) return ''
 
-  const diff = newAmount - (currentAmount || 0)
-  return diff >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
+  const diff = newBalance - (currentBalance || 0)
+  return diff < 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
 }
 
 // 加载账户列表
 const loadAccounts = async () => {
   loading.value = true
   try {
-    const response = await assetAccountAPI.getAll()
+    const response = await liabilityAccountAPI.getAll()
     console.log('Response:', response)
 
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
@@ -231,14 +229,13 @@ const loadAccounts = async () => {
       const sortedAccounts = (response.data || []).sort((a, b) => {
         // 定义大类别的优先级顺序
         const categoryOrder = {
-          'CASH': 1,
-          'STOCKS': 2,
-          'RETIREMENT_FUND': 3,
-          'INSURANCE': 4,
-          'REAL_ESTATE': 5,
-          'CRYPTOCURRENCY': 6,
-          'PRECIOUS_METALS': 7,
-          'OTHER': 8
+          'MORTGAGE': 1,
+          'AUTO_LOAN': 2,
+          'CREDIT_CARD': 3,
+          'PERSONAL_LOAN': 4,
+          'STUDENT_LOAN': 5,
+          'BUSINESS_LOAN': 6,
+          'OTHER': 7
         }
 
         const orderA = categoryOrder[a.categoryType] || 999
@@ -256,9 +253,9 @@ const loadAccounts = async () => {
       accounts.value = sortedAccounts
       console.log('Loaded accounts:', accounts.value)
 
-      // 初始化金额输入框，为空字符串以便用户输入
+      // 初始化余额输入框，为空字符串以便用户输入
       accounts.value.forEach(account => {
-        accountAmounts.value[account.id] = ''
+        accountBalances.value[account.id] = ''
       })
     } else {
       console.error('API returned error:', response)
@@ -280,7 +277,7 @@ const saveAll = async (overwriteExisting = false) => {
     const allAccountIds = accounts.value.map(a => a.id)
 
     // 检查哪些账户在指定日期已有记录
-    const checkResponse = await assetRecordAPI.checkExisting({
+    const checkResponse = await liabilityRecordAPI.checkExisting({
       recordDate: recordDate.value,
       accountIds: allAccountIds
     })
@@ -324,26 +321,26 @@ const saveAll = async (overwriteExisting = false) => {
         return
       }
 
-      // 获取用户输入的金额
-      const inputAmount = accountAmounts.value[account.id]
-      let amount = null
+      // 获取用户输入的余额
+      const inputBalance = accountBalances.value[account.id]
+      let balance = null
 
-      if (inputAmount && parseFloat(inputAmount) > 0) {
-        // 用户输入了新金额
-        amount = parseFloat(inputAmount)
-      } else if (!existingAccountIds.includes(account.id) && account.latestAmount) {
-        // 用户没有输入新金额，且该日期没有记录，使用最近记录的金额
-        amount = account.latestAmount
+      if (inputBalance && parseFloat(inputBalance) > 0) {
+        // 用户输入了新余额
+        balance = parseFloat(inputBalance)
+      } else if (!existingAccountIds.includes(account.id) && account.latestBalance) {
+        // 用户没有输入新余额，且该日期没有记录，使用最近记录的余额
+        balance = account.latestBalance
       }
 
-      // 如果有金额（用户输入的或最近记录的），添加到批量更新列表
-      if (amount !== null && amount > 0) {
+      // 如果有余额（用户输入的或最近记录的），添加到批量更新列表
+      if (balance !== null && balance > 0) {
         const currency = account.currency || 'USD'
         const exchangeRate = getExchangeRate(currency)
 
         batchData.accounts.push({
           accountId: account.id,
-          amount: amount,
+          amount: balance,
           exchangeRate: exchangeRate,
           currency: currency
         })
@@ -356,7 +353,7 @@ const saveAll = async (overwriteExisting = false) => {
     }
 
     console.log('批量更新请求数据:', JSON.stringify(batchData, null, 2))
-    const response = await assetRecordAPI.batchUpdate(batchData)
+    const response = await liabilityRecordAPI.batchUpdate(batchData)
     if (response.success) {
       const updatedCount = response.data.length
       const userChangedCount = changedAccountsArray.length
@@ -364,7 +361,7 @@ const saveAll = async (overwriteExisting = false) => {
         batchData.accounts.some(a => a.accountId === id)
       ).length
 
-      let message = `成功更新 ${updatedCount} 个账户的资产记录`
+      let message = `成功更新 ${updatedCount} 个账户的负债记录`
       if (userChangedCount > 0) {
         message += `\n其中用户修改: ${userChangedCount} 个`
       }

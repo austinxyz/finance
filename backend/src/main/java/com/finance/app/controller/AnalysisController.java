@@ -21,7 +21,7 @@ public class AnalysisController {
 
     // 获取资产总览
     @GetMapping("/summary")
-    public ApiResponse<AssetSummaryDTO> getAssetSummary(@RequestParam Long userId) {
+    public ApiResponse<AssetSummaryDTO> getAssetSummary(@RequestParam(required = false) Long userId) {
         AssetSummaryDTO summary = analysisService.getAssetSummary(userId);
         return ApiResponse.success(summary);
     }
@@ -29,7 +29,7 @@ public class AnalysisController {
     // 获取总资产趋势数据
     @GetMapping("/trends/total")
     public ApiResponse<List<TrendDataDTO>> getTotalAssetTrend(
-            @RequestParam Long userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
         List<TrendDataDTO> trends = analysisService.getTotalAssetTrend(userId, startDate, endDate);
@@ -45,15 +45,29 @@ public class AnalysisController {
 
     // 获取按分类汇总的资产数据
     @GetMapping("/allocation/category")
-    public ApiResponse<Map<String, Object>> getAssetAllocationByCategory(@RequestParam Long userId) {
+    public ApiResponse<Map<String, Object>> getAssetAllocationByCategory(@RequestParam(required = false) Long userId) {
         Map<String, Object> allocation = analysisService.getAssetAllocationByCategory(userId);
         return ApiResponse.success(allocation);
     }
 
     // 获取按类型汇总的资产数据
     @GetMapping("/allocation/type")
-    public ApiResponse<Map<String, Object>> getAssetAllocationByType(@RequestParam Long userId) {
+    public ApiResponse<Map<String, Object>> getAssetAllocationByType(@RequestParam(required = false) Long userId) {
         Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId);
+        return ApiResponse.success(allocation);
+    }
+
+    // 获取净资产配置（资产减去对应负债）
+    @GetMapping("/allocation/net")
+    public ApiResponse<Map<String, Object>> getNetAssetAllocation(@RequestParam(required = false) Long userId) {
+        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId);
+        return ApiResponse.success(allocation);
+    }
+
+    // 获取按类型的负债配置
+    @GetMapping("/allocation/liability")
+    public ApiResponse<Map<String, Object>> getLiabilityAllocationByType(@RequestParam(required = false) Long userId) {
+        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId);
         return ApiResponse.success(allocation);
     }
 }
