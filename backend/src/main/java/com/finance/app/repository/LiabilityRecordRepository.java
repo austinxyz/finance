@@ -35,4 +35,12 @@ public interface LiabilityRecordRepository extends JpaRepository<LiabilityRecord
            "ORDER BY r.recordDate DESC")
     List<LiabilityRecord> findByAccountIdAndRecordDateBeforeOrEqual(
             @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
+
+    // 查询指定日期之前最近的一条记录
+    @Query("SELECT r FROM LiabilityRecord r WHERE r.accountId = :accountId " +
+           "AND r.recordDate <= :asOfDate " +
+           "ORDER BY r.recordDate DESC " +
+           "LIMIT 1")
+    Optional<LiabilityRecord> findLatestByAccountIdBeforeOrOnDate(
+            @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
 }

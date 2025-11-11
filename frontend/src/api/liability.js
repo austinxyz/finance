@@ -83,5 +83,12 @@ export const liabilityRecordAPI = {
   // 批量更新记录
   batchUpdate(data) {
     return request.post('/liabilities/records/batch', data)
+  },
+
+  // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
+  getValueAtDate(accountId, date) {
+    return request.get(`/liabilities/accounts/${accountId}/value-at-date`, {
+      params: { date }
+    })
   }
 }

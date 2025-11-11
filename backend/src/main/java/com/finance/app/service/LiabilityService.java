@@ -174,6 +174,37 @@ public class LiabilityService {
         return existingAccountIds;
     }
 
+    // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
+    public java.util.Map<String, Object> getAccountValueAtDate(Long accountId, LocalDate targetDate) {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+
+        // 检查该日期是否已有记录
+        boolean hasExactRecord = recordRepository.existsByAccountIdAndRecordDate(accountId, targetDate);
+        result.put("hasExactRecord", hasExactRecord);
+
+        if (hasExactRecord) {
+            // 如果该日期已有记录,返回该记录的值
+            var record = recordRepository.findByAccountIdAndRecordDate(accountId, targetDate);
+            record.ifPresent(r -> {
+                result.put("amount", r.getOutstandingBalance());
+                result.put("recordDate", r.getRecordDate());
+                result.put("currency", r.getCurrency());
+                result.put("exchangeRate", r.getExchangeRate());
+            });
+        } else {
+            // 查找该日期之前最近的记录
+            var previousRecord = recordRepository.findLatestByAccountIdBeforeOrOnDate(accountId, targetDate);
+            previousRecord.ifPresent(r -> {
+                result.put("amount", r.getOutstandingBalance());
+                result.put("recordDate", r.getRecordDate());
+                result.put("currency", r.getCurrency());
+                result.put("exchangeRate", r.getExchangeRate());
+            });
+        }
+
+        return result;
+    }
+
     // 批量更新负债记录
     @Transactional
     public List<LiabilityRecord> batchUpdateRecords(BatchRecordUpdateDTO batchUpdate) {

@@ -57,13 +57,14 @@
             <div class="text-xs text-gray-600">{{ account.userName || '-' }}</div>
           </div>
 
-          <!-- 最近余额和日期 -->
+          <!-- 之前的余额和日期 (根据选择的日期) -->
           <div class="col-span-2 text-right">
             <div class="text-sm font-semibold text-red-600">
-              {{ getCurrencySymbol(account.currency) }}{{ formatNumber(account.latestBalance) }}
+              {{ getCurrencySymbol(account.currency) }}{{ formatNumber(accountPreviousValues[account.id]?.amount ?? 0) }}
             </div>
             <div class="text-xs text-gray-400 mt-0.5">
-              {{ formatDate(account.latestRecordDate) }}
+              {{ formatFullDate(accountPreviousValues[account.id]?.recordDate) }}
+              <span v-if="accountPreviousValues[account.id]?.hasExactRecord" class="ml-1 text-amber-600" title="该日期已有记录">📝</span>
             </div>
           </div>
 
@@ -81,10 +82,10 @@
 
           <!-- 差额显示（负债减少显示为绿色） -->
           <div class="col-span-3 text-right">
-            <div v-if="accountBalances[account.id]" class="text-xs">
+            <div v-if="accountBalances[account.id] !== ''" class="text-xs">
               <span class="text-gray-500">差额: </span>
-              <span :class="getDifferenceClass(account.id, account.latestBalance)">
-                {{ formatDifference(account.id, account.latestBalance, account.currency) }}
+              <span :class="getDifferenceClass(account.id, accountPreviousValues[account.id]?.amount ?? 0)">
+                {{ formatDifference(account.id, accountPreviousValues[account.id]?.amount ?? 0, account.currency) }}
               </span>
             </div>
           </div>
@@ -95,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { getExchangeRate } from '@/utils/exchangeRate'
 
@@ -104,6 +105,7 @@ const loading = ref(false)
 const saving = ref(false)
 const accounts = ref([])
 const accountBalances = ref({})
+const accountPreviousValues = ref({}) // 存储每个账户在选择日期的之前值
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
 
@@ -154,6 +156,17 @@ const formatDate = (dateString) => {
   if (diffDays < 7) return `${diffDays}天前`
 
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+}
+
+// 格式化完整日期 (月/日/年)
+const formatFullDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric'
+  })
 }
 
 // 获取大类别标签
@@ -257,6 +270,9 @@ const loadAccounts = async () => {
       accounts.value.forEach(account => {
         accountBalances.value[account.id] = ''
       })
+
+      // 加载选择日期的之前值
+      await loadPreviousValues()
     } else {
       console.error('API returned error:', response)
       alert('加载失败: ' + (response?.message || '未知错误'))
@@ -268,6 +284,49 @@ const loadAccounts = async () => {
     loading.value = false
   }
 }
+
+// 加载所有账户在选择日期的之前值
+const loadPreviousValues = async () => {
+  if (!accounts.value || accounts.value.length === 0) return
+
+  try {
+    // 为每个账户获取在选择日期的之前值
+    const promises = accounts.value.map(async (account) => {
+      try {
+        const response = await liabilityRecordAPI.getValueAtDate(account.id, recordDate.value)
+        if (response && response.success && response.data) {
+          accountPreviousValues.value[account.id] = {
+            amount: response.data.amount || 0,
+            recordDate: response.data.recordDate,
+            currency: response.data.currency,
+            exchangeRate: response.data.exchangeRate,
+            hasExactRecord: response.data.hasExactRecord || false
+          }
+        }
+      } catch (error) {
+        console.error(`获取账户 ${account.id} 的之前值失败:`, error)
+        // 如果获取失败，使用最近的记录作为fallback
+        accountPreviousValues.value[account.id] = {
+          amount: account.latestBalance || 0,
+          recordDate: account.latestRecordDate,
+          currency: account.currency,
+          hasExactRecord: false
+        }
+      }
+    })
+
+    await Promise.all(promises)
+  } catch (error) {
+    console.error('加载之前值失败:', error)
+  }
+}
+
+// 监听日期变化，重新加载之前值
+watch(recordDate, async (newDate, oldDate) => {
+  if (newDate !== oldDate && accounts.value.length > 0) {
+    await loadPreviousValues()
+  }
+})
 
 // 保存全部
 const saveAll = async (overwriteExisting = false) => {
@@ -325,16 +384,25 @@ const saveAll = async (overwriteExisting = false) => {
       const inputBalance = accountBalances.value[account.id]
       let balance = null
 
-      if (inputBalance && parseFloat(inputBalance) > 0) {
-        // 用户输入了新余额
+      // 处理余额逻辑:
+      // 1. 如果用户明确填了余额(包括0)，使用用户填的值
+      // 2. 如果用户没填(空字符串或null)，使用该日期的之前值
+      if (inputBalance !== '' && inputBalance !== null && inputBalance !== undefined) {
+        // 用户明确填了余额，使用用户的输入(可以是0)
         balance = parseFloat(inputBalance)
-      } else if (!existingAccountIds.includes(account.id) && account.latestBalance) {
-        // 用户没有输入新余额，且该日期没有记录，使用最近记录的余额
-        balance = account.latestBalance
+      } else {
+        // 用户没填，使用该日期的之前值
+        const previousValue = accountPreviousValues.value[account.id]
+        if (previousValue && previousValue.amount !== null && previousValue.amount !== undefined) {
+          balance = previousValue.amount
+        } else {
+          // 如果没有之前值，跳过这个账户
+          return
+        }
       }
 
-      // 如果有余额（用户输入的或最近记录的），添加到批量更新列表
-      if (balance !== null && balance > 0) {
+      // 添加到批量更新列表 (允许余额为0)
+      if (balance !== null && balance !== undefined && !isNaN(balance)) {
         const currency = account.currency || 'USD'
         const exchangeRate = getExchangeRate(currency)
 

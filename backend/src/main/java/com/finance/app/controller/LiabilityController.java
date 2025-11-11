@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/liabilities")
@@ -123,5 +124,15 @@ public class LiabilityController {
     public ApiResponse<List<LiabilityRecord>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
         List<LiabilityRecord> records = liabilityService.batchUpdateRecords(batchUpdate);
         return ApiResponse.success("Batch records created successfully", records);
+    }
+
+    // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
+    @GetMapping("/accounts/{accountId}/value-at-date")
+    public ApiResponse<Map<String, Object>> getAccountValueAtDate(
+            @PathVariable Long accountId,
+            @RequestParam String date) {
+        LocalDate targetDate = LocalDate.parse(date);
+        Map<String, Object> result = liabilityService.getAccountValueAtDate(accountId, targetDate);
+        return ApiResponse.success(result);
     }
 }

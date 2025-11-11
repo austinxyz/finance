@@ -164,6 +164,37 @@ public class AssetService {
         return existingAccountIds;
     }
 
+    // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
+    public java.util.Map<String, Object> getAccountValueAtDate(Long accountId, LocalDate targetDate) {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+
+        // 检查该日期是否已有记录
+        boolean hasExactRecord = recordRepository.existsByAccountIdAndRecordDate(accountId, targetDate);
+        result.put("hasExactRecord", hasExactRecord);
+
+        if (hasExactRecord) {
+            // 如果该日期已有记录,返回该记录的值
+            var record = recordRepository.findByAccountIdAndRecordDate(accountId, targetDate);
+            record.ifPresent(r -> {
+                result.put("amount", r.getAmount());
+                result.put("recordDate", r.getRecordDate());
+                result.put("currency", r.getCurrency());
+                result.put("exchangeRate", r.getExchangeRate());
+            });
+        } else {
+            // 查找该日期之前最近的记录
+            var previousRecord = recordRepository.findLatestByAccountIdBeforeOrOnDate(accountId, targetDate);
+            previousRecord.ifPresent(r -> {
+                result.put("amount", r.getAmount());
+                result.put("recordDate", r.getRecordDate());
+                result.put("currency", r.getCurrency());
+                result.put("exchangeRate", r.getExchangeRate());
+            });
+        }
+
+        return result;
+    }
+
     // 批量更新资产记录
     @Transactional
     public List<AssetRecord> batchUpdateRecords(BatchRecordUpdateDTO batchUpdate) {
@@ -185,20 +216,23 @@ public class AssetService {
                 accountUpdate.getAccountId(), finalRecordDate);
 
             AssetRecord record;
+            boolean isUpdate = false;
             if (existingRecordOpt.isPresent()) {
                 if (overwriteExisting) {
-                    // 覆盖已存在的记录
+                    // 覆盖已存在的记录 (UPDATE)
                     record = existingRecordOpt.get();
+                    isUpdate = true;
                 } else {
                     // 跳过这个账户
                     continue;
                 }
             } else {
-                // 创建新记录
+                // 创建新记录 (INSERT)
                 record = new AssetRecord();
                 record.setAccountId(accountUpdate.getAccountId());
                 record.setUserId(account.getUserId());
                 record.setRecordDate(finalRecordDate);
+                isUpdate = false;
             }
 
             // 更新记录数据

@@ -129,4 +129,14 @@ public class AssetController {
         result.put("recordDate", batchUpdate.getRecordDate());
         return ApiResponse.success("Batch records created successfully", result);
     }
+
+    // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
+    @GetMapping("/accounts/{accountId}/value-at-date")
+    public ApiResponse<Map<String, Object>> getAccountValueAtDate(
+            @PathVariable Long accountId,
+            @RequestParam String date) {
+        LocalDate targetDate = LocalDate.parse(date);
+        Map<String, Object> result = assetService.getAccountValueAtDate(accountId, targetDate);
+        return ApiResponse.success(result);
+    }
 }
