@@ -96,5 +96,27 @@ export const analysisAPI = {
     if (userId) params.userId = userId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get(`/analysis/allocation/liability-accounts/${categoryType}`, { params })
+  },
+
+  // 获取资产分类下所有账户的趋势数据
+  getAssetAccountsTrendByCategory(categoryType, startDate, endDate, userId = null) {
+    const params = { startDate, endDate }
+    if (userId) params.userId = userId
+    return request.get(`/analysis/trends/asset-accounts/${categoryType}`, { params })
+  },
+
+  // 获取负债分类下所有账户的趋势数据
+  getLiabilityAccountsTrendByCategory(categoryType, startDate, endDate, userId = null) {
+    const params = { startDate, endDate }
+    if (userId) params.userId = userId
+    return request.get(`/analysis/trends/liability-accounts/${categoryType}`, { params })
+  },
+
+  // 获取净资产类别下的所有账户详情（包含资产账户和负债账户）
+  getNetAssetCategoryAccounts(categoryCode, userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get(`/analysis/allocation/net-asset-accounts/${categoryCode}`, { params })
   }
 }

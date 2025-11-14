@@ -1,5 +1,6 @@
 package com.finance.app.controller;
 
+import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.ApiResponse;
 import com.finance.app.dto.AssetSummaryDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
@@ -141,6 +142,40 @@ public class AnalysisController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) LocalDate asOfDate) {
         List<Map<String, Object>> accounts = analysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, asOfDate);
+        return ApiResponse.success(accounts);
+    }
+
+    // 获取资产分类下所有账户的趋势数据
+    @GetMapping("/trends/asset-accounts/{categoryType}")
+    public ApiResponse<Map<String, List<AccountTrendDataPointDTO>>> getAssetAccountsTrendByCategory(
+            @PathVariable String categoryType,
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) Long userId) {
+        Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getAssetAccountsTrendByCategory(
+            categoryType, startDate, endDate, userId);
+        return ApiResponse.success(trends);
+    }
+
+    // 获取负债分类下所有账户的趋势数据
+    @GetMapping("/trends/liability-accounts/{categoryType}")
+    public ApiResponse<Map<String, List<AccountTrendDataPointDTO>>> getLiabilityAccountsTrendByCategory(
+            @PathVariable String categoryType,
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) Long userId) {
+        Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getLiabilityAccountsTrendByCategory(
+            categoryType, startDate, endDate, userId);
+        return ApiResponse.success(trends);
+    }
+
+    // 获取净资产类别下的所有账户详情（包含资产账户和负债账户）
+    @GetMapping("/allocation/net-asset-accounts/{categoryCode}")
+    public ApiResponse<Map<String, Object>> getNetAssetCategoryAccounts(
+            @PathVariable String categoryCode,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, asOfDate);
         return ApiResponse.success(accounts);
     }
 }

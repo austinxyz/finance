@@ -158,7 +158,12 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="stat in assetCategoryStats" :key="stat.name">
+                <tr v-for="stat in assetCategoryStats" :key="stat.name"
+                    @click="selectAssetCategory(stat)"
+                    :class="[
+                      'cursor-pointer hover:bg-blue-50 transition-colors',
+                      selectedAssetCategory?.name === stat.name ? 'bg-blue-100' : ''
+                    ]">
                   <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
                     <div class="flex items-center gap-2">
                       <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
@@ -199,6 +204,70 @@
           </div>
         </div>
       </div>
+
+      <!-- 资产账号趋势（选中分类后显示） -->
+      <div v-if="selectedAssetCategory" class="mt-6 pt-6 border-t border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">
+            {{ selectedAssetCategory.name }} - 账号趋势
+          </h3>
+          <button
+            @click="selectedAssetCategory = null"
+            class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          >
+            返回
+          </button>
+        </div>
+
+        <div v-if="loadingAccountsTrend" class="flex justify-center items-center h-64">
+          <div class="text-gray-500">加载中...</div>
+        </div>
+        <div v-else-if="!hasAccountsTrendData" class="flex justify-center items-center h-64">
+          <div class="text-gray-500">该分类下暂无账号数据</div>
+        </div>
+        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <!-- 左侧图表 (3/5) -->
+          <div class="lg:col-span-3 h-96">
+            <Line :data="accountsTrendChartData" :options="categoryChartOptions" />
+          </div>
+
+          <!-- 右侧统计表格 (2/5) -->
+          <div class="lg:col-span-2">
+            <h4 class="text-md font-semibold mb-3 text-gray-900">账号明细</h4>
+            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">账号</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最早</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最新</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="stat in accountsTrendStats" :key="stat.accountId">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
+                      {{ stat.accountName }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
+                      {{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
+                      {{ currencySymbol }}{{ formatNumber(stat.latestValue) }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-right">
+                      <div :class="getChangeColorClass(stat.change)">
+                        <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%</div>
+                        <div class="text-xs opacity-80">{{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 负债分类趋势（所有分类在一个图表中） -->
@@ -235,7 +304,12 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="stat in liabilityCategoryStats" :key="stat.name">
+                <tr v-for="stat in liabilityCategoryStats" :key="stat.name"
+                    @click="selectLiabilityCategory(stat)"
+                    :class="[
+                      'cursor-pointer hover:bg-red-50 transition-colors',
+                      selectedLiabilityCategory?.name === stat.name ? 'bg-red-100' : ''
+                    ]">
                   <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
                     <div class="flex items-center gap-2">
                       <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
@@ -273,6 +347,70 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 负债账号趋势（选中分类后显示） -->
+      <div v-if="selectedLiabilityCategory" class="mt-6 pt-6 border-t border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">
+            {{ selectedLiabilityCategory.name }} - 账号趋势
+          </h3>
+          <button
+            @click="selectedLiabilityCategory = null"
+            class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          >
+            返回
+          </button>
+        </div>
+
+        <div v-if="loadingLiabilityAccountsTrend" class="flex justify-center items-center h-64">
+          <div class="text-gray-500">加载中...</div>
+        </div>
+        <div v-else-if="!hasLiabilityAccountsTrendData" class="flex justify-center items-center h-64">
+          <div class="text-gray-500">该分类下暂无账号数据</div>
+        </div>
+        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <!-- 左侧图表 (3/5) -->
+          <div class="lg:col-span-3 h-96">
+            <Line :data="liabilityAccountsTrendChartData" :options="categoryChartOptions" />
+          </div>
+
+          <!-- 右侧统计表格 (2/5) -->
+          <div class="lg:col-span-2">
+            <h4 class="text-md font-semibold mb-3 text-gray-900">账号明细</h4>
+            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">账号</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最早</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最新</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="stat in liabilityAccountsTrendStats" :key="stat.accountId">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
+                      {{ stat.accountName }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
+                      {{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
+                      {{ currencySymbol }}{{ formatNumber(stat.latestValue) }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-right">
+                      <div :class="getChangeColorClass(stat.change)">
+                        <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%</div>
+                        <div class="text-xs opacity-80">{{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -398,6 +536,18 @@ const loading = ref(false)
 const loadingAssetCategories = ref(false)
 const loadingLiabilityCategories = ref(false)
 const loadingNetAssetCategories = ref(false)
+const loadingAccountsTrend = ref(false)
+const loadingLiabilityAccountsTrend = ref(false)
+
+// 选中的资产分类（用于钻取）
+const selectedAssetCategory = ref(null)
+// 账号级别趋势数据
+const accountsTrendData = ref({})
+
+// 选中的负债分类（用于钻取）
+const selectedLiabilityCategory = ref(null)
+// 负债账号级别趋势数据
+const liabilityAccountsTrendData = ref({})
 
 // 货币选择
 const selectedCurrency = ref('USD')
@@ -773,6 +923,80 @@ const netAssetCategoryTotal = computed(() => {
   }
 })
 
+// 检查是否有账号趋势数据
+const hasAccountsTrendData = computed(() => {
+  return Object.keys(accountsTrendData.value).some(
+    key => accountsTrendData.value[key]?.length > 0
+  )
+})
+
+// 计算账号趋势统计数据
+const accountsTrendStats = computed(() => {
+  const stats = []
+
+  Object.entries(accountsTrendData.value).forEach(([accountId, data]) => {
+    if (data && data.length > 0) {
+      const earliest = data[0]
+      const latest = data[data.length - 1]
+
+      const earliestVal = earliest.balance || 0
+      const latestVal = latest.balance || 0
+      const change = earliestVal === 0 ? 0 : ((latestVal - earliestVal) / earliestVal) * 100
+
+      stats.push({
+        accountId: parseInt(accountId),
+        accountName: earliest.accountName || `账号 ${accountId}`,
+        earliestValue: convertValue(earliestVal),
+        earliestDate: earliest.date,
+        latestValue: convertValue(latestVal),
+        latestDate: latest.date,
+        change: change,
+        absoluteChange: convertValue(latestVal) - convertValue(earliestVal)
+      })
+    }
+  })
+
+  // 按最新金额排序
+  return stats.sort((a, b) => b.latestValue - a.latestValue)
+})
+
+// 检查是否有负债账号趋势数据
+const hasLiabilityAccountsTrendData = computed(() => {
+  return Object.keys(liabilityAccountsTrendData.value).some(
+    key => liabilityAccountsTrendData.value[key]?.length > 0
+  )
+})
+
+// 计算负债账号趋势统计数据
+const liabilityAccountsTrendStats = computed(() => {
+  const stats = []
+
+  Object.entries(liabilityAccountsTrendData.value).forEach(([accountId, data]) => {
+    if (data && data.length > 0) {
+      const earliest = data[0]
+      const latest = data[data.length - 1]
+
+      const earliestVal = earliest.balance || 0
+      const latestVal = latest.balance || 0
+      const change = earliestVal === 0 ? 0 : ((latestVal - earliestVal) / earliestVal) * 100
+
+      stats.push({
+        accountId: parseInt(accountId),
+        accountName: earliest.accountName || `账号 ${accountId}`,
+        earliestValue: convertValue(earliestVal),
+        earliestDate: earliest.date,
+        latestValue: convertValue(latestVal),
+        latestDate: latest.date,
+        change: change,
+        absoluteChange: convertValue(latestVal) - convertValue(earliestVal)
+      })
+    }
+  })
+
+  // 按最新金额排序
+  return stats.sort((a, b) => b.latestValue - a.latestValue)
+})
+
 // 净资产分类图表数据（多条线）
 const netAssetCategoriesChartData = computed(() => {
   // 收集所有日期
@@ -882,6 +1106,112 @@ const assetCategoriesChartData = computed(() => {
       spanGaps: true // 连接空值
     }
   }).filter(dataset => dataset.data.some(v => v !== null && v > 0)) // 只显示有数据的分类
+
+  return { labels, datasets }
+})
+
+// 账号趋势图表数据（多条线）
+const accountsTrendChartData = computed(() => {
+  // 收集所有日期
+  const allDates = new Set()
+  Object.values(accountsTrendData.value).forEach(data => {
+    if (data && Array.isArray(data)) {
+      data.forEach(item => allDates.add(item.date))
+    }
+  })
+
+  const labels = Array.from(allDates).sort()
+
+  // 为每个账号创建一个dataset
+  const defaultAccountColors = [
+    'rgb(59, 130, 246)',   // blue
+    'rgb(34, 197, 94)',    // green
+    'rgb(251, 146, 60)',   // orange
+    'rgb(168, 85, 247)',   // purple
+    'rgb(236, 72, 153)',   // pink
+    'rgb(234, 179, 8)',    // yellow
+    'rgb(20, 184, 166)',   // teal
+    'rgb(239, 68, 68)'     // red
+  ]
+
+  const datasets = Object.entries(accountsTrendData.value).map(([accountId, data], index) => {
+    if (!data || data.length === 0) return null
+
+    const accountName = data[0]?.accountName || `账号 ${accountId}`
+    const color = defaultAccountColors[index % defaultAccountColors.length]
+
+    // 创建日期到值的映射
+    const dataMap = {}
+    data.forEach(item => {
+      dataMap[item.date] = convertValue(item.balance || 0)
+    })
+
+    // 按照labels的顺序填充数据
+    const values = labels.map(date => dataMap[date] || null)
+
+    return {
+      label: accountName,
+      data: values,
+      borderColor: color,
+      backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+      tension: 0.3,
+      fill: false,
+      spanGaps: true
+    }
+  }).filter(dataset => dataset !== null && dataset.data.some(v => v !== null && v > 0))
+
+  return { labels, datasets }
+})
+
+// 负债账号趋势图表数据（多条线）
+const liabilityAccountsTrendChartData = computed(() => {
+  // 收集所有日期
+  const allDates = new Set()
+  Object.values(liabilityAccountsTrendData.value).forEach(data => {
+    if (data && Array.isArray(data)) {
+      data.forEach(item => allDates.add(item.date))
+    }
+  })
+
+  const labels = Array.from(allDates).sort()
+
+  // 为每个账号创建一个dataset
+  const defaultAccountColors = [
+    'rgb(220, 38, 38)',    // red-600
+    'rgb(234, 88, 12)',    // orange-600
+    'rgb(251, 146, 60)',   // orange-400
+    'rgb(249, 115, 22)',   // orange-500
+    'rgb(251, 191, 36)',   // amber-400
+    'rgb(253, 224, 71)',   // yellow-300
+    'rgb(239, 68, 68)',    // red-500
+    'rgb(156, 163, 175)'   // gray-400
+  ]
+
+  const datasets = Object.entries(liabilityAccountsTrendData.value).map(([accountId, data], index) => {
+    if (!data || data.length === 0) return null
+
+    const accountName = data[0]?.accountName || `账号 ${accountId}`
+    const color = defaultAccountColors[index % defaultAccountColors.length]
+
+    // 创建日期到值的映射
+    const dataMap = {}
+    data.forEach(item => {
+      dataMap[item.date] = convertValue(item.balance || 0)
+    })
+
+    // 按照labels的顺序填充数据
+    const values = labels.map(date => dataMap[date] || null)
+
+    return {
+      label: accountName,
+      data: values,
+      borderColor: color,
+      backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+      tension: 0.3,
+      fill: false,
+      spanGaps: true
+    }
+  }).filter(dataset => dataset !== null && dataset.data.some(v => v !== null && v > 0))
 
   return { labels, datasets }
 })
@@ -1136,8 +1466,66 @@ const loadNetAssetCategoriesTrend = async () => {
   }
 }
 
+// 选择资产分类（触发钻取）
+const selectAssetCategory = async (stat) => {
+  selectedAssetCategory.value = stat
+
+  // 找到对应的分类类型
+  const category = assetCategories.find(c => c.name === stat.name)
+  if (!category) return
+
+  loadingAccountsTrend.value = true
+  try {
+    const { start, end } = getDateRange()
+    const response = await analysisAPI.getAssetAccountsTrendByCategory(category.type, start, end)
+
+    if (response.success && response.data) {
+      accountsTrendData.value = response.data
+    } else {
+      accountsTrendData.value = {}
+    }
+  } catch (error) {
+    console.error('加载账号趋势失败:', error)
+    accountsTrendData.value = {}
+  } finally {
+    loadingAccountsTrend.value = false
+  }
+}
+
+// 选择负债分类（触发钻取）
+const selectLiabilityCategory = async (stat) => {
+  selectedLiabilityCategory.value = stat
+
+  // 找到对应的分类类型
+  const category = liabilityCategories.find(c => c.name === stat.name)
+  if (!category) return
+
+  loadingLiabilityAccountsTrend.value = true
+  try {
+    const { start, end } = getDateRange()
+    const response = await analysisAPI.getLiabilityAccountsTrendByCategory(category.type, start, end)
+
+    if (response.success && response.data) {
+      liabilityAccountsTrendData.value = response.data
+    } else {
+      liabilityAccountsTrendData.value = {}
+    }
+  } catch (error) {
+    console.error('加载负债账号趋势失败:', error)
+    liabilityAccountsTrendData.value = {}
+  } finally {
+    loadingLiabilityAccountsTrend.value = false
+  }
+}
+
 // 加载所有趋势
 const loadAllTrends = () => {
+  // 切换tab时清除选中的分类
+  selectedAssetCategory.value = null
+  accountsTrendData.value = {}
+  selectedLiabilityCategory.value = null
+  liabilityAccountsTrendData.value = {}
+
   if (activeTab.value === 'overall') {
     loadOverallTrend()
   } else if (activeTab.value === 'asset') {

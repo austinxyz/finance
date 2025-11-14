@@ -104,12 +104,17 @@
             <div
               v-for="item in currentAllocation?.data || []"
               :key="item.name || item.code"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-              @click="selectCategory(item)"
+              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div class="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  :checked="!isExcluded(item)"
+                  @change="toggleCategory(item)"
+                  class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
                 <div class="w-4 h-4 rounded" :style="{ backgroundColor: item.color || getItemColor(item.name) }"></div>
-                <span class="font-medium">{{ item.name }}</span>
+                <span class="font-medium cursor-pointer" @click="selectCategory(item)">{{ item.name }}</span>
               </div>
               <div class="text-right">
                 <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
@@ -118,7 +123,7 @@
             </div>
           </div>
 
-          <!-- 选中类别时显示钻取饼图 -->
+          <!-- 选中类别时显示钻取饼图或表格 -->
           <div v-else class="space-y-4">
             <div class="flex items-center justify-between">
               <h4 class="font-semibold">{{ selectedCategory.name }} - 账户分布</h4>
@@ -129,7 +134,94 @@
                 返回
               </button>
             </div>
-            <div class="space-y-3">
+
+            <!-- 净资产显示表格 -->
+            <div v-if="activeTab === 'net'" class="space-y-4">
+              <div v-if="loadingDrillDown" class="text-center text-gray-500 py-8">加载中...</div>
+              <div v-else-if="!drillDownData || (!drillDownData.assetAccounts?.length && !drillDownData.liabilityAccounts?.length)"
+                   class="text-center text-gray-500 py-8">
+                暂无账户数据
+              </div>
+              <div v-else class="space-y-4">
+                <!-- 资产账户表格 -->
+                <div v-if="drillDownData.assetAccounts?.length > 0">
+                  <h5 class="text-sm font-semibold text-green-700 mb-2">资产账户</h5>
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-green-50">
+                        <tr>
+                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
+                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">分类</th>
+                          <th class="px-4 py-2 text-right text-xs font-medium text-gray-700">余额</th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <tr v-for="account in drillDownData.assetAccounts" :key="account.accountId" class="hover:bg-gray-50">
+                          <td class="px-4 py-2 text-sm text-gray-900">{{ account.accountName }}</td>
+                          <td class="px-4 py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
+                          <td class="px-4 py-2 text-sm text-right font-medium text-green-600">
+                            {{ currencySymbol }}{{ formatNumber(convertValue(account.balance)) }}
+                          </td>
+                        </tr>
+                        <!-- 资产小计 -->
+                        <tr class="bg-green-100 font-semibold">
+                          <td class="px-4 py-2 text-sm text-gray-900" colspan="2">资产小计</td>
+                          <td class="px-4 py-2 text-sm text-right text-green-700">
+                            {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.assetAccounts.reduce((sum, a) => sum + a.balance, 0))) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 负债账户表格 -->
+                <div v-if="drillDownData.liabilityAccounts?.length > 0">
+                  <h5 class="text-sm font-semibold text-red-700 mb-2">负债账户</h5>
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-red-50">
+                        <tr>
+                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
+                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">分类</th>
+                          <th class="px-4 py-2 text-right text-xs font-medium text-gray-700">余额</th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <tr v-for="account in drillDownData.liabilityAccounts" :key="account.accountId" class="hover:bg-gray-50">
+                          <td class="px-4 py-2 text-sm text-gray-900">{{ account.accountName }}</td>
+                          <td class="px-4 py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
+                          <td class="px-4 py-2 text-sm text-right font-medium text-red-600">
+                            {{ currencySymbol }}{{ formatNumber(convertValue(account.balance)) }}
+                          </td>
+                        </tr>
+                        <!-- 负债小计 -->
+                        <tr class="bg-red-100 font-semibold">
+                          <td class="px-4 py-2 text-sm text-gray-900" colspan="2">负债小计</td>
+                          <td class="px-4 py-2 text-sm text-right text-red-700">
+                            {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.liabilityAccounts.reduce((sum, a) => sum + a.balance, 0))) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 净值总计 -->
+                <div class="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div class="text-xs text-gray-600">{{ selectedCategory?.name || '该类型' }}净值</div>
+                  <div class="text-xl font-bold text-blue-700">
+                    {{ currencySymbol }}{{ formatNumber(convertValue(
+                      (drillDownData.assetAccounts?.reduce((sum, a) => sum + a.balance, 0) || 0) -
+                      (drillDownData.liabilityAccounts?.reduce((sum, a) => sum + a.balance, 0) || 0)
+                    )) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 资产和负债显示饼图 -->
+            <div v-else class="space-y-3">
               <div class="h-64 flex items-center justify-center">
                 <div v-if="loadingDrillDown" class="text-gray-500">加载中...</div>
                 <div v-else-if="!drillDownChartData || drillDownData.length === 0" class="text-gray-500">暂无账户数据</div>
@@ -178,6 +270,9 @@ const loading = ref(false)
 const loadingDrillDown = ref(false)
 const selectedCategory = ref(null)
 const drillDownData = ref(null)
+
+// 排除分类功能
+const excludedCategories = ref(new Set())
 
 // 货币选择
 const selectedCurrency = ref('USD')
@@ -276,15 +371,48 @@ const currentAllocation = computed(() => {
   }
 })
 
-// 主饼图数据
+// 过滤后的分类（排除被勾选的）
+const filteredCategories = computed(() => {
+  const allCategories = currentAllocation.value?.data || []
+  return allCategories
+    .filter(item => !excludedCategories.value.has(getItemKey(item)))
+    .map(item => {
+      const value = getItemValue(item)
+      const adjustedPercentage = filteredTotal.value > 0
+        ? ((value / filteredTotal.value) * 100).toFixed(2)
+        : '0.00'
+      return {
+        ...item,
+        adjustedPercentage
+      }
+    })
+})
+
+// 过滤后的总值
+const filteredTotal = computed(() => {
+  const allCategories = currentAllocation.value?.data || []
+  return allCategories
+    .filter(item => !excludedCategories.value.has(getItemKey(item)))
+    .reduce((sum, item) => sum + getItemValue(item), 0)
+})
+
+// 主饼图数据 - 根据排除的分类进行过滤
 const currentChartData = computed(() => {
-  const data = currentAllocation.value?.data || []
+  const allData = currentAllocation.value?.data || []
+  // 过滤掉被排除的分类
+  const filteredData = allData.filter(item => !excludedCategories.value.has(getItemKey(item)))
+
   return {
-    labels: data.map(item => item.name),
+    labels: filteredData.map(item => item.name),
     datasets: [
       {
-        data: data.map(item => getItemValue(item)),
-        backgroundColor: data.map(item => item.color || getItemColor(item.name)),
+        data: filteredData.map(item => getItemValue(item)),
+        backgroundColor: filteredData.map((item, index) => {
+          // 使用原始数据中的颜色，如果没有则用默认颜色
+          if (item.color) return item.color
+          const originalIndex = allData.findIndex(d => getItemKey(d) === getItemKey(item))
+          return defaultColors[originalIndex % defaultColors.length]
+        }),
         borderWidth: 2,
         borderColor: '#fff'
       }
@@ -473,6 +601,7 @@ const switchTab = (tabKey) => {
   activeTab.value = tabKey
   selectedCategory.value = null
   drillDownData.value = null
+  excludedCategories.value.clear() // 清空排除的分类
 
   // 根据 tab 加载对应数据
   if (tabKey === 'net' && netAllocation.value.data.length === 0) {
@@ -491,9 +620,15 @@ const selectCategory = async (item) => {
 
   try {
     if (activeTab.value === 'net') {
-      // 对于净资产，需要获取该净资产类别下的所有资产账户和负债账户
-      // TODO: 需要创建后端API来获取净资产类别下的账户列表
-      drillDownData.value = []
+      // 对于净资产，获取该净资产类别下的所有资产账户和负债账户
+      const response = await analysisAPI.getNetAssetCategoryAccounts(
+        item.code,
+        null,
+        selectedDate.value || null
+      )
+      if (response.success) {
+        drillDownData.value = response.data
+      }
     } else if (activeTab.value === 'asset') {
       // 资产类型名称映射（中文 -> 英文）
       const typeMap = {
@@ -548,6 +683,28 @@ const selectCategory = async (item) => {
   } finally {
     loadingDrillDown.value = false
   }
+}
+
+// 获取分类的唯一标识
+const getItemKey = (item) => {
+  return item.code || item.name
+}
+
+// 检查分类是否被排除
+const isExcluded = (item) => {
+  return excludedCategories.value.has(getItemKey(item))
+}
+
+// 切换分类的包含/排除状态
+const toggleCategory = (item) => {
+  const key = getItemKey(item)
+  if (excludedCategories.value.has(key)) {
+    excludedCategories.value.delete(key)
+  } else {
+    excludedCategories.value.add(key)
+  }
+  // 触发响应式更新
+  excludedCategories.value = new Set(excludedCategories.value)
 }
 
 onMounted(() => {

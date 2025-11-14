@@ -1,5 +1,6 @@
 package com.finance.app.service;
 
+import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.AssetSummaryDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
 import com.finance.app.dto.TrendDataDTO;
@@ -760,6 +761,187 @@ public class AnalysisService {
                 result.add(accountData);
             }
         }
+
+        return result;
+    }
+
+    // 获取资产分类下所有账户的趋势数据
+    public Map<String, List<AccountTrendDataPointDTO>> getAssetAccountsTrendByCategory(
+            String categoryType, String startDateStr, String endDateStr, Long userId) {
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        LocalDate endDate = LocalDate.parse(endDateStr);
+
+        // 获取该类型的所有资产账户
+        List<AssetAccount> accounts;
+        if (userId == null) {
+            accounts = accountRepository.findByIsActiveTrue();
+        } else {
+            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 过滤出匹配类型的账户
+        List<AssetAccount> filteredAccounts = accounts.stream()
+            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .collect(Collectors.toList());
+
+        // 为每个账户获取趋势数据
+        Map<String, List<AccountTrendDataPointDTO>> result = new HashMap<>();
+
+        for (AssetAccount account : filteredAccounts) {
+            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
+                account.getId(), startDate, endDate);
+
+            if (!records.isEmpty()) {
+                List<AccountTrendDataPointDTO> accountTrend = new ArrayList<>();
+                for (AssetRecord record : records) {
+                    AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
+                    point.setDate(record.getRecordDate().toString());
+                    point.setBalance(record.getAmountInBaseCurrency());
+                    point.setAccountName(account.getAccountName());
+                    accountTrend.add(point);
+                }
+
+                // 按日期排序（升序）
+                accountTrend.sort(Comparator.comparing(AccountTrendDataPointDTO::getDate));
+
+                // 使用账户ID作为key
+                result.put(account.getId().toString(), accountTrend);
+            }
+        }
+
+        return result;
+    }
+
+    // 获取负债分类下所有账户的趋势数据
+    public Map<String, List<AccountTrendDataPointDTO>> getLiabilityAccountsTrendByCategory(
+            String categoryType, String startDateStr, String endDateStr, Long userId) {
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        LocalDate endDate = LocalDate.parse(endDateStr);
+
+        // 获取该类型的所有负债账户
+        List<LiabilityAccount> accounts;
+        if (userId == null) {
+            accounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            accounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 过滤出匹配类型的账户
+        List<LiabilityAccount> filteredAccounts = accounts.stream()
+            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .collect(Collectors.toList());
+
+        // 为每个账户获取趋势数据
+        Map<String, List<AccountTrendDataPointDTO>> result = new HashMap<>();
+
+        for (LiabilityAccount account : filteredAccounts) {
+            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
+                account.getId(), startDate, endDate);
+
+            if (!records.isEmpty()) {
+                List<AccountTrendDataPointDTO> accountTrend = new ArrayList<>();
+                for (LiabilityRecord record : records) {
+                    AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
+                    point.setDate(record.getRecordDate().toString());
+                    point.setBalance(record.getBalanceInBaseCurrency());
+                    point.setAccountName(account.getAccountName());
+                    accountTrend.add(point);
+                }
+
+                // 按日期排序（升序）
+                accountTrend.sort(Comparator.comparing(AccountTrendDataPointDTO::getDate));
+
+                // 使用账户ID作为key
+                result.put(account.getId().toString(), accountTrend);
+            }
+        }
+
+        return result;
+    }
+
+    // 获取净资产类别下的所有账户详情（包含资产账户和负债账户）
+    public Map<String, Object> getNetAssetCategoryAccounts(String categoryCode, Long userId, LocalDate asOfDate) {
+        // 获取净资产分类
+        Optional<NetAssetCategory> categoryOpt = netAssetCategoryRepository.findByCode(categoryCode);
+        if (categoryOpt.isEmpty()) {
+            Map<String, Object> emptyResult = new HashMap<>();
+            emptyResult.put("assetAccounts", new ArrayList<>());
+            emptyResult.put("liabilityAccounts", new ArrayList<>());
+            return emptyResult;
+        }
+        NetAssetCategory category = categoryOpt.get();
+
+        // 获取该分类关联的资产类型
+        List<NetAssetCategoryAssetTypeMapping> assetMappings = assetTypeMappingRepository.findByNetAssetCategoryId(category.getId());
+        Set<String> assetTypes = assetMappings.stream()
+            .map(NetAssetCategoryAssetTypeMapping::getAssetType)
+            .collect(Collectors.toSet());
+
+        // 获取该分类关联的负债类型
+        List<NetAssetCategoryLiabilityTypeMapping> liabilityMappings = liabilityTypeMappingRepository.findByNetAssetCategoryId(category.getId());
+        Set<String> liabilityTypes = liabilityMappings.stream()
+            .map(NetAssetCategoryLiabilityTypeMapping::getLiabilityType)
+            .collect(Collectors.toSet());
+
+        // 获取所有资产账户
+        List<AssetAccount> assetAccounts;
+        if (userId == null) {
+            assetAccounts = accountRepository.findByIsActiveTrue();
+        } else {
+            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 过滤出匹配类型的资产账户并获取余额
+        List<Map<String, Object>> assetAccountsData = new ArrayList<>();
+        for (AssetAccount account : assetAccounts) {
+            if (account.getCategory() != null && assetTypes.contains(account.getCategory().getType())) {
+                Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
+                if (record.isPresent()) {
+                    Map<String, Object> accountData = new HashMap<>();
+                    accountData.put("accountId", account.getId());
+                    accountData.put("accountName", account.getAccountName());
+                    accountData.put("categoryType", account.getCategory().getType());
+                    accountData.put("categoryName", account.getCategory().getName());
+                    accountData.put("balance", record.get().getAmountInBaseCurrency());
+                    assetAccountsData.add(accountData);
+                }
+            }
+        }
+
+        // 获取所有负债账户
+        List<LiabilityAccount> liabilityAccounts;
+        if (userId == null) {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 过滤出匹配类型的负债账户并获取余额
+        List<Map<String, Object>> liabilityAccountsData = new ArrayList<>();
+        for (LiabilityAccount account : liabilityAccounts) {
+            if (account.getCategory() != null && liabilityTypes.contains(account.getCategory().getType())) {
+                Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+                if (record.isPresent()) {
+                    Map<String, Object> accountData = new HashMap<>();
+                    accountData.put("accountId", account.getId());
+                    accountData.put("accountName", account.getAccountName());
+                    accountData.put("categoryType", account.getCategory().getType());
+                    accountData.put("categoryName", account.getCategory().getName());
+                    accountData.put("balance", record.get().getBalanceInBaseCurrency());
+                    liabilityAccountsData.add(accountData);
+                }
+            }
+        }
+
+        // 按余额降序排序
+        assetAccountsData.sort((a, b) -> ((BigDecimal)b.get("balance")).compareTo((BigDecimal)a.get("balance")));
+        liabilityAccountsData.sort((a, b) -> ((BigDecimal)b.get("balance")).compareTo((BigDecimal)a.get("balance")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("assetAccounts", assetAccountsData);
+        result.put("liabilityAccounts", liabilityAccountsData);
+        result.put("categoryName", category.getName());
+        result.put("categoryCode", categoryCode);
 
         return result;
     }
