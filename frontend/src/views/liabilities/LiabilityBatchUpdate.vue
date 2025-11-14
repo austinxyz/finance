@@ -99,6 +99,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { getExchangeRate } from '@/utils/exchangeRate'
+import { getTodayDate } from '@/lib/utils'
 
 const userId = ref(1) // TODO: 从用户登录状态获取
 const loading = ref(false)
@@ -109,8 +110,8 @@ const accountPreviousValues = ref({}) // 存储每个账户在选择日期的之
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
 
-// 记录日期，默认为今天
-const today = new Date().toISOString().split('T')[0]
+// 记录日期，默认为今天（使用洛杉矶时区）
+const today = getTodayDate()
 const recordDate = ref(today)
 
 // 分类类型

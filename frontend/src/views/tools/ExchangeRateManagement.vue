@@ -230,6 +230,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+import { getTodayDate } from '@/lib/utils'
 
 const exchangeRates = ref([])
 const loading = ref(false)
@@ -240,7 +241,7 @@ const submitting = ref(false)
 const formData = ref({
   currency: '',
   rateToUsd: '',
-  effectiveDate: new Date().toISOString().split('T')[0],
+  effectiveDate: getTodayDate(),
   source: '手动输入',
   notes: '',
   isActive: true
@@ -274,7 +275,7 @@ const openCreateDialog = () => {
   formData.value = {
     currency: '',
     rateToUsd: '',
-    effectiveDate: new Date().toISOString().split('T')[0],
+    effectiveDate: getTodayDate(),
     source: '手动输入',
     notes: '',
     isActive: true

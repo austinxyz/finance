@@ -92,6 +92,53 @@
       </div>
     </div>
 
+    <!-- 净资产分类 -->
+    <div class="bg-white rounded-lg shadow border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">净资产分类</h2>
+        <p class="text-sm text-gray-500 mt-1">资产减去对应负债后的净值分布</p>
+      </div>
+      <div class="p-6">
+        <div v-if="netAssetAllocation.data.length === 0" class="text-sm text-gray-500 text-center py-8">
+          暂无净资产数据
+        </div>
+        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <!-- 左侧饼图 - 占3列 -->
+          <div class="lg:col-span-3 h-80 flex items-center justify-center">
+            <canvas ref="netAssetChartCanvas"></canvas>
+          </div>
+
+          <!-- 右侧详细列表 - 占2列 -->
+          <div class="lg:col-span-2 space-y-1.5">
+            <div v-for="category in netAssetAllocation.data" :key="category.code"
+                 class="flex items-center justify-between p-2 border border-gray-200 rounded hover:bg-gray-50 transition-colors text-xs">
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: category.color }"></div>
+                <span class="font-semibold text-gray-900">{{ category.name }}</span>
+              </div>
+              <div class="flex items-center gap-3 text-right">
+                <div class="text-gray-500">
+                  <span class="text-green-600 font-medium">${{ formatAmount(category.assets) }}</span>
+                  <span class="mx-1">-</span>
+                  <span class="text-red-600 font-medium">${{ formatAmount(category.liabilities) }}</span>
+                </div>
+                <div class="font-bold text-gray-900 min-w-[80px]">
+                  ${{ formatAmount(category.netValue) }}
+                </div>
+                <div class="text-gray-500 min-w-[45px]">{{ category.percentage }}%</div>
+              </div>
+            </div>
+            <div class="border-t border-gray-200 pt-2 mt-3">
+              <div class="flex items-center justify-between font-semibold text-sm">
+                <span class="text-gray-700">总净资产</span>
+                <span class="text-lg text-blue-600">${{ formatAmount(netAssetAllocation.total) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 快捷操作 & 账户概览 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- 快捷操作 -->
@@ -262,6 +309,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -273,6 +321,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -282,13 +331,16 @@ ChartJS.register(
 const userId = ref(1) // TODO: 从用户登录状态获取
 const assetAccounts = ref([])
 const liabilityAccounts = ref([])
+const netAssetAllocation = ref({ total: 0, data: [] })
 const loading = ref(false)
 const loadingTrend = ref(false)
 
 const assetChartCanvas = ref(null)
 const liabilityChartCanvas = ref(null)
+const netAssetChartCanvas = ref(null)
 let assetChartInstance = null
 let liabilityChartInstance = null
+let netAssetChartInstance = null
 
 const selectedTimeRange = ref('1y')
 const timeRanges = [
@@ -609,9 +661,10 @@ function formatAmount(amount) {
 async function loadAccounts() {
   loading.value = true
   try {
-    const [assetResponse, liabilityResponse] = await Promise.all([
+    const [assetResponse, liabilityResponse, netAssetResponse] = await Promise.all([
       assetAccountAPI.getAll(),
-      liabilityAccountAPI.getAll()
+      liabilityAccountAPI.getAll(),
+      analysisAPI.getNetAssetAllocation()
     ])
 
     if (assetResponse.success) {
@@ -620,6 +673,10 @@ async function loadAccounts() {
 
     if (liabilityResponse.success) {
       liabilityAccounts.value = liabilityResponse.data
+    }
+
+    if (netAssetResponse.success) {
+      netAssetAllocation.value = netAssetResponse.data
     }
 
     await nextTick()
@@ -658,6 +715,7 @@ function selectTimeRange(range) {
 function updateCharts() {
   updateAssetChart()
   updateLiabilityChart()
+  updateNetAssetChart()
 }
 
 // 更新资产分布图表
@@ -675,7 +733,7 @@ function updateAssetChart() {
   }
 
   const ctx = assetChartCanvas.value.getContext('2d')
-  assetChartInstance = new Chart(ctx, {
+  assetChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
       labels: assetCategories.value.map(c => c.name),
@@ -723,7 +781,7 @@ function updateLiabilityChart() {
   }
 
   const ctx = liabilityChartCanvas.value.getContext('2d')
-  liabilityChartInstance = new Chart(ctx, {
+  liabilityChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
       labels: liabilityCategories.value.map(c => c.name),
@@ -747,6 +805,55 @@ function updateLiabilityChart() {
               const label = context.label || ''
               const value = formatAmount(context.parsed)
               const percentage = liabilityCategories.value[context.dataIndex].percentage
+              return `${label}: $${value} (${percentage}%)`
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+// 更新净资产分布图表
+function updateNetAssetChart() {
+  if (!netAssetChartCanvas.value || netAssetAllocation.value.data.length === 0) {
+    if (netAssetChartInstance) {
+      netAssetChartInstance.destroy()
+      netAssetChartInstance = null
+    }
+    return
+  }
+
+  if (netAssetChartInstance) {
+    netAssetChartInstance.destroy()
+  }
+
+  const ctx = netAssetChartCanvas.value.getContext('2d')
+  netAssetChartInstance = new ChartJS(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: netAssetAllocation.value.data.map(c => c.name),
+      datasets: [{
+        data: netAssetAllocation.value.data.map(c => c.netValue),
+        backgroundColor: netAssetAllocation.value.data.map(c => c.color),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || ''
+              const value = formatAmount(context.parsed)
+              const category = netAssetAllocation.value.data[context.dataIndex]
+              const percentage = category.percentage
               return `${label}: $${value} (${percentage}%)`
             }
           }
