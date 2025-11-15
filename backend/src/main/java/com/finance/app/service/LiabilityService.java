@@ -318,7 +318,7 @@ public class LiabilityService {
         return dto;
     }
 
-    private LiabilityRecordDTO convertToRecordDTO(LiabilityRecord record) {
+    public LiabilityRecordDTO convertToRecordDTO(LiabilityRecord record) {
         LiabilityRecordDTO dto = new LiabilityRecordDTO();
         dto.setId(record.getId());
         dto.setAccountId(record.getAccountId());

@@ -3,6 +3,7 @@ package com.finance.app.controller;
 import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.ApiResponse;
 import com.finance.app.dto.AssetSummaryDTO;
+import com.finance.app.dto.FinancialMetricsDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
@@ -186,5 +187,14 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate) {
         Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, asOfDate);
         return ApiResponse.success(allocation);
+    }
+
+    // 获取财务指标
+    @GetMapping("/financial-metrics")
+    public ApiResponse<FinancialMetricsDTO> getFinancialMetrics(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, asOfDate);
+        return ApiResponse.success(metrics);
     }
 }

@@ -22,24 +22,6 @@ const routes = [
       },
       // 资产管理
       {
-        path: 'assets/accounts',
-        name: 'AssetAccounts',
-        component: () => import('../views/assets/AccountList.vue'),
-        meta: {
-          title: '资产账户',
-          description: '管理您的资产账户'
-        }
-      },
-      {
-        path: 'assets/accounts/:id',
-        name: 'AssetAccountDetail',
-        component: () => import('../views/assets/AccountDetail.vue'),
-        meta: {
-          title: '账户详情',
-          description: '查看账户资产记录'
-        }
-      },
-      {
         path: 'assets/batch-update',
         name: 'BatchUpdate',
         component: () => import('../views/assets/BatchUpdate.vue'),
@@ -111,6 +93,15 @@ const routes = [
         meta: {
           title: '资产配置',
           description: '分析资产配置结构'
+        }
+      },
+      {
+        path: 'analysis/metrics',
+        name: 'FinancialMetrics',
+        component: () => import('../views/analysis/FinancialMetrics.vue'),
+        meta: {
+          title: '财务指标',
+          description: '查看关键财务指标'
         }
       },
       // 设置

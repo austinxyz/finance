@@ -95,11 +95,13 @@ public class LiabilityController {
     }
 
     @PutMapping("/records/{id}")
-    public ApiResponse<LiabilityRecord> updateRecord(
+    public ApiResponse<LiabilityRecordDTO> updateRecord(
             @PathVariable Long id,
             @RequestBody LiabilityRecord record) {
         LiabilityRecord updated = liabilityService.updateRecord(id, record);
-        return ApiResponse.success("Record updated successfully", updated);
+        // Convert to DTO to avoid lazy loading issues
+        LiabilityRecordDTO dto = liabilityService.convertToRecordDTO(updated);
+        return ApiResponse.success("Record updated successfully", dto);
     }
 
     @DeleteMapping("/records/{id}")

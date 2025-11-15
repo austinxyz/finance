@@ -2,6 +2,7 @@ package com.finance.app.service;
 
 import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.AssetSummaryDTO;
+import com.finance.app.dto.FinancialMetricsDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
@@ -62,6 +63,7 @@ public class AnalysisService {
         BigDecimal totalAssets = BigDecimal.ZERO;
         Map<String, BigDecimal> assetsByCategory = new HashMap<>();
         Map<String, BigDecimal> assetsByType = new HashMap<>();
+        LocalDate earliestDate = null;  // 追踪实际使用的最早数据日期
 
         for (AssetAccount account : accounts) {
             // 根据asOfDate获取记录
@@ -69,6 +71,12 @@ public class AnalysisService {
             if (record.isPresent()) {
                 BigDecimal amount = record.get().getAmountInBaseCurrency();
                 totalAssets = totalAssets.add(amount);
+
+                // 追踪最早的记录日期
+                LocalDate recordDate = record.get().getRecordDate();
+                if (earliestDate == null || recordDate.isBefore(earliestDate)) {
+                    earliestDate = recordDate;
+                }
 
                 // 按分类汇总
                 String categoryName = account.getCategory() != null ?
@@ -96,6 +104,12 @@ public class AnalysisService {
             if (record.isPresent()) {
                 BigDecimal balance = record.get().getBalanceInBaseCurrency();
                 totalLiabilities = totalLiabilities.add(balance);
+
+                // 追踪最早的记录日期
+                LocalDate recordDate = record.get().getRecordDate();
+                if (earliestDate == null || recordDate.isBefore(earliestDate)) {
+                    earliestDate = recordDate;
+                }
             }
         }
 
@@ -105,6 +119,7 @@ public class AnalysisService {
         summary.setNetWorth(totalAssets.subtract(totalLiabilities));
         summary.setAssetsByCategory(assetsByCategory);
         summary.setAssetsByType(assetsByType);
+        summary.setActualDate(earliestDate);  // 设置实际使用的最早数据日期
 
         return summary;
     }
@@ -1078,5 +1093,116 @@ public class AnalysisService {
         result.put("data", data);
 
         return result;
+    }
+
+    // 获取财务指标
+    public FinancialMetricsDTO getFinancialMetrics(Long userId, LocalDate asOfDate) {
+        // 如果没有指定日期,使用当前日期
+        LocalDate targetDate = (asOfDate != null) ? asOfDate : LocalDate.now();
+
+        FinancialMetricsDTO metrics = new FinancialMetricsDTO();
+        metrics.setAsOfDate(targetDate);
+
+        // 1. 获取当前日期的基础指标
+        AssetSummaryDTO currentSummary = getAssetSummary(userId, targetDate);
+        metrics.setTotalAssets(currentSummary.getTotalAssets());
+        metrics.setTotalLiabilities(currentSummary.getTotalLiabilities());
+        metrics.setNetWorth(currentSummary.getNetWorth());
+
+        // 2. 计算资产负债率
+        if (currentSummary.getTotalAssets().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal debtRatio = currentSummary.getTotalLiabilities()
+                .divide(currentSummary.getTotalAssets(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setDebtToAssetRatio(debtRatio);
+        } else {
+            metrics.setDebtToAssetRatio(BigDecimal.ZERO);
+        }
+
+        // 3. 计算流动性比率 (现金类资产占比)
+        BigDecimal cashAmount = currentSummary.getAssetsByType().getOrDefault("CASH", BigDecimal.ZERO);
+        metrics.setCashAmount(cashAmount);
+        if (currentSummary.getTotalAssets().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal liquidityRatio = cashAmount
+                .divide(currentSummary.getTotalAssets(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setLiquidityRatio(liquidityRatio);
+        } else {
+            metrics.setLiquidityRatio(BigDecimal.ZERO);
+        }
+
+        // 4. 计算月度变化（按比例折算）
+        LocalDate previousMonth = targetDate.minusMonths(1);
+        metrics.setPreviousMonthDate(previousMonth);
+        AssetSummaryDTO previousMonthSummary = getAssetSummary(userId, previousMonth);
+        metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
+
+        BigDecimal monthlyChange = currentSummary.getNetWorth().subtract(previousMonthSummary.getNetWorth());
+        metrics.setMonthlyChange(monthlyChange);
+
+        // 根据实际的时间差按比例折算月度变化率
+        if (previousMonthSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0 &&
+            previousMonthSummary.getActualDate() != null) {
+            // 计算实际的时间差（天数）
+            long actualDays = java.time.temporal.ChronoUnit.DAYS.between(
+                previousMonthSummary.getActualDate(), targetDate);
+            long targetDays = 30;  // 目标月度间隔（30天）
+
+            if (actualDays > 0) {
+                // 变化率 = (变化金额 / 之前净值) * 100
+                BigDecimal rawChangeRate = monthlyChange
+                    .divide(previousMonthSummary.getNetWorth(), 6, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+
+                // 按比例折算: 折算后变化率 = 原始变化率 * (目标天数 / 实际天数)
+                BigDecimal annualizedRate = rawChangeRate
+                    .multiply(new BigDecimal(targetDays))
+                    .divide(new BigDecimal(actualDays), 4, RoundingMode.HALF_UP);
+
+                metrics.setMonthlyChangeRate(annualizedRate);
+            } else {
+                metrics.setMonthlyChangeRate(BigDecimal.ZERO);
+            }
+        } else {
+            metrics.setMonthlyChangeRate(BigDecimal.ZERO);
+        }
+
+        // 5. 计算年度变化（按比例折算）
+        LocalDate previousYear = targetDate.minusYears(1);
+        metrics.setPreviousYearDate(previousYear);
+        AssetSummaryDTO previousYearSummary = getAssetSummary(userId, previousYear);
+        metrics.setPreviousYearNetWorth(previousYearSummary.getNetWorth());
+
+        BigDecimal yearlyChange = currentSummary.getNetWorth().subtract(previousYearSummary.getNetWorth());
+        metrics.setYearlyChange(yearlyChange);
+
+        // 根据实际的时间差按比例折算年度变化率
+        if (previousYearSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0 &&
+            previousYearSummary.getActualDate() != null) {
+            // 计算实际的时间差（天数）
+            long actualDays = java.time.temporal.ChronoUnit.DAYS.between(
+                previousYearSummary.getActualDate(), targetDate);
+            long targetDays = 365;  // 目标年度间隔（365天）
+
+            if (actualDays > 0) {
+                // 变化率 = (变化金额 / 之前净值) * 100
+                BigDecimal rawChangeRate = yearlyChange
+                    .divide(previousYearSummary.getNetWorth(), 6, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+
+                // 按比例折算: 折算后变化率 = 原始变化率 * (目标天数 / 实际天数)
+                BigDecimal annualizedRate = rawChangeRate
+                    .multiply(new BigDecimal(targetDays))
+                    .divide(new BigDecimal(actualDays), 4, RoundingMode.HALF_UP);
+
+                metrics.setYearlyChangeRate(annualizedRate);
+            } else {
+                metrics.setYearlyChangeRate(BigDecimal.ZERO);
+            }
+        } else {
+            metrics.setYearlyChangeRate(BigDecimal.ZERO);
+        }
+
+        return metrics;
     }
 }

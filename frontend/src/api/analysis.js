@@ -126,5 +126,13 @@ export const analysisAPI = {
     if (userId) params.userId = userId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/net-worth-by-tax-status', { params })
+  },
+
+  // 获取财务指标
+  getFinancialMetrics(userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/financial-metrics', { params })
   }
 }

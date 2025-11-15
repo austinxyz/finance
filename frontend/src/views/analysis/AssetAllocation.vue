@@ -34,8 +34,27 @@
           </div>
         </div>
       </div>
-      <div v-if="selectedDate" class="text-sm text-gray-600">
-        显示日期: {{ selectedDate }} (如果该日期无记录，将显示该日期之前最近的一条记录)
+      <div class="text-sm text-gray-600">
+        <span v-if="!selectedDate && actualDataDate" class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>
+            <span class="font-medium text-gray-700">数据日期:</span>
+            <span class="text-blue-600 font-semibold">{{ formatDate(actualDataDate) }}</span>
+            <span class="text-gray-500 ml-2">(显示最新可用数据)</span>
+          </span>
+        </span>
+        <span v-else-if="selectedDate">
+          <span class="font-medium text-gray-700">查询日期:</span> {{ selectedDate }}
+          <span v-if="actualDataDate && actualDataDate !== selectedDate" class="ml-2">
+            <span class="text-gray-500">→ 实际数据日期: </span>
+            <span class="text-blue-600 font-semibold">{{ formatDate(actualDataDate) }}</span>
+          </span>
+        </span>
       </div>
     </div>
 
@@ -121,7 +140,9 @@
               </div>
               <div class="text-right">
                 <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
-                <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
+                <div class="text-sm text-gray-500">
+                  {{ formatNumber(getAdjustedPercentage(item)) }}%
+                </div>
               </div>
             </div>
           </div>
@@ -268,7 +289,9 @@
                 </div>
                 <div class="text-right">
                   <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(item.value)) }}</div>
-                  <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
+                  <div class="text-sm text-gray-500">
+                  {{ formatNumber(getAdjustedPercentage(item)) }}%
+                </div>
                 </div>
               </div>
             </div>
@@ -306,7 +329,9 @@
               </div>
               <div class="text-right">
                 <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
-                <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
+                <div class="text-sm text-gray-500">
+                  {{ formatNumber(getAdjustedPercentage(item)) }}%
+                </div>
               </div>
             </div>
           </div>
@@ -353,12 +378,13 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { analysisAPI } from '@/api/analysis'
 import { assetAccountAPI } from '@/api/asset'
 import { liabilityAccountAPI } from '@/api/liability'
 
 // 注册 Chart.js 组件
-ChartJS.register(ArcElement, Tooltip, Legend)
+ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels)
 
 // Tab 定义
 const tabs = [
@@ -382,11 +408,13 @@ const exchangeRate = ref(7.2) // USD to CNY 默认汇率
 
 // 日期选择
 const selectedDate = ref('')
+const actualDataDate = ref(null)  // 实际数据日期
 
 const summary = ref({
   totalAssets: 0,
   totalLiabilities: 0,
-  netWorth: 0
+  netWorth: 0,
+  actualDate: null
 })
 
 const netAllocation = ref({
@@ -550,7 +578,7 @@ const drillDownChartData = computed(() => {
   }
 })
 
-// 主饼图配置 - 带点击事件
+// 主饼图配置 - 带点击事件和数据标签
 const mainPieChartOptions = computed(() => {
   return {
     responsive: true,
@@ -571,13 +599,43 @@ const mainPieChartOptions = computed(() => {
             return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
           }
         }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 12
+        },
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((a, b) => a + b, 0)
+          const percentage = ((value / total) * 100).toFixed(1)
+          const convertedValue = convertValue(value)
+          const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+
+          // 只显示百分比大于5%的标签,避免拥挤
+          if (percentage < 5) return ''
+
+          // 格式化数值,简化显示
+          const formattedValue = convertedValue >= 10000
+            ? (convertedValue / 10000).toFixed(1) + (selectedCurrency.value === 'CNY' ? '万' : 'K')
+            : convertedValue.toFixed(0)
+
+          return `${symbol}${formattedValue}\n${percentage}%`
+        },
+        textAlign: 'center',
+        anchor: 'center',
+        align: 'center'
       }
     },
     onClick: (event, elements) => {
       if (elements.length > 0) {
         const index = elements[0].index
-        const item = currentAllocation.value.data[index]
-        selectCategory(item)
+        // 需要从过滤后的数据找到对应的原始item
+        const filteredData = currentAllocation.value.data.filter(item => !excludedCategories.value.has(getItemKey(item)))
+        const item = filteredData[index]
+        if (item) {
+          selectCategory(item)
+        }
       }
     }
   }
@@ -617,6 +675,24 @@ const drillDownPieChartOptions = computed(() => {
             return `${selectedCategory.value?.name || '该类型'}总计: ${symbol}${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
           }
         }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 10
+        },
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((a, b) => a + b, 0)
+          const percentage = ((value / total) * 100).toFixed(1)
+
+          // 只显示百分比大于5%的标签
+          if (percentage < 5) return ''
+
+          return `${percentage}%`
+        },
+        anchor: 'center',
+        align: 'center'
       }
     }
   }
@@ -676,6 +752,32 @@ const taxStatusPieChartOptions = computed(() => {
             return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
           }
         }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 11
+        },
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((a, b) => a + b, 0)
+          const percentage = ((value / total) * 100).toFixed(1)
+          const convertedValue = convertValue(value)
+          const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+
+          // 只显示百分比大于3%的标签
+          if (percentage < 3) return ''
+
+          // 格式化数值
+          const formattedValue = convertedValue >= 10000
+            ? (convertedValue / 10000).toFixed(1) + (selectedCurrency.value === 'CNY' ? '万' : 'K')
+            : convertedValue.toFixed(0)
+
+          return `${symbol}${formattedValue}\n${percentage}%`
+        },
+        textAlign: 'center',
+        anchor: 'center',
+        align: 'center'
       }
     }
   }
@@ -687,12 +789,29 @@ const formatNumber = (num) => {
   return parseFloat(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  // 如果是 YYYY-MM-DD 格式，转换为 YYYY年MM月DD日
+  if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-')
+    return `${year}年${month}月${day}日`
+  }
+  // 兼容其他格式
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
 // 加载资产总览
 const loadSummary = async () => {
   try {
     const response = await analysisAPI.getSummary(null, selectedDate.value || null)
     if (response.success) {
       summary.value = response.data
+      // 设置实际数据日期
+      if (response.data.actualDate) {
+        actualDataDate.value = response.data.actualDate
+      }
     }
   } catch (error) {
     console.error('加载资产总览失败:', error)
@@ -894,6 +1013,14 @@ const toggleCategory = (item) => {
   }
   // 触发响应式更新
   excludedCategories.value = new Set(excludedCategories.value)
+}
+
+// 获取调整后的百分比(考虑排除的分类)
+const getAdjustedPercentage = (item) => {
+  const value = getItemValue(item)
+  const total = filteredTotal.value
+  if (total === 0) return '0.00'
+  return ((value / total) * 100).toFixed(2)
 }
 
 // 获取税收状态颜色

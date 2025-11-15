@@ -86,6 +86,14 @@
           <PieChart class="w-5 h-5" />
           <span>资产配置</span>
         </router-link>
+        <router-link
+          to="/analysis/metrics"
+          class="nav-item"
+          :class="isActive('/analysis/metrics')"
+        >
+          <BarChart3 class="w-5 h-5" />
+          <span>财务指标</span>
+        </router-link>
       </div>
 
       <!-- 工具 -->
@@ -135,6 +143,7 @@ import {
   CreditCard,
   TrendingUp,
   PieChart,
+  BarChart3,
   Users,
   DollarSign
 } from 'lucide-vue-next';
