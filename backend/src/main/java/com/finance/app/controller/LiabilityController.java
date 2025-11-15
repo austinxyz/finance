@@ -121,8 +121,8 @@ public class LiabilityController {
 
     // 批量更新负债记录
     @PostMapping("/records/batch")
-    public ApiResponse<List<LiabilityRecord>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
-        List<LiabilityRecord> records = liabilityService.batchUpdateRecords(batchUpdate);
+    public ApiResponse<List<LiabilityRecordDTO>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
+        List<LiabilityRecordDTO> records = liabilityService.batchUpdateRecords(batchUpdate);
         return ApiResponse.success("Batch records created successfully", records);
     }
 

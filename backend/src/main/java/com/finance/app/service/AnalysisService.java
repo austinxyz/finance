@@ -945,4 +945,138 @@ public class AnalysisService {
 
         return result;
     }
+
+    // 获取按税收状态的净资产配置
+    public Map<String, Object> getNetWorthByTaxStatus(Long userId, LocalDate asOfDate) {
+        // 获取所有资产账户
+        List<AssetAccount> assetAccounts;
+        if (userId == null) {
+            assetAccounts = accountRepository.findByIsActiveTrue();
+        } else {
+            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 按税收状态分组资产
+        Map<String, BigDecimal> assetsByTaxStatus = new HashMap<>();
+        assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
+        assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
+        assetsByTaxStatus.put("TAX_DEFERRED", BigDecimal.ZERO);
+
+        for (AssetAccount account : assetAccounts) {
+            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                BigDecimal amount = record.get().getAmountInBaseCurrency();
+                String taxStatus = account.getTaxStatus() != null ? account.getTaxStatus().name() : "TAXABLE";
+                assetsByTaxStatus.merge(taxStatus, amount, BigDecimal::add);
+            }
+        }
+
+        // 获取所有负债账户
+        List<LiabilityAccount> liabilityAccounts;
+        if (userId == null) {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        BigDecimal totalLiabilities = BigDecimal.ZERO;
+        for (LiabilityAccount account : liabilityAccounts) {
+            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                BigDecimal balance = record.get().getBalanceInBaseCurrency();
+                totalLiabilities = totalLiabilities.add(balance);
+            }
+        }
+
+        // 负债优先抵扣应税资产，然后抵扣免税资产，最后抵扣延税资产
+        BigDecimal remainingLiabilities = totalLiabilities;
+
+        // 1. 先抵扣应税资产
+        BigDecimal taxableAssets = assetsByTaxStatus.get("TAXABLE");
+        if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxableAssets.compareTo(BigDecimal.ZERO) > 0) {
+            if (taxableAssets.compareTo(remainingLiabilities) >= 0) {
+                // 应税资产足够抵扣所有负债
+                assetsByTaxStatus.put("TAXABLE", taxableAssets.subtract(remainingLiabilities));
+                remainingLiabilities = BigDecimal.ZERO;
+            } else {
+                // 应税资产不够，全部用于抵扣
+                remainingLiabilities = remainingLiabilities.subtract(taxableAssets);
+                assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
+            }
+        }
+
+        // 2. 再抵扣免税资产
+        BigDecimal taxFreeAssets = assetsByTaxStatus.get("TAX_FREE");
+        if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxFreeAssets.compareTo(BigDecimal.ZERO) > 0) {
+            if (taxFreeAssets.compareTo(remainingLiabilities) >= 0) {
+                // 免税资产足够抵扣剩余负债
+                assetsByTaxStatus.put("TAX_FREE", taxFreeAssets.subtract(remainingLiabilities));
+                remainingLiabilities = BigDecimal.ZERO;
+            } else {
+                // 免税资产不够，全部用于抵扣
+                remainingLiabilities = remainingLiabilities.subtract(taxFreeAssets);
+                assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
+            }
+        }
+
+        // 3. 最后抵扣延税资产
+        BigDecimal taxDeferredAssets = assetsByTaxStatus.get("TAX_DEFERRED");
+        if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxDeferredAssets.compareTo(BigDecimal.ZERO) > 0) {
+            if (taxDeferredAssets.compareTo(remainingLiabilities) >= 0) {
+                // 延税资产足够抵扣剩余负债
+                assetsByTaxStatus.put("TAX_DEFERRED", taxDeferredAssets.subtract(remainingLiabilities));
+                remainingLiabilities = BigDecimal.ZERO;
+            } else {
+                // 延税资产不够，全部用于抵扣
+                remainingLiabilities = remainingLiabilities.subtract(taxDeferredAssets);
+                assetsByTaxStatus.put("TAX_DEFERRED", BigDecimal.ZERO);
+            }
+        }
+
+        // 计算净资产总额
+        BigDecimal totalNetWorth = BigDecimal.ZERO;
+        for (BigDecimal value : assetsByTaxStatus.values()) {
+            totalNetWorth = totalNetWorth.add(value);
+        }
+
+        // 税收状态中文名映射
+        Map<String, String> taxStatusNames = Map.of(
+            "TAXABLE", "应税",
+            "TAX_FREE", "免税",
+            "TAX_DEFERRED", "延税"
+        );
+
+        // 构建返回数据
+        List<Map<String, Object>> data = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : assetsByTaxStatus.entrySet()) {
+            // 只添加净值大于0的类别
+            if (entry.getValue().compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("taxStatus", entry.getKey());
+                item.put("name", taxStatusNames.getOrDefault(entry.getKey(), entry.getKey()));
+                item.put("value", entry.getValue());
+
+                // 计算百分比
+                if (totalNetWorth.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal percentage = entry.getValue()
+                        .divide(totalNetWorth, 4, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"));
+                    item.put("percentage", percentage);
+                } else {
+                    item.put("percentage", BigDecimal.ZERO);
+                }
+
+                data.add(item);
+            }
+        }
+
+        // 按金额降序排序
+        data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", totalNetWorth);
+        result.put("data", data);
+
+        return result;
+    }
 }

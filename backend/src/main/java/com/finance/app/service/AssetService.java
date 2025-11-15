@@ -78,6 +78,7 @@ public class AssetService {
         account.setInstitution(accountDetails.getInstitution());
         account.setCurrency(accountDetails.getCurrency());
         account.setNotes(accountDetails.getNotes());
+        account.setTaxStatus(accountDetails.getTaxStatus());
         return accountRepository.save(account);
     }
 
@@ -275,6 +276,7 @@ public class AssetService {
         dto.setCurrency(account.getCurrency());
         dto.setNotes(account.getNotes());
         dto.setIsActive(account.getIsActive());
+        dto.setTaxStatus(account.getTaxStatus());
         dto.setCreatedAt(account.getCreatedAt());
         dto.setUpdatedAt(account.getUpdatedAt());
 

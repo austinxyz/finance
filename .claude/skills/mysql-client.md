@@ -12,9 +12,17 @@ This skill provides MySQL database client access for the finance project.
 
 ## Connecting to MySQL
 
-Use the mysql command-line client:
+MySQL client is installed at `/opt/homebrew/opt/mysql-client/bin/mysql`
+
+Use the full path to connect:
 
 ```bash
+/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
+```
+
+Or add to PATH (recommended):
+```bash
+export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
 mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
 ```
 
@@ -55,7 +63,12 @@ SELECT * FROM net_asset_categories ORDER BY display_order;
 
 ### Execute SQL File
 ```bash
-mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance < script.sql
+/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance < script.sql
+```
+
+### Execute SQL Command Directly
+```bash
+/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance -e "SELECT * FROM asset_accounts LIMIT 5;"
 ```
 
 ## Important Notes

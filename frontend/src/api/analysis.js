@@ -118,5 +118,13 @@ export const analysisAPI = {
     if (userId) params.userId = userId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get(`/analysis/allocation/net-asset-accounts/${categoryCode}`, { params })
+  },
+
+  // 获取按税收状态的净资产配置
+  getNetWorthByTaxStatus(userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/allocation/net-worth-by-tax-status', { params })
   }
 }

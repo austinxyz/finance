@@ -74,12 +74,19 @@
                         {{ account.accountName }}
                         <span v-if="!account.isActive" class="text-xs text-gray-400 bg-gray-100 px-1 py-0.5 rounded flex-shrink-0">停用</span>
                       </div>
-                      <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                      <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
                         <span>{{ getUserName(account.userId) }}</span>
                         <span class="text-gray-300">•</span>
                         <span>{{ account.currency }}</span>
                         <span v-if="account.institution" class="text-gray-300">•</span>
                         <span v-if="account.institution" class="truncate">{{ account.institution }}</span>
+                        <span
+                          v-if="account.taxStatus"
+                          class="px-1.5 py-0.5 rounded shrink-0"
+                          :class="getTaxStatusClass(account.taxStatus)"
+                        >
+                          {{ getTaxStatusLabel(account.taxStatus) }}
+                        </span>
                       </div>
                     </div>
                     <div v-if="account.latestAmountInBaseCurrency !== null" class="text-xs font-medium text-primary flex-shrink-0">
@@ -336,6 +343,18 @@
           </div>
 
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">税务状态</label>
+            <select
+              v-model="accountFormData.taxStatus"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="TAXABLE">应税 (Taxable)</option>
+              <option value="TAX_FREE">免税 (Tax-Free)</option>
+              <option value="TAX_DEFERRED">延税 (Tax-Deferred)</option>
+            </select>
+          </div>
+
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
             <textarea
               v-model="accountFormData.notes"
@@ -501,6 +520,7 @@ const accountFormData = ref({
   currency: 'CNY',
   institution: '',
   accountNumber: '',
+  taxStatus: 'TAXABLE',
   notes: '',
   userId: 1
 })
@@ -558,6 +578,12 @@ const formatNumber = (num) => {
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
+  // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
+  if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-')
+    return `${year}/${month}/${day}`
+  }
+  // 兼容其他格式
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
@@ -764,8 +790,29 @@ const openCreateDialog = () => {
 // 编辑记录
 const editRecord = (record) => {
   editingRecord.value = record
+
+  // 调试：打印原始数据
+  console.log('原始 record.recordDate:', record.recordDate)
+  console.log('类型:', typeof record.recordDate)
+  console.log('是否为数组:', Array.isArray(record.recordDate))
+
+  // 处理日期格式 - 确保转换为 YYYY-MM-DD 字符串
+  let dateStr = record.recordDate
+  if (Array.isArray(record.recordDate)) {
+    // 如果是数组格式 [year, month, day]
+    const [year, month, day] = record.recordDate
+    dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    console.log('转换后的日期 (从数组):', dateStr)
+  } else if (typeof record.recordDate === 'string' && record.recordDate.includes('T')) {
+    // 如果是 ISO 8601 格式，只取日期部分
+    dateStr = record.recordDate.split('T')[0]
+    console.log('转换后的日期 (从ISO):', dateStr)
+  } else {
+    console.log('使用原始日期:', dateStr)
+  }
+
   formData.value = {
-    recordDate: record.recordDate,
+    recordDate: dateStr,
     amount: record.amount,
     currency: record.currency,
     notes: record.notes || ''
@@ -834,6 +881,7 @@ const openAccountDialog = (account = null) => {
       currency: account.currency,
       institution: account.institution || '',
       accountNumber: account.accountNumber || '',
+      taxStatus: account.taxStatus || 'TAXABLE',
       notes: account.notes || '',
       userId: account.userId,
       categoryId: account.categoryId  // 保存 categoryId 用于更新
@@ -844,6 +892,7 @@ const openAccountDialog = (account = null) => {
       currency: 'CNY',
       institution: '',
       accountNumber: '',
+      taxStatus: 'TAXABLE',
       notes: '',
       userId: users.value.length > 0 ? users.value[0].id : 1
     }
@@ -923,6 +972,26 @@ const disableAccount = async (account) => {
     console.error('停用账户失败:', error)
     alert('停用失败，请重试')
   }
+}
+
+// 获取税务状态标签
+const getTaxStatusLabel = (taxStatus) => {
+  const labels = {
+    'TAXABLE': '应税',
+    'TAX_FREE': '免税',
+    'TAX_DEFERRED': '延税'
+  }
+  return labels[taxStatus] || taxStatus
+}
+
+// 获取税务状态样式
+const getTaxStatusClass = (taxStatus) => {
+  const classes = {
+    'TAXABLE': 'bg-orange-100 text-orange-700 text-xs',
+    'TAX_FREE': 'bg-green-100 text-green-700 text-xs',
+    'TAX_DEFERRED': 'bg-blue-100 text-blue-700 text-xs'
+  }
+  return classes[taxStatus] || 'bg-gray-100 text-gray-700 text-xs'
 }
 
 onMounted(async () => {

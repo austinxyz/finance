@@ -557,6 +557,12 @@ const formatNumber = (num) => {
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
+  // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
+  if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-')
+    return `${year}/${month}/${day}`
+  }
+  // 兼容其他格式
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
@@ -761,8 +767,20 @@ const openCreateDialog = () => {
 // 编辑记录
 const editRecord = (record) => {
   editingRecord.value = record
+
+  // 处理日期格式 - 确保转换为 YYYY-MM-DD 字符串
+  let dateStr = record.recordDate
+  if (Array.isArray(record.recordDate)) {
+    // 如果是数组格式 [year, month, day]
+    const [year, month, day] = record.recordDate
+    dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  } else if (typeof record.recordDate === 'string' && record.recordDate.includes('T')) {
+    // 如果是 ISO 8601 格式，只取日期部分
+    dateStr = record.recordDate.split('T')[0]
+  }
+
   formData.value = {
-    recordDate: record.recordDate,
+    recordDate: dateStr,
     balance: record.outstandingBalance || 0,
     currency: record.currency,
     notes: record.notes || ''

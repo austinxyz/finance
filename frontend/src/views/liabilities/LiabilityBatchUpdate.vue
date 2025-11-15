@@ -145,10 +145,21 @@ const formatNumber = (num) => {
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
-  const date = new Date(dateString)
+
+  // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
+  let year, month, day
+  if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    [year, month, day] = dateString.split('-').map(Number)
+  } else {
+    const date = new Date(dateString)
+    year = date.getFullYear()
+    month = date.getMonth() + 1
+    day = date.getDate()
+  }
+
   const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const recordDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const today = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+  const recordDate = new Date(year, month, day)
 
   const diffDays = Math.floor((today - recordDate) / (1000 * 60 * 60 * 24))
 
@@ -156,12 +167,20 @@ const formatDate = (dateString) => {
   if (diffDays === 1) return '昨天'
   if (diffDays < 7) return `${diffDays}天前`
 
-  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+  return `${month}/${day}`
 }
 
 // 格式化完整日期 (月/日/年)
 const formatFullDate = (dateString) => {
   if (!dateString) return '-'
+
+  // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
+  if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-')
+    return `${parseInt(month)}/${parseInt(day)}/${year}`
+  }
+
+  // 兼容其他格式
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN', {
     month: 'numeric',

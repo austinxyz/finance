@@ -178,4 +178,13 @@ public class AnalysisController {
         Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, asOfDate);
         return ApiResponse.success(accounts);
     }
+
+    // 获取按税收状态的净资产配置
+    @GetMapping("/allocation/net-worth-by-tax-status")
+    public ApiResponse<Map<String, Object>> getNetWorthByTaxStatus(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, asOfDate);
+        return ApiResponse.success(allocation);
+    }
 }

@@ -46,6 +46,10 @@ public class AssetAccount {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_status", length = 20)
+    private TaxStatus taxStatus = TaxStatus.TAXABLE;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

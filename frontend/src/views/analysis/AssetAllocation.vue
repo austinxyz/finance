@@ -89,16 +89,19 @@
 
     <!-- 内容区域 -->
     <div class="bg-white rounded-lg shadow p-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 主饼图 -->
-        <div class="h-80 flex items-center justify-center">
-          <div v-if="loading" class="text-gray-500">加载中...</div>
-          <div v-else-if="!currentAllocation || currentAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
-          <Pie v-else :data="currentChartData" :options="mainPieChartOptions" />
-        </div>
+      <!-- 净资产tab: 两行布局 -->
+      <div v-if="activeTab === 'net'" class="space-y-6">
+        <!-- 第一行: 净资产分类饼图 + 分类列表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 主饼图 -->
+          <div class="h-80 flex items-center justify-center">
+            <div v-if="loading" class="text-gray-500">加载中...</div>
+            <div v-else-if="!currentAllocation || currentAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
+            <Pie v-else :data="currentChartData" :options="mainPieChartOptions" />
+          </div>
 
-        <!-- 详细列表或钻取饼图 -->
-        <div>
+          <!-- 详细列表或钻取饼图 -->
+          <div>
           <!-- 未选中类别时显示列表 -->
           <div v-if="!selectedCategory" class="space-y-2">
             <div
@@ -237,6 +240,105 @@
             </div>
           </div>
         </div>
+        </div>
+
+        <!-- 第二行: 税收状态饼图 + 状态列表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 税收状态饼图 -->
+          <div class="h-80 flex flex-col">
+            <h4 class="font-semibold mb-4 text-center">税收状态分布</h4>
+            <div class="flex-1 flex items-center justify-center">
+              <div v-if="loadingTaxStatus" class="text-gray-500">加载中...</div>
+              <div v-else-if="!taxStatusAllocation || taxStatusAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
+              <Pie v-else :data="taxStatusChartData" :options="taxStatusPieChartOptions" />
+            </div>
+          </div>
+
+          <!-- 税收状态列表 -->
+          <div>
+            <div class="space-y-2">
+              <div
+                v-for="item in taxStatusAllocation?.data || []"
+                :key="item.taxStatus"
+                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-4 h-4 rounded" :style="{ backgroundColor: getTaxStatusColor(item.taxStatus) }"></div>
+                  <span class="font-medium">{{ item.name }}</span>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(item.value)) }}</div>
+                  <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 资产和负债tab: 保持原有的两列布局 -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 主饼图 -->
+        <div class="h-80 flex items-center justify-center">
+          <div v-if="loading" class="text-gray-500">加载中...</div>
+          <div v-else-if="!currentAllocation || currentAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
+          <Pie v-else :data="currentChartData" :options="mainPieChartOptions" />
+        </div>
+
+        <!-- 详细列表或钻取饼图 -->
+        <div>
+          <!-- 未选中类别时显示列表 -->
+          <div v-if="!selectedCategory" class="space-y-2">
+            <div
+              v-for="item in currentAllocation?.data || []"
+              :key="item.name || item.code"
+              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  :checked="!isExcluded(item)"
+                  @change="toggleCategory(item)"
+                  class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
+                <div class="w-4 h-4 rounded" :style="{ backgroundColor: item.color || getItemColor(item.name) }"></div>
+                <span class="font-medium cursor-pointer" @click="selectCategory(item)">{{ item.name }}</span>
+              </div>
+              <div class="text-right">
+                <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
+                <div class="text-sm text-gray-500">{{ formatNumber(item.percentage) }}%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 选中类别时显示钻取饼图 -->
+          <div v-else class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="font-semibold">{{ selectedCategory.name }} - 账户分布</h4>
+              <button
+                @click="selectedCategory = null; drillDownData = null"
+                class="text-sm text-gray-500 hover:text-gray-700"
+              >
+                返回
+              </button>
+            </div>
+
+            <div class="space-y-3">
+              <div class="h-64 flex items-center justify-center">
+                <div v-if="loadingDrillDown" class="text-gray-500">加载中...</div>
+                <div v-else-if="!drillDownChartData || drillDownData.length === 0" class="text-gray-500">暂无账户数据</div>
+                <Pie v-else :data="drillDownChartData" :options="drillDownPieChartOptions" />
+              </div>
+              <!-- 在饼图下方显示类型总计 -->
+              <div v-if="drillDownData && drillDownData.length > 0" class="text-center p-3 bg-gray-50 rounded-lg">
+                <div class="text-xs text-gray-500">{{ selectedCategory?.name || '该类型' }}总计</div>
+                <div class="text-xl font-bold text-gray-900">
+                  {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.reduce((sum, item) => sum + item.balance, 0))) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -301,6 +403,13 @@ const liabilityAllocation = ref({
   total: 0,
   data: []
 })
+
+const taxStatusAllocation = ref({
+  total: 0,
+  data: []
+})
+
+const loadingTaxStatus = ref(false)
 
 // 颜色配置
 const defaultColors = [
@@ -513,6 +622,65 @@ const drillDownPieChartOptions = computed(() => {
   }
 })
 
+// 税收状态饼图数据
+const taxStatusChartData = computed(() => {
+  if (!taxStatusAllocation.value || !taxStatusAllocation.value.data) {
+    return null
+  }
+
+  // 税收状态颜色映射
+  const taxStatusColors = {
+    '应税': 'rgb(251, 146, 60)',    // orange
+    '免税': 'rgb(34, 197, 94)',     // green
+    '延税': 'rgb(59, 130, 246)'     // blue
+  }
+
+  return {
+    labels: taxStatusAllocation.value.data.map(item => item.name),
+    datasets: [
+      {
+        data: taxStatusAllocation.value.data.map(item => item.value),
+        backgroundColor: taxStatusAllocation.value.data.map(item => taxStatusColors[item.name] || defaultColors[0]),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }
+    ]
+  }
+})
+
+// 税收状态饼图配置
+const taxStatusPieChartOptions = computed(() => {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 10,
+          font: {
+            size: 11
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || ''
+            const valueInUSD = context.parsed || 0
+            const value = convertValue(valueInUSD)
+            const total = context.dataset.data.reduce((a, b) => a + b, 0)
+            const percentage = ((valueInUSD / total) * 100).toFixed(2)
+            const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+            return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+          }
+        }
+      }
+    }
+  }
+})
+
 // 格式化数字
 const formatNumber = (num) => {
   if (!num) return '0.00'
@@ -576,6 +744,21 @@ const loadLiabilityAllocation = async () => {
   }
 }
 
+// 加载税收状态配置
+const loadTaxStatusAllocation = async () => {
+  loadingTaxStatus.value = true
+  try {
+    const response = await analysisAPI.getNetWorthByTaxStatus(null, selectedDate.value || null)
+    if (response.success) {
+      taxStatusAllocation.value = response.data
+    }
+  } catch (error) {
+    console.error('加载税收状态配置失败:', error)
+  } finally {
+    loadingTaxStatus.value = false
+  }
+}
+
 // 日期变化处理
 const onDateChange = () => {
   // 重新加载所有数据
@@ -583,6 +766,7 @@ const onDateChange = () => {
   // 重新加载当前激活的 tab 数据
   if (activeTab.value === 'net') {
     loadNetAllocation()
+    loadTaxStatusAllocation()
   } else if (activeTab.value === 'asset') {
     loadAssetAllocation()
   } else if (activeTab.value === 'liability') {
@@ -604,8 +788,13 @@ const switchTab = (tabKey) => {
   excludedCategories.value.clear() // 清空排除的分类
 
   // 根据 tab 加载对应数据
-  if (tabKey === 'net' && netAllocation.value.data.length === 0) {
-    loadNetAllocation()
+  if (tabKey === 'net') {
+    if (netAllocation.value.data.length === 0) {
+      loadNetAllocation()
+    }
+    if (taxStatusAllocation.value.data.length === 0) {
+      loadTaxStatusAllocation()
+    }
   } else if (tabKey === 'asset' && assetAllocation.value.data.length === 0) {
     loadAssetAllocation()
   } else if (tabKey === 'liability' && liabilityAllocation.value.data.length === 0) {
@@ -707,8 +896,19 @@ const toggleCategory = (item) => {
   excludedCategories.value = new Set(excludedCategories.value)
 }
 
+// 获取税收状态颜色
+const getTaxStatusColor = (taxStatus) => {
+  const taxStatusColors = {
+    'TAXABLE': 'rgb(251, 146, 60)',    // orange
+    'TAX_FREE': 'rgb(34, 197, 94)',     // green
+    'TAX_DEFERRED': 'rgb(59, 130, 246)' // blue
+  }
+  return taxStatusColors[taxStatus] || defaultColors[0]
+}
+
 onMounted(() => {
   loadSummary()
   loadNetAllocation()  // 默认加载净资产配置
+  loadTaxStatusAllocation()  // 默认加载税收状态配置
 })
 </script>
