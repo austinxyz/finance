@@ -6,35 +6,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 个人理财管理系统 (Personal Finance Management System) - A full-stack application for managing personal assets, liabilities, and financial analysis using Java Spring Boot backend and Vue.js frontend with Tailwind CSS.
 
-## Development Commands
+## Environment Setup
 
-### Backend (Spring Boot)
+### CRITICAL: Java Version Configuration
+
+This project **REQUIRES Java 17**. The system may have multiple Java versions installed. **ALWAYS** set JAVA_HOME before running Maven commands:
+
 ```bash
-cd backend
-mvn clean install          # Build project
-mvn spring-boot:run        # Run backend server (port 8080)
-mvn test                   # Run all tests
+# Set Java 17 as JAVA_HOME (macOS)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+
+# Verify Java version
+java -version  # Should show Java 17
 ```
 
-### Frontend (Vue.js + Vite)
+**IMPORTANT**: Run the setup script in the project root to automatically configure the environment:
+
+```bash
+# From project root directory
+source ./setup-env.sh
+```
+
+This script will:
+- Set JAVA_HOME to Java 17
+- Load database credentials from backend/.env
+- Export all necessary environment variables
+
+### Database Configuration
+
+Database credentials are stored in `backend/.env` file (not tracked in git):
+
+```bash
+# backend/.env example
+DB_URL=jdbc:mysql://your-host:port/finance?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+**Note**: The `.env` file is loaded automatically by the setup script. DO NOT commit this file to git.
+
+## Development Commands
+
+### Backend (Spring Boot with Hot Reload)
+
+**ALWAYS run `source ./setup-env.sh` first to set JAVA_HOME and load .env variables!**
+
+```bash
+cd backend
+
+# First time or after pulling changes - the setup script handles JAVA_HOME
+mvn clean install          # Build project
+
+# Start with hot reload (Spring Boot DevTools enabled)
+mvn spring-boot:run        # Backend will auto-reload on code changes
+
+# Run tests
+mvn test
+```
+
+**Hot Reload**: Spring Boot DevTools is enabled - backend will automatically restart when you save Java files. No need to kill and restart manually!
+
+### Frontend (Vue.js + Vite with Hot Module Replacement)
+
 ```bash
 cd frontend
-npm install                # Install dependencies
-npm run dev                # Run dev server (port 3000)
+npm install                # Install dependencies (first time only)
+
+# Development server with HMR (Hot Module Replacement)
+npm run dev                # Runs on port 3000, auto-reloads on file changes
+
+# Production build
 npm run build              # Build for production
 npm run preview            # Preview production build
 ```
 
-### Database Setup
-```bash
-# Create MySQL database
-mysql -u root -p
-CREATE DATABASE finance CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+**Hot Reload**: Vite HMR is enabled - frontend will automatically update in browser when you save Vue/JS/CSS files. No manual refresh needed!
 
-# Set environment variables (shared with zjutennis project)
-export DB_URL="jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
+### MySQL Database Operations
+
+**Use the `mysql-exec` skill for all MySQL operations**. The skill automatically:
+- Locates mysql client from Homebrew installation
+- Reads credentials from backend/.env file
+- Handles connection parameters
+
+```bash
+# Execute SQL file
+/mysql-exec path/to/script.sql
+
+# Interactive MySQL shell
+/mysql-exec
+
+# Quick query
+/mysql-exec "SHOW TABLES;"
+```
+
+**Manual MySQL access** (if skill is not available):
+
+```bash
+# MySQL client location (Homebrew)
+export MYSQL_CLIENT=$(brew --prefix mysql-client)/bin/mysql
+
+# Connect using credentials from .env
+source setup-env.sh
+$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
 ```
 
 ## Architecture

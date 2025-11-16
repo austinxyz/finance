@@ -11,6 +11,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    // Hot Module Replacement (HMR) configuration
+    hmr: {
+      overlay: true, // Show error overlay in browser
+    },
+    // Watch options for better file change detection
+    watch: {
+      usePolling: false, // Set to true if running in Docker or having issues
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -18,5 +26,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
+  },
+  // Build optimizations
+  build: {
+    sourcemap: true, // Enable source maps for debugging
   }
 })

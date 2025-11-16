@@ -4,26 +4,37 @@ This skill provides MySQL database client access for the finance project.
 
 ## Database Connection Information
 
-- **Host**: 10.0.0.7
-- **Port**: 37719
-- **Database**: finance
-- **Username**: austinxu
-- **Password**: helloworld
+Database credentials are stored in `backend/.env` file. Load them using:
+
+```bash
+source ./setup-env.sh
+```
+
+This will set the following environment variables:
+- `DB_HOST` - Database host
+- `DB_PORT` - Database port
+- `DB_NAME` - Database name
+- `DB_USERNAME` - Database username
+- `DB_PASSWORD` - Database password
 
 ## Connecting to MySQL
 
 MySQL client is installed at `/opt/homebrew/opt/mysql-client/bin/mysql`
 
-Use the full path to connect:
+Use the environment variables to connect:
 
 ```bash
-/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
+# First, load credentials
+source ./setup-env.sh
+
+# Then connect
+$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
 ```
 
-Or add to PATH (recommended):
+Or use the convenient alias created by setup script:
 ```bash
-export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
-mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
+source ./setup-env.sh
+mysql-finance
 ```
 
 ## Common SQL Operations
@@ -63,12 +74,20 @@ SELECT * FROM net_asset_categories ORDER BY display_order;
 
 ### Execute SQL File
 ```bash
-/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance < script.sql
+# Load credentials first
+source ./setup-env.sh
+
+# Execute SQL file
+$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME < script.sql
 ```
 
 ### Execute SQL Command Directly
 ```bash
-/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance -e "SELECT * FROM asset_accounts LIMIT 5;"
+# Load credentials first
+source ./setup-env.sh
+
+# Execute command
+$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME -e "SELECT * FROM asset_accounts LIMIT 5;"
 ```
 
 ## Important Notes

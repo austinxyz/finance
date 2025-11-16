@@ -7,32 +7,46 @@ This skill sets up the correct Java environment for the finance project.
 
 ## Setup Instructions
 
-When running Maven commands (mvn), always set JAVA_HOME first:
+**RECOMMENDED**: Use the setup script to configure everything automatically:
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+# From project root
+source ./setup-env.sh
+```
+
+This script automatically:
+- Sets JAVA_HOME to Java 17
+- Loads database credentials from backend/.env
+- Exports all necessary environment variables
+
+## Manual Setup (if needed)
+
+If you need to set JAVA_HOME manually:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 ```
 
 ## Common Maven Commands
 
-After setting JAVA_HOME, you can run:
+**Always run setup script first**, then you can run Maven commands:
 
 ```bash
+# Setup environment (do this first!)
+source ./setup-env.sh
+
 # Clean and compile
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17 && mvn clean compile
+mvn clean compile
 
 # Run tests
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17 && mvn test
+mvn test
 
 # Run Spring Boot application
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17 && \
-export DB_URL="jdbc:mysql://10.0.0.7:37719/finance?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" && \
-export DB_USERNAME="austinxu" && \
-export DB_PASSWORD="helloworld" && \
 mvn spring-boot:run
 ```
 
 ## Important Notes
-- Always use JDK 17 located at `/opt/homebrew/opt/openjdk@17`
-- Set JAVA_HOME before any mvn command
-- Database credentials are also required when running the application
+- **Use `source ./setup-env.sh` instead of manually setting variables**
+- The script uses `/usr/libexec/java_home -v 17` to find Java 17 automatically
+- Database credentials are loaded from backend/.env (not tracked in git)
+- All environment variables are exported by the setup script

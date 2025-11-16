@@ -104,7 +104,34 @@ const routes = [
           description: '查看关键财务指标'
         }
       },
+      {
+        path: 'analysis/risk',
+        name: 'RiskAssessment',
+        component: () => import('../views/analysis/RiskAssessment.vue'),
+        meta: {
+          title: '风险评估',
+          description: '评估财务风险状况'
+        }
+      },
+      {
+        path: 'analysis/optimization',
+        name: 'OptimizationRecommendations',
+        component: () => import('../views/analysis/OptimizationRecommendations.vue'),
+        meta: {
+          title: '优化建议',
+          description: '获取个性化财务优化建议'
+        }
+      },
       // 设置
+      {
+        path: 'settings/profile',
+        name: 'UserProfile',
+        component: () => import('../views/settings/UserProfile.vue'),
+        meta: {
+          title: '用户配置',
+          description: '配置财务参数和偏好设置'
+        }
+      },
       {
         path: 'settings/users',
         name: 'UserManagement',

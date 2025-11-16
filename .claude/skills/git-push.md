@@ -23,7 +23,7 @@ git config user.email
 
 # Set for this repository only (if needed)
 git config user.name "austinxyz"
-git config user.email "your-github-email@example.com"
+git config user.email "austin.xyz@gmail.com"
 ```
 
 ## Common Git Operations

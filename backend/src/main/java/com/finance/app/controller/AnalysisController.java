@@ -1,17 +1,24 @@
 package com.finance.app.controller;
 
+import com.finance.app.dto.AIAdviceRequestDTO;
+import com.finance.app.dto.AIAdviceResponseDTO;
 import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.ApiResponse;
 import com.finance.app.dto.AssetSummaryDTO;
 import com.finance.app.dto.FinancialMetricsDTO;
+import com.finance.app.dto.OptimizationRecommendationDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
+import com.finance.app.dto.RiskAssessmentDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
 import com.finance.app.service.AnalysisService;
+import com.finance.app.service.ClaudeService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +29,8 @@ import java.util.Map;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final ClaudeService claudeService;
+    private final ObjectMapper objectMapper;
 
     // 获取资产总览
     @GetMapping("/summary")
@@ -196,5 +205,57 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate) {
         FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, asOfDate);
         return ApiResponse.success(metrics);
+    }
+
+    // 获取风险评估
+    @GetMapping("/risk-assessment")
+    public ApiResponse<RiskAssessmentDTO> getRiskAssessment(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        RiskAssessmentDTO assessment = analysisService.getRiskAssessment(userId, asOfDate);
+        return ApiResponse.success(assessment);
+    }
+
+    // 获取优化建议
+    @GetMapping("/optimization-recommendations")
+    public ApiResponse<OptimizationRecommendationDTO> getOptimizationRecommendations(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        OptimizationRecommendationDTO recommendations = analysisService.getOptimizationRecommendations(userId, asOfDate);
+        return ApiResponse.success(recommendations);
+    }
+
+    // 获取 AI 增强的个性化理财建议
+    @PostMapping("/ai-advice")
+    public ApiResponse<AIAdviceResponseDTO> getAIAdvice(@RequestBody AIAdviceRequestDTO request) {
+        try {
+            // Get current optimization recommendations
+            OptimizationRecommendationDTO recommendations =
+                analysisService.getOptimizationRecommendations(request.getUserId(), null);
+
+            // Convert to Map for Claude API
+            Map<String, Object> financialData = objectMapper.convertValue(recommendations, Map.class);
+
+            // Generate AI advice
+            String advice = claudeService.generateEnhancedRecommendations(
+                financialData,
+                request.getUserContext()
+            );
+
+            boolean aiEnabled = !advice.contains("Claude API 未配置") && !advice.contains("调用 Claude API 时出错");
+
+            return ApiResponse.success(AIAdviceResponseDTO.builder()
+                .advice(advice)
+                .aiEnabled(aiEnabled)
+                .errorMessage(aiEnabled ? null : advice)
+                .build());
+
+        } catch (Exception e) {
+            return ApiResponse.success(AIAdviceResponseDTO.builder()
+                .advice("生成 AI 建议时出错: " + e.getMessage())
+                .aiEnabled(false)
+                .errorMessage(e.getMessage())
+                .build());
+        }
     }
 }

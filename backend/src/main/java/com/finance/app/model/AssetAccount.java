@@ -46,6 +46,9 @@ public class AssetAccount {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "is_primary_residence")
+    private Boolean isPrimaryResidence = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tax_status", length = 20)
     private TaxStatus taxStatus = TaxStatus.TAXABLE;

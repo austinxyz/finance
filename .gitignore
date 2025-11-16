@@ -27,6 +27,23 @@ frontend/.DS_Store
 .DS_Store
 Thumbs.db
 
-# Environment
+# Environment & API Keys
 .env
+*.env
 *.env.local
+backend/.env
+backend/.env.*
+.anthropic_api_key
+.claude_api_key
+
+# Personal configuration backups
+*_backup.env
+api-key-*.txt
+.api_keys/
+
+# Setup and diagnostic scripts (personal configurations)
+setup-api-key.sh
+start-with-api.sh
+diagnose-risk-issue.sh
+START_HERE.md
+API_KEY_SETUP.md

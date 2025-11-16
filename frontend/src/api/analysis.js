@@ -134,5 +134,29 @@ export const analysisAPI = {
     if (userId) params.userId = userId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/financial-metrics', { params })
+  },
+
+  // 获取风险评估
+  getRiskAssessment(userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/risk-assessment', { params })
+  },
+
+  // 获取优化建议
+  getOptimizationRecommendations(userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/optimization-recommendations', { params })
+  },
+
+  // 获取 AI 增强的个性化理财建议
+  getAIAdvice(userContext, userId = null) {
+    return request.post('/analysis/ai-advice', {
+      userContext,
+      userId
+    })
   }
 }

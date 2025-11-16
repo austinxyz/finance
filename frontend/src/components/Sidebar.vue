@@ -96,6 +96,27 @@
         </router-link>
       </div>
 
+      <!-- 智能分析 -->
+      <div class="space-y-1">
+        <div class="nav-section-title">智能分析</div>
+        <router-link
+          to="/analysis/risk"
+          class="nav-item"
+          :class="isActive('/analysis/risk')"
+        >
+          <Shield class="w-5 h-5" />
+          <span>风险评估</span>
+        </router-link>
+        <router-link
+          to="/analysis/optimization"
+          class="nav-item"
+          :class="isActive('/analysis/optimization')"
+        >
+          <Lightbulb class="w-5 h-5" />
+          <span>优化建议</span>
+        </router-link>
+      </div>
+
       <!-- 工具 -->
       <div class="space-y-1">
         <div class="nav-section-title">工具</div>
@@ -112,6 +133,14 @@
       <!-- 系统设置 -->
       <div class="space-y-1">
         <div class="nav-section-title">系统设置</div>
+        <router-link
+          to="/settings/profile"
+          class="nav-item"
+          :class="isActive('/settings/profile')"
+        >
+          <UserCog class="w-5 h-5" />
+          <span>用户配置</span>
+        </router-link>
         <router-link
           to="/settings/users"
           class="nav-item"
@@ -144,7 +173,10 @@ import {
   TrendingUp,
   PieChart,
   BarChart3,
+  Shield,
+  Lightbulb,
   Users,
+  UserCog,
   DollarSign
 } from 'lucide-vue-next';
 
