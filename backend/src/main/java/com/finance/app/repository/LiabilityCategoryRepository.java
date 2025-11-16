@@ -14,4 +14,10 @@ public interface LiabilityCategoryRepository extends JpaRepository<LiabilityCate
     List<LiabilityCategory> findByUserIdAndType(Long userId, String type);
 
     boolean existsByUserIdAndName(Long userId, String name);
+
+    // Find system categories (shared across all users)
+    List<LiabilityCategory> findByIsSystemTrueOrderByDisplayOrderAsc();
+
+    // Find user's custom categories
+    List<LiabilityCategory> findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(Long userId);
 }

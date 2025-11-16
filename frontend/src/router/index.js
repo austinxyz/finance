@@ -124,12 +124,12 @@ const routes = [
       },
       // 设置
       {
-        path: 'settings/profile',
-        name: 'UserProfile',
-        component: () => import('../views/settings/UserProfile.vue'),
+        path: 'settings/family',
+        name: 'FamilyManagement',
+        component: () => import('../views/settings/FamilyManagement.vue'),
         meta: {
-          title: '用户配置',
-          description: '配置财务参数和偏好设置'
+          title: '家庭配置',
+          description: '管理家庭财务信息和家庭成员'
         }
       },
       {

@@ -134,19 +134,19 @@
       <div class="space-y-1">
         <div class="nav-section-title">系统设置</div>
         <router-link
-          to="/settings/profile"
+          to="/settings/family"
           class="nav-item"
-          :class="isActive('/settings/profile')"
+          :class="isActive('/settings/family')"
         >
-          <UserCog class="w-5 h-5" />
-          <span>用户配置</span>
+          <Home class="w-5 h-5" />
+          <span>家庭配置</span>
         </router-link>
         <router-link
           to="/settings/users"
           class="nav-item"
           :class="isActive('/settings/users')"
         >
-          <Users class="w-5 h-5" />
+          <UserCircle class="w-5 h-5" />
           <span>用户管理</span>
         </router-link>
       </div>
@@ -175,8 +175,8 @@ import {
   BarChart3,
   Shield,
   Lightbulb,
-  Users,
-  UserCog,
+  Home,
+  UserCircle,
   DollarSign
 } from 'lucide-vue-next';
 

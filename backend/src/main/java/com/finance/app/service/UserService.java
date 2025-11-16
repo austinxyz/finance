@@ -1,5 +1,6 @@
 package com.finance.app.service;
 
+import com.finance.app.dto.UserDTO;
 import com.finance.app.model.User;
 import com.finance.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,6 +63,11 @@ public class UserService {
         user.setUsername(userDetails.getUsername());
         user.setEmail(userDetails.getEmail());
         user.setFullName(userDetails.getFullName());
+        user.setBirthDate(userDetails.getBirthDate());
+        user.setAnnualIncome(userDetails.getAnnualIncome());
+        user.setIncomeCurrency(userDetails.getIncomeCurrency());
+        user.setRiskTolerance(userDetails.getRiskTolerance());
+        user.setNotes(userDetails.getNotes());
         user.setIsActive(userDetails.getIsActive());
 
         // 只在提供新密码时更新
@@ -77,5 +84,35 @@ public class UserService {
         // 软删除：标记为不活跃
         user.setIsActive(false);
         userRepository.save(user);
+    }
+
+    /**
+     * 获取家庭成员列表
+     */
+    @Transactional(readOnly = true)
+    public List<UserDTO> getFamilyMembers(Long familyId) {
+        List<User> users = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        return users.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 将User实体转换为DTO
+     */
+    private UserDTO convertToDTO(User user) {
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setFamilyId(user.getFamilyId());
+        dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setFullName(user.getFullName());
+        dto.setBirthDate(user.getBirthDate());
+        dto.setAnnualIncome(user.getAnnualIncome());
+        dto.setIncomeCurrency(user.getIncomeCurrency());
+        dto.setRiskTolerance(user.getRiskTolerance() != null ? user.getRiskTolerance().name() : null);
+        dto.setNotes(user.getNotes());
+        dto.setIsActive(user.getIsActive());
+        return dto;
     }
 }

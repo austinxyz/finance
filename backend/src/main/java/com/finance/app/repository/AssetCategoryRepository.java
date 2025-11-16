@@ -14,4 +14,10 @@ public interface AssetCategoryRepository extends JpaRepository<AssetCategory, Lo
     List<AssetCategory> findByUserIdAndType(Long userId, String type);
 
     boolean existsByUserIdAndName(Long userId, String name);
+
+    // Find system categories (shared across all users)
+    List<AssetCategory> findByIsSystemTrueOrderByDisplayOrderAsc();
+
+    // Find user's custom categories
+    List<AssetCategory> findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(Long userId);
 }

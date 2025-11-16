@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user-profile")
+@RequestMapping("/user-profile")
 @RequiredArgsConstructor
 public class UserProfileController {
 

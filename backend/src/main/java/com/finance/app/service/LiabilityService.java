@@ -39,7 +39,16 @@ public class LiabilityService {
     }
 
     public List<LiabilityCategory> getAllCategories(Long userId) {
-        return categoryRepository.findByUserIdOrderByDisplayOrderAsc(userId);
+        // Return system categories (shared) + user's custom categories
+        List<LiabilityCategory> systemCategories = categoryRepository.findByIsSystemTrueOrderByDisplayOrderAsc();
+        List<LiabilityCategory> userCategories = categoryRepository.findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(userId);
+
+        // Combine both lists
+        List<LiabilityCategory> allCategories = new ArrayList<>();
+        allCategories.addAll(systemCategories);
+        allCategories.addAll(userCategories);
+
+        return allCategories;
     }
 
     public LiabilityCategory createCategory(LiabilityCategory category) {
