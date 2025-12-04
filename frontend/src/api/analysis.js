@@ -136,6 +136,14 @@ export const analysisAPI = {
     return request.get('/analysis/allocation/net-worth-by-member', { params })
   },
 
+  // 获取按货币的净资产配置
+  getNetWorthByCurrency(userId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/allocation/net-worth-by-currency', { params })
+  },
+
   // 获取财务指标
   getFinancialMetrics(userId = null, asOfDate = null) {
     const params = {}

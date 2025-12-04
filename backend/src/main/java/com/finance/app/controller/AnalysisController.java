@@ -209,6 +209,15 @@ public class AnalysisController {
         return ApiResponse.success(allocation);
     }
 
+    // 获取按货币的净资产配置
+    @GetMapping("/allocation/net-worth-by-currency")
+    public ApiResponse<Map<String, Object>> getNetWorthByCurrency(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        Map<String, Object> allocation = analysisService.getNetWorthByCurrency(userId, asOfDate);
+        return ApiResponse.success(allocation);
+    }
+
     // 获取财务指标
     @GetMapping("/financial-metrics")
     public ApiResponse<FinancialMetricsDTO> getFinancialMetrics(

@@ -338,6 +338,47 @@
             </div>
           </div>
         </div>
+
+        <!-- 第四行: 货币分布饼图 + 货币列表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 货币分布饼图 -->
+          <div class="h-80 flex flex-col">
+            <h4 class="font-semibold mb-4 text-center">货币分布</h4>
+            <div class="flex-1 flex items-center justify-center">
+              <div v-if="loadingCurrency" class="text-gray-500">加载中...</div>
+              <div v-else-if="!currencyAllocation || currencyAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
+              <Pie v-else :data="currencyChartData" :options="currencyPieChartOptions" />
+            </div>
+          </div>
+
+          <!-- 货币列表 -->
+          <div>
+            <div class="space-y-2">
+              <div
+                v-for="item in currencyAllocation?.data || []"
+                :key="item.currency"
+                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-4 h-4 rounded" :style="{ backgroundColor: getCurrencyColor(item.currency) }"></div>
+                  <div>
+                    <div class="font-medium">{{ item.name }}</div>
+                    <div class="text-xs text-gray-500">
+                      资产: {{ getCurrencySymbol(item.currency) }}{{ formatNumber(item.assets) }} |
+                      负债: {{ getCurrencySymbol(item.currency) }}{{ formatNumber(item.liabilities) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold">{{ getCurrencySymbol(item.currency) }}{{ formatNumber(item.value) }}</div>
+                  <div class="text-sm text-gray-500">
+                    {{ formatNumber(item.percentage) }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 资产和负债tab: 保持原有的两列布局 -->
@@ -486,6 +527,13 @@ const memberAllocation = ref({
 })
 
 const loadingMember = ref(false)
+
+const currencyAllocation = ref({
+  total: 0,
+  data: []
+})
+
+const loadingCurrency = ref(false)
 
 // 颜色配置
 const defaultColors = [
@@ -909,6 +957,102 @@ const memberPieChartOptions = computed(() => {
   }
 })
 
+// 货币分布饼图数据
+const currencyChartData = computed(() => {
+  if (!currencyAllocation.value || !currencyAllocation.value.data) {
+    return null
+  }
+
+  return {
+    labels: currencyAllocation.value.data.map(item => item.name),
+    datasets: [
+      {
+        // 使用基础货币金额来计算饼图扇形大小，确保与百分比一致
+        data: currencyAllocation.value.data.map(item => item.valueInBaseCurrency || item.value),
+        backgroundColor: currencyAllocation.value.data.map(item => getCurrencyColor(item.currency)),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }
+    ]
+  }
+})
+
+// 货币分布饼图配置
+const currencyPieChartOptions = computed(() => {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 10,
+          font: {
+            size: 11
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || ''
+            const value = context.parsed || 0
+            // Use pre-calculated percentage from API instead of recalculating
+            const item = currencyAllocation.value.data[context.dataIndex]
+            const percentage = item.percentage.toFixed(2)
+            const symbol = getCurrencySymbol(item.currency)
+            return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+          }
+        }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 11
+        },
+        formatter: (value, context) => {
+          // Use pre-calculated percentage from API instead of recalculating
+          const item = currencyAllocation.value.data[context.dataIndex]
+          const percentage = item.percentage.toFixed(1)
+          const symbol = getCurrencySymbol(item.currency)
+
+          // 只显示百分比大于3%的标签
+          if (parseFloat(percentage) < 3) return ''
+
+          // Format original currency value
+          const originalValue = item.value
+          let formattedOriginal
+          if (item.currency === 'CNY' && originalValue >= 10000) {
+            formattedOriginal = (originalValue / 10000).toFixed(1) + '万'
+          } else if (item.currency !== 'CNY' && originalValue >= 1000) {
+            formattedOriginal = (originalValue / 1000).toFixed(1) + 'K'
+          } else {
+            formattedOriginal = originalValue.toFixed(0)
+          }
+
+          // Format base currency value (USD)
+          const baseValue = item.valueInBaseCurrency
+          const formattedBase = baseValue >= 10000
+            ? '$' + (baseValue / 1000).toFixed(1) + 'K'
+            : '$' + baseValue.toFixed(0)
+
+          // Show both currencies if they're different
+          if (item.currency === 'USD') {
+            return `${symbol}${formattedOriginal}\n${percentage}%`
+          } else {
+            return `${symbol}${formattedOriginal}\n(${formattedBase})\n${percentage}%`
+          }
+        },
+        textAlign: 'center',
+        anchor: 'center',
+        align: 'center'
+      }
+    }
+  }
+})
+
 // 格式化数字
 const formatNumber = (num) => {
   if (!num) return '0.00'
@@ -1028,6 +1172,7 @@ const onDateChange = () => {
     loadNetAllocation()
     loadTaxStatusAllocation()
     loadMemberAllocation()
+    loadCurrencyAllocation()
   } else if (activeTab.value === 'asset') {
     loadAssetAllocation()
   } else if (activeTab.value === 'liability') {
@@ -1058,6 +1203,9 @@ const switchTab = (tabKey) => {
     }
     if (memberAllocation.value.data.length === 0) {
       loadMemberAllocation()
+    }
+    if (currencyAllocation.value.data.length === 0) {
+      loadCurrencyAllocation()
     }
   } else if (tabKey === 'asset' && assetAllocation.value.data.length === 0) {
     loadAssetAllocation()
@@ -1178,9 +1326,56 @@ const getTaxStatusColor = (taxStatus) => {
   return taxStatusColors[taxStatus] || defaultColors[0]
 }
 
+// 获取货币颜色
+const getCurrencyColor = (currency) => {
+  const currencyColors = {
+    'CNY': 'rgb(239, 68, 68)',      // red - 人民币
+    'USD': 'rgb(34, 197, 94)',      // green - 美元
+    'EUR': 'rgb(59, 130, 246)',     // blue - 欧元
+    'GBP': 'rgb(168, 85, 247)',     // purple - 英镑
+    'JPY': 'rgb(251, 146, 60)',     // orange - 日元
+    'HKD': 'rgb(236, 72, 153)',     // pink - 港币
+    'AUD': 'rgb(20, 184, 166)',     // teal - 澳元
+    'CAD': 'rgb(234, 179, 8)'       // yellow - 加元
+  }
+  return currencyColors[currency] || defaultColors[0]
+}
+
+// 获取货币符号
+const getCurrencySymbol = (currency) => {
+  const currencySymbols = {
+    'CNY': '¥',
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '円',
+    'HKD': 'HK$',
+    'AUD': 'A$',
+    'CAD': 'C$'
+  }
+  return currencySymbols[currency] || currency
+}
+
+// 加载货币分布配置
+const loadCurrencyAllocation = async () => {
+  loadingCurrency.value = true
+  try {
+    const response = await analysisAPI.getNetWorthByCurrency(null, selectedDate.value || null)
+    if (response.success) {
+      currencyAllocation.value = response.data
+    }
+  } catch (error) {
+    console.error('加载货币分布配置失败:', error)
+  } finally {
+    loadingCurrency.value = false
+  }
+}
+
 onMounted(() => {
   loadSummary()
   loadNetAllocation()  // 默认加载净资产配置
   loadTaxStatusAllocation()  // 默认加载税收状态配置
+  loadMemberAllocation()  // 默认加载家庭成员配置
+  loadCurrencyAllocation()  // 默认加载货币分布配置
 })
 </script>

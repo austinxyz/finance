@@ -1171,39 +1171,27 @@ public class AnalysisService {
         // 计算每个成员的净资产
         for (User user : users) {
             // 获取该用户的所有资产账户
-            List<AssetAccount> assetAccounts = assetAccountRepository.findByUserId(user.getId());
+            List<AssetAccount> assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(user.getId());
             BigDecimal userTotalAssets = BigDecimal.ZERO;
 
             for (AssetAccount account : assetAccounts) {
                 Optional<AssetRecord> recordOpt = getAssetRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    BigDecimal value = recordOpt.get().getValue();
-                    // 转换为USD
-                    if (!"USD".equals(recordOpt.get().getCurrency())) {
-                        BigDecimal rate = exchangeRateService.getExchangeRate(
-                            recordOpt.get().getCurrency(), "USD", recordOpt.get().getRecordDate()
-                        );
-                        value = value.multiply(rate);
-                    }
+                    // Records already store values in base currency (USD)
+                    BigDecimal value = recordOpt.get().getAmountInBaseCurrency();
                     userTotalAssets = userTotalAssets.add(value);
                 }
             }
 
             // 获取该用户的所有负债账户
-            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository.findByUserId(user.getId());
+            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(user.getId());
             BigDecimal userTotalLiabilities = BigDecimal.ZERO;
 
             for (LiabilityAccount account : liabilityAccounts) {
                 Optional<LiabilityRecord> recordOpt = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    BigDecimal value = recordOpt.get().getValue();
-                    // 转换为USD
-                    if (!"USD".equals(recordOpt.get().getCurrency())) {
-                        BigDecimal rate = exchangeRateService.getExchangeRate(
-                            recordOpt.get().getCurrency(), "USD", recordOpt.get().getRecordDate()
-                        );
-                        value = value.multiply(rate);
-                    }
+                    // Records already store values in base currency (USD)
+                    BigDecimal value = recordOpt.get().getBalanceInBaseCurrency();
                     userTotalLiabilities = userTotalLiabilities.add(value);
                 }
             }
@@ -1216,7 +1204,7 @@ public class AnalysisService {
                 Map<String, Object> memberInfo = new HashMap<>();
                 memberInfo.put("userId", user.getId());
                 memberInfo.put("userName", user.getUsername());
-                memberInfo.put("displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
+                memberInfo.put("displayName", user.getFullName() != null ? user.getFullName() : user.getUsername());
                 memberInfo.put("value", userNetWorth);
                 memberInfo.put("assets", userTotalAssets);
                 memberInfo.put("liabilities", userTotalLiabilities);
@@ -2450,5 +2438,174 @@ public class AnalysisService {
             "CRITICAL", "严重风险"
         );
         return names.getOrDefault(level, "未知");
+    }
+
+    // 获取按货币的净资产配置
+    public Map<String, Object> getNetWorthByCurrency(Long userId, LocalDate asOfDate) {
+        // 获取所有资产账户
+        List<AssetAccount> assetAccounts;
+        if (userId == null) {
+            assetAccounts = accountRepository.findByIsActiveTrue();
+        } else {
+            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 按货币分组资产
+        Map<String, BigDecimal> assetsByCurrency = new HashMap<>();
+
+        for (AssetAccount account : assetAccounts) {
+            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                // 使用账户的原始货币和金额（不转换）
+                String currency = account.getCurrency() != null ? account.getCurrency() : "CNY";
+                BigDecimal amount = record.get().getAmount(); // 使用原始金额，不是基础货币金额
+                assetsByCurrency.merge(currency, amount, BigDecimal::add);
+            }
+        }
+
+        // 获取所有负债账户
+        List<LiabilityAccount> liabilityAccounts;
+        if (userId == null) {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        }
+
+        // 按货币分组负债
+        Map<String, BigDecimal> liabilitiesByCurrency = new HashMap<>();
+
+        for (LiabilityAccount account : liabilityAccounts) {
+            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                // 使用账户的原始货币和余额（不转换）
+                String currency = account.getCurrency() != null ? account.getCurrency() : "CNY";
+                BigDecimal balance = record.get().getOutstandingBalance(); // 使用原始余额，不是基础货币余额
+                liabilitiesByCurrency.merge(currency, balance, BigDecimal::add);
+            }
+        }
+
+        // 合并所有货币
+        Set<String> allCurrencies = new HashSet<>();
+        allCurrencies.addAll(assetsByCurrency.keySet());
+        allCurrencies.addAll(liabilitiesByCurrency.keySet());
+
+        // 计算每种货币的净资产
+        Map<String, BigDecimal> netWorthByCurrency = new HashMap<>();
+        BigDecimal totalNetWorthInBaseCurrency = BigDecimal.ZERO;
+
+        for (String currency : allCurrencies) {
+            BigDecimal assets = assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal liabilities = liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal netWorth = assets.subtract(liabilities);
+
+            if (netWorth.compareTo(BigDecimal.ZERO) != 0) {
+                netWorthByCurrency.put(currency, netWorth);
+            }
+        }
+
+        // 计算总净资产（使用基础货币金额进行汇总）
+        // 同时计算每种货币的净资产（基础货币金额）
+        Map<String, BigDecimal> netWorthInBaseCurrencyByOriginalCurrency = new HashMap<>();
+
+        for (String currency : allCurrencies) {
+            BigDecimal assetsInOriginal = assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal liabilitiesInOriginal = liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal netWorthInOriginal = assetsInOriginal.subtract(liabilitiesInOriginal);
+
+            // 只添加非零的净资产
+            if (netWorthInOriginal.compareTo(BigDecimal.ZERO) != 0) {
+                netWorthByCurrency.put(currency, netWorthInOriginal);
+            }
+
+            // 获取该货币的账户，计算基础货币金额
+            BigDecimal assetsInBase = BigDecimal.ZERO;
+            BigDecimal liabilitiesInBase = BigDecimal.ZERO;
+
+            // 计算资产的基础货币金额
+            List<AssetAccount> currencyAssetAccounts = assetAccounts.stream()
+                .filter(acc -> currency.equals(acc.getCurrency() != null ? acc.getCurrency() : "CNY"))
+                .collect(java.util.stream.Collectors.toList());
+
+            for (AssetAccount account : currencyAssetAccounts) {
+                Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
+                if (record.isPresent()) {
+                    assetsInBase = assetsInBase.add(record.get().getAmountInBaseCurrency());
+                }
+            }
+
+            // 计算负债的基础货币金额
+            List<LiabilityAccount> currencyLiabilityAccounts = liabilityAccounts.stream()
+                .filter(acc -> currency.equals(acc.getCurrency() != null ? acc.getCurrency() : "CNY"))
+                .collect(java.util.stream.Collectors.toList());
+
+            for (LiabilityAccount account : currencyLiabilityAccounts) {
+                Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+                if (record.isPresent()) {
+                    liabilitiesInBase = liabilitiesInBase.add(record.get().getBalanceInBaseCurrency());
+                }
+            }
+
+            BigDecimal netWorthInBase = assetsInBase.subtract(liabilitiesInBase);
+            if (netWorthInBase.compareTo(BigDecimal.ZERO) != 0) {
+                netWorthInBaseCurrencyByOriginalCurrency.put(currency, netWorthInBase);
+                totalNetWorthInBaseCurrency = totalNetWorthInBaseCurrency.add(netWorthInBase);
+            }
+        }
+
+        // 货币中文名映射
+        Map<String, String> currencyNames = Map.of(
+            "CNY", "人民币",
+            "USD", "美元",
+            "EUR", "欧元",
+            "GBP", "英镑",
+            "JPY", "日元",
+            "HKD", "港币",
+            "AUD", "澳元",
+            "CAD", "加元"
+        );
+
+        // 构建返回数据
+        List<Map<String, Object>> data = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : netWorthByCurrency.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            String currency = entry.getKey();
+            BigDecimal netWorth = entry.getValue();
+
+            item.put("currency", currency);
+            item.put("name", currencyNames.getOrDefault(currency, currency));
+            item.put("value", netWorth);
+            item.put("assets", assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO));
+            item.put("liabilities", liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO));
+
+            // 计算百分比（基于基础货币金额的总净资产）
+            BigDecimal netWorthInBase = netWorthInBaseCurrencyByOriginalCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            if (totalNetWorthInBaseCurrency.compareTo(BigDecimal.ZERO) != 0) {
+                BigDecimal percentage = netWorthInBase
+                    .divide(totalNetWorthInBaseCurrency, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                item.put("percentage", percentage);
+            } else {
+                item.put("percentage", BigDecimal.ZERO);
+            }
+
+            // 添加基础货币金额，用于前端饼图的扇形大小计算
+            item.put("valueInBaseCurrency", netWorthInBase);
+
+            data.add(item);
+        }
+
+        // 按净值降序排序
+        data.sort((a, b) -> {
+            BigDecimal valueA = (BigDecimal) a.get("value");
+            BigDecimal valueB = (BigDecimal) b.get("value");
+            return valueB.compareTo(valueA);
+        });
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", totalNetWorthInBaseCurrency);
+        result.put("data", data);
+        result.put("asOfDate", asOfDate != null ? asOfDate.toString() : LocalDate.now().toString());
+
+        return result;
     }
 }
