@@ -97,8 +97,8 @@ public class AnalysisController {
     public ApiResponse<List<OverallTrendDataPointDTO>> getOverallTrend(
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
-        List<OverallTrendDataPointDTO> trends = analysisService.getOverallTrend(startDate, endDate, userId);
+            @RequestParam(required = false) Long familyId) {
+        List<OverallTrendDataPointDTO> trends = analysisService.getOverallTrend(startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -108,8 +108,8 @@ public class AnalysisController {
             @PathVariable String categoryType,
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
-        List<TrendDataPointDTO> trends = analysisService.getAssetCategoryTrend(categoryType, startDate, endDate, userId);
+            @RequestParam(required = false) Long familyId) {
+        List<TrendDataPointDTO> trends = analysisService.getAssetCategoryTrend(categoryType, startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -119,8 +119,8 @@ public class AnalysisController {
             @PathVariable String categoryType,
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
-        List<TrendDataPointDTO> trends = analysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, userId);
+            @RequestParam(required = false) Long familyId) {
+        List<TrendDataPointDTO> trends = analysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -130,8 +130,8 @@ public class AnalysisController {
             @PathVariable String categoryCode,
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
-        List<TrendDataPointDTO> trends = analysisService.getNetAssetCategoryTrend(categoryCode, startDate, endDate, userId);
+            @RequestParam(required = false) Long familyId) {
+        List<TrendDataPointDTO> trends = analysisService.getNetAssetCategoryTrend(categoryCode, startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -161,9 +161,10 @@ public class AnalysisController {
             @PathVariable String categoryType,
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId) {
         Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getAssetAccountsTrendByCategory(
-            categoryType, startDate, endDate, userId);
+            categoryType, startDate, endDate, userId, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -173,9 +174,10 @@ public class AnalysisController {
             @PathVariable String categoryType,
             @RequestParam String startDate,
             @RequestParam String endDate,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId) {
         Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getLiabilityAccountsTrendByCategory(
-            categoryType, startDate, endDate, userId);
+            categoryType, startDate, endDate, userId, familyId);
         return ApiResponse.success(trends);
     }
 

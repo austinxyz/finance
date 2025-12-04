@@ -13,5 +13,7 @@ public interface LiabilityAccountRepository extends JpaRepository<LiabilityAccou
 
     List<LiabilityAccount> findByUserIdAndIsActiveTrue(Long userId);
 
+    List<LiabilityAccount> findByUserIdInAndIsActiveTrue(List<Long> userIds);
+
     List<LiabilityAccount> findByUserIdAndCategoryId(Long userId, Long categoryId);
 }

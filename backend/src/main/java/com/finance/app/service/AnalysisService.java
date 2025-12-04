@@ -12,6 +12,7 @@ import com.finance.app.model.AssetAccount;
 import com.finance.app.model.AssetRecord;
 import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityRecord;
+import com.finance.app.model.User;
 import com.finance.app.repository.AssetAccountRepository;
 import com.finance.app.repository.AssetCategoryRepository;
 import com.finance.app.repository.AssetRecordRepository;
@@ -21,6 +22,7 @@ import com.finance.app.repository.NetAssetCategoryRepository;
 import com.finance.app.repository.NetAssetCategoryAssetTypeMappingRepository;
 import com.finance.app.repository.NetAssetCategoryLiabilityTypeMappingRepository;
 import com.finance.app.repository.UserProfileRepository;
+import com.finance.app.repository.UserRepository;
 import com.finance.app.model.NetAssetCategory;
 import com.finance.app.model.NetAssetCategoryAssetTypeMapping;
 import com.finance.app.model.NetAssetCategoryLiabilityTypeMapping;
@@ -49,6 +51,7 @@ public class AnalysisService {
     private final NetAssetCategoryAssetTypeMappingRepository assetTypeMappingRepository;
     private final NetAssetCategoryLiabilityTypeMappingRepository liabilityTypeMappingRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
 
     // 获取资产总览
     public AssetSummaryDTO getAssetSummary(Long userId) {
@@ -488,24 +491,30 @@ public class AnalysisService {
     }
 
     // 获取综合趋势数据（净资产、总资产、总负债）
-    public List<OverallTrendDataPointDTO> getOverallTrend(String startDateStr, String endDateStr, Long userId) {
+    public List<OverallTrendDataPointDTO> getOverallTrend(String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
         // 获取所有资产账户
         List<AssetAccount> assetAccounts;
-        if (userId == null) {
-            assetAccounts = accountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            assetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+            assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
         // 获取所有负债账户
         List<LiabilityAccount> liabilityAccounts;
-        if (userId == null) {
-            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            liabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
         // 获取日期范围内所有资产记录
@@ -556,16 +565,19 @@ public class AnalysisService {
     }
 
     // 获取资产分类趋势数据
-    public List<TrendDataPointDTO> getAssetCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long userId) {
+    public List<TrendDataPointDTO> getAssetCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
         // 获取该类型的所有资产账户
         List<AssetAccount> accounts;
-        if (userId == null) {
-            accounts = accountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            accounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+            accounts = accountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的账户
@@ -599,16 +611,19 @@ public class AnalysisService {
     }
 
     // 获取负债分类趋势数据
-    public List<TrendDataPointDTO> getLiabilityCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long userId) {
+    public List<TrendDataPointDTO> getLiabilityCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
         // 获取该类型的所有负债账户
         List<LiabilityAccount> accounts;
-        if (userId == null) {
-            accounts = liabilityAccountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            accounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            accounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+            accounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的账户
@@ -642,7 +657,7 @@ public class AnalysisService {
     }
 
     // 获取净资产分类趋势数据
-    public List<TrendDataPointDTO> getNetAssetCategoryTrend(String categoryCode, String startDateStr, String endDateStr, Long userId) {
+    public List<TrendDataPointDTO> getNetAssetCategoryTrend(String categoryCode, String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
@@ -667,10 +682,13 @@ public class AnalysisService {
 
         // 获取所有资产账户
         List<AssetAccount> assetAccounts;
-        if (userId == null) {
-            assetAccounts = accountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            assetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+            assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的资产账户
@@ -680,10 +698,13 @@ public class AnalysisService {
 
         // 获取所有负债账户
         List<LiabilityAccount> liabilityAccounts;
-        if (userId == null) {
-            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        if (familyId != null) {
+            // 获取该家庭所有成员的账户
+            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            liabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
         } else {
-            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的负债账户
@@ -797,16 +818,24 @@ public class AnalysisService {
 
     // 获取资产分类下所有账户的趋势数据
     public Map<String, List<AccountTrendDataPointDTO>> getAssetAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId) {
+            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
         // 获取该类型的所有资产账户
         List<AssetAccount> accounts;
-        if (userId == null) {
-            accounts = accountRepository.findByIsActiveTrue();
-        } else {
+        if (familyId != null) {
+            // 如果提供了家庭ID，获取该家庭所有成员的账户
+            List<User> familyUsers = userRepository.findByFamilyId(familyId);
+            List<Long> userIds = familyUsers.stream().map(User::getId).collect(Collectors.toList());
+            accounts = new ArrayList<>();
+            for (Long uid : userIds) {
+                accounts.addAll(accountRepository.findByUserIdAndIsActiveTrue(uid));
+            }
+        } else if (userId != null) {
             accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            accounts = accountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的账户
@@ -844,16 +873,24 @@ public class AnalysisService {
 
     // 获取负债分类下所有账户的趋势数据
     public Map<String, List<AccountTrendDataPointDTO>> getLiabilityAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId) {
+            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
         // 获取该类型的所有负债账户
         List<LiabilityAccount> accounts;
-        if (userId == null) {
-            accounts = liabilityAccountRepository.findByIsActiveTrue();
-        } else {
+        if (familyId != null) {
+            // 如果提供了家庭ID,获取该家庭所有成员的账户
+            List<User> familyUsers = userRepository.findByFamilyId(familyId);
+            List<Long> userIds = familyUsers.stream().map(User::getId).collect(Collectors.toList());
+            accounts = new ArrayList<>();
+            for (Long uid : userIds) {
+                accounts.addAll(liabilityAccountRepository.findByUserIdAndIsActiveTrue(uid));
+            }
+        } else if (userId != null) {
             accounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            accounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
         // 过滤出匹配类型的账户

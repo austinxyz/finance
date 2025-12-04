@@ -55,30 +55,30 @@ export const analysisAPI = {
   },
 
   // 获取综合趋势数据（净资产、总资产、总负债）
-  getOverallTrend(startDate, endDate, userId = null) {
+  getOverallTrend(startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get('/analysis/trends/overall', { params })
   },
 
   // 获取资产分类趋势数据
-  getAssetCategoryTrend(categoryType, startDate, endDate, userId = null) {
+  getAssetCategoryTrend(categoryType, startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get(`/analysis/trends/asset-category/${categoryType}`, { params })
   },
 
   // 获取负债分类趋势数据
-  getLiabilityCategoryTrend(categoryType, startDate, endDate, userId = null) {
+  getLiabilityCategoryTrend(categoryType, startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get(`/analysis/trends/liability-category/${categoryType}`, { params })
   },
 
   // 获取净资产分类趋势数据
-  getNetAssetCategoryTrend(categoryCode, startDate, endDate, userId = null) {
+  getNetAssetCategoryTrend(categoryCode, startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get(`/analysis/trends/net-asset-category/${categoryCode}`, { params })
   },
 
@@ -99,16 +99,16 @@ export const analysisAPI = {
   },
 
   // 获取资产分类下所有账户的趋势数据
-  getAssetAccountsTrendByCategory(categoryType, startDate, endDate, userId = null) {
+  getAssetAccountsTrendByCategory(categoryType, startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get(`/analysis/trends/asset-accounts/${categoryType}`, { params })
   },
 
   // 获取负债分类下所有账户的趋势数据
-  getLiabilityAccountsTrendByCategory(categoryType, startDate, endDate, userId = null) {
+  getLiabilityAccountsTrendByCategory(categoryType, startDate, endDate, familyId = null) {
     const params = { startDate, endDate }
-    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     return request.get(`/analysis/trends/liability-accounts/${categoryType}`, { params })
   },
 

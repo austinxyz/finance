@@ -4,15 +4,31 @@
     <div class="bg-white rounded-lg shadow p-4">
       <div class="flex items-center justify-between mb-4">
         <h1 class="text-2xl font-bold text-gray-900">趋势分析</h1>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">显示货币：</label>
-          <select
-            v-model="selectedCurrency"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-          >
-            <option value="USD">美元 (USD)</option>
-            <option value="CNY">人民币 (CNY)</option>
-          </select>
+        <div class="flex items-center gap-4">
+          <!-- 家庭选择器 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">选择家庭：</label>
+            <select
+              v-model="selectedFamilyId"
+              @change="onFamilyChange"
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-w-[180px]"
+            >
+              <option v-for="family in allFamilies" :key="family.id" :value="family.id">
+                {{ family.familyName }}
+              </option>
+            </select>
+          </div>
+          <!-- 显示货币 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <select
+              v-model="selectedCurrency"
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            >
+              <option value="USD">美元 (USD)</option>
+              <option value="CNY">人民币 (CNY)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -745,6 +761,7 @@ import {
 } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { analysisAPI } from '@/api/analysis'
+import request from '@/api/request'
 
 // 注册 Chart.js 组件
 ChartJS.register(
@@ -865,6 +882,10 @@ const liabilityCategories = [
 
 // 净资产分类（从数据库动态加载）
 const netAssetCategories = ref([])
+
+// 家庭管理
+const allFamilies = ref([])
+const selectedFamilyId = ref(null)
 
 // 货币符号
 const currencySymbol = computed(() => {
@@ -2320,7 +2341,8 @@ const loadOverallTrend = async () => {
   loading.value = true
   try {
     const { start, end } = getDateRange()
-    const response = await analysisAPI.getOverallTrend(start, end)
+    // 使用选中的家庭ID进行过滤，后端会聚合该家庭所有成员的数据
+    const response = await analysisAPI.getOverallTrend(start, end, selectedFamilyId.value)
     if (response.success) {
       overallTrendData.value = response.data
     }
@@ -2343,7 +2365,7 @@ const loadAssetCategoriesTrend = async () => {
     await Promise.all(
       assetCategories.map(async (category) => {
         try {
-          const response = await analysisAPI.getAssetCategoryTrend(category.type, start, end)
+          const response = await analysisAPI.getAssetCategoryTrend(category.type, start, end, selectedFamilyId.value)
           if (response.success && response.data && response.data.length > 0) {
             trendData[category.type] = response.data
           }
@@ -2373,7 +2395,7 @@ const loadLiabilityCategoriesTrend = async () => {
     await Promise.all(
       liabilityCategories.map(async (category) => {
         try {
-          const response = await analysisAPI.getLiabilityCategoryTrend(category.type, start, end)
+          const response = await analysisAPI.getLiabilityCategoryTrend(category.type, start, end, selectedFamilyId.value)
           if (response.success && response.data && response.data.length > 0) {
             trendData[category.type] = response.data
           }
@@ -2426,7 +2448,7 @@ const loadNetAssetCategoriesTrend = async () => {
     await Promise.all(
       netAssetCategories.value.map(async (category) => {
         try {
-          const response = await analysisAPI.getNetAssetCategoryTrend(category.code, start, end)
+          const response = await analysisAPI.getNetAssetCategoryTrend(category.code, start, end, selectedFamilyId.value)
           if (response.success && response.data && response.data.length > 0) {
             trendData[category.code] = response.data
           }
@@ -2456,7 +2478,8 @@ const selectAssetCategory = async (stat) => {
   loadingAccountsTrend.value = true
   try {
     const { start, end } = getDateRange()
-    const response = await analysisAPI.getAssetAccountsTrendByCategory(category.type, start, end)
+    // 使用选中的家庭ID进行查询
+    const response = await analysisAPI.getAssetAccountsTrendByCategory(category.type, start, end, selectedFamilyId.value)
 
     if (response.success && response.data) {
       accountsTrendData.value = response.data
@@ -2482,7 +2505,8 @@ const selectLiabilityCategory = async (stat) => {
   loadingLiabilityAccountsTrend.value = true
   try {
     const { start, end } = getDateRange()
-    const response = await analysisAPI.getLiabilityAccountsTrendByCategory(category.type, start, end)
+    // 使用选中的家庭ID进行查询
+    const response = await analysisAPI.getLiabilityAccountsTrendByCategory(category.type, start, end, selectedFamilyId.value)
 
     if (response.success && response.data) {
       liabilityAccountsTrendData.value = response.data
@@ -2516,12 +2540,47 @@ const loadAllTrends = () => {
   }
 }
 
+// 加载所有家庭列表
+const loadAllFamilies = async () => {
+  try {
+    const response = await request.get('/family')
+    if (response.success && response.data) {
+      allFamilies.value = response.data
+
+      // 默认选择第一个家庭，如果有"Austin Family"则优先选择
+      const austinFamily = allFamilies.value.find(f => f.familyName === 'Austin Family')
+      if (austinFamily) {
+        selectedFamilyId.value = austinFamily.id
+      } else if (allFamilies.value.length > 0) {
+        selectedFamilyId.value = allFamilies.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 家庭变更处理
+const onFamilyChange = () => {
+  if (selectedFamilyId.value) {
+    // 清除之前选中的分类
+    selectedAssetCategory.value = null
+    selectedLiabilityCategory.value = null
+    accountsTrendData.value = {}
+    liabilityAccountsTrendData.value = {}
+
+    // 重新加载当前tab的数据（后端会自动聚合该家庭所有成员的数据）
+    loadAllTrends()
+  }
+}
+
 // 监听 tab 切换
 watch(activeTab, () => {
   loadAllTrends()
 })
 
-onMounted(() => {
+onMounted(async () => {
+  await loadAllFamilies()
   loadAllTrends()
 })
 </script>
