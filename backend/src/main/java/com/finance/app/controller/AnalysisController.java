@@ -200,6 +200,15 @@ public class AnalysisController {
         return ApiResponse.success(allocation);
     }
 
+    // 获取按家庭成员的净资产配置
+    @GetMapping("/allocation/net-worth-by-member")
+    public ApiResponse<Map<String, Object>> getNetWorthByMember(
+            @RequestParam(required = false) Long familyId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        Map<String, Object> allocation = analysisService.getNetWorthByMember(familyId, asOfDate);
+        return ApiResponse.success(allocation);
+    }
+
     // 获取财务指标
     @GetMapping("/financial-metrics")
     public ApiResponse<FinancialMetricsDTO> getFinancialMetrics(

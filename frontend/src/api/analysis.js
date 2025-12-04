@@ -128,6 +128,14 @@ export const analysisAPI = {
     return request.get('/analysis/allocation/net-worth-by-tax-status', { params })
   },
 
+  // 获取按家庭成员的净资产配置
+  getNetWorthByMember(familyId = null, asOfDate = null) {
+    const params = {}
+    if (familyId) params.familyId = familyId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/allocation/net-worth-by-member', { params })
+  },
+
   // 获取财务指标
   getFinancialMetrics(userId = null, asOfDate = null) {
     const params = {}

@@ -297,6 +297,47 @@
             </div>
           </div>
         </div>
+
+        <!-- 第三行: 家庭成员分布饼图 + 成员列表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 家庭成员饼图 -->
+          <div class="h-80 flex flex-col">
+            <h4 class="font-semibold mb-4 text-center">家庭成员分布</h4>
+            <div class="flex-1 flex items-center justify-center">
+              <div v-if="loadingMember" class="text-gray-500">加载中...</div>
+              <div v-else-if="!memberAllocation || memberAllocation.data.length === 0" class="text-gray-500">暂无数据</div>
+              <Pie v-else :data="memberChartData" :options="memberPieChartOptions" />
+            </div>
+          </div>
+
+          <!-- 家庭成员列表 -->
+          <div>
+            <div class="space-y-2">
+              <div
+                v-for="item in memberAllocation?.data || []"
+                :key="item.userId"
+                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-4 h-4 rounded" :style="{ backgroundColor: defaultColors[memberAllocation.data.indexOf(item) % defaultColors.length] }"></div>
+                  <div>
+                    <div class="font-medium">{{ item.displayName || item.userName }}</div>
+                    <div class="text-xs text-gray-500">
+                      资产: {{ currencySymbol }}{{ formatNumber(convertValue(item.assets)) }} |
+                      负债: {{ currencySymbol }}{{ formatNumber(convertValue(item.liabilities)) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(item.value)) }}</div>
+                  <div class="text-sm text-gray-500">
+                    {{ formatNumber(item.percentage) }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 资产和负债tab: 保持原有的两列布局 -->
@@ -438,6 +479,13 @@ const taxStatusAllocation = ref({
 })
 
 const loadingTaxStatus = ref(false)
+
+const memberAllocation = ref({
+  total: 0,
+  data: []
+})
+
+const loadingMember = ref(false)
 
 // 颜色配置
 const defaultColors = [
@@ -783,6 +831,84 @@ const taxStatusPieChartOptions = computed(() => {
   }
 })
 
+// 家庭成员饼图数据
+const memberChartData = computed(() => {
+  if (!memberAllocation.value || !memberAllocation.value.data) {
+    return null
+  }
+
+  return {
+    labels: memberAllocation.value.data.map(item => item.displayName || item.userName),
+    datasets: [
+      {
+        data: memberAllocation.value.data.map(item => item.value),
+        backgroundColor: memberAllocation.value.data.map((item, index) => defaultColors[index % defaultColors.length]),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }
+    ]
+  }
+})
+
+// 家庭成员饼图配置
+const memberPieChartOptions = computed(() => {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 10,
+          font: {
+            size: 11
+          }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || ''
+            const valueInUSD = context.parsed || 0
+            const value = convertValue(valueInUSD)
+            const total = context.dataset.data.reduce((a, b) => a + b, 0)
+            const percentage = ((valueInUSD / total) * 100).toFixed(2)
+            const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+            return `${label}: ${symbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${percentage}%)`
+          }
+        }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold',
+          size: 11
+        },
+        formatter: (value, context) => {
+          const total = context.dataset.data.reduce((a, b) => a + b, 0)
+          const percentage = ((value / total) * 100).toFixed(1)
+          const convertedValue = convertValue(value)
+          const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+
+          // 只显示百分比大于3%的标签
+          if (percentage < 3) return ''
+
+          // 格式化数值
+          const formattedValue = convertedValue >= 10000
+            ? (convertedValue / 10000).toFixed(1) + (selectedCurrency.value === 'CNY' ? '万' : 'K')
+            : convertedValue.toFixed(0)
+
+          return `${symbol}${formattedValue}\n${percentage}%`
+        },
+        textAlign: 'center',
+        anchor: 'center',
+        align: 'center'
+      }
+    }
+  }
+})
+
 // 格式化数字
 const formatNumber = (num) => {
   if (!num) return '0.00'
@@ -878,6 +1004,21 @@ const loadTaxStatusAllocation = async () => {
   }
 }
 
+// 加载家庭成员配置
+const loadMemberAllocation = async () => {
+  loadingMember.value = true
+  try {
+    const response = await analysisAPI.getNetWorthByMember(null, selectedDate.value || null)
+    if (response.success) {
+      memberAllocation.value = response.data
+    }
+  } catch (error) {
+    console.error('加载家庭成员配置失败:', error)
+  } finally {
+    loadingMember.value = false
+  }
+}
+
 // 日期变化处理
 const onDateChange = () => {
   // 重新加载所有数据
@@ -886,6 +1027,7 @@ const onDateChange = () => {
   if (activeTab.value === 'net') {
     loadNetAllocation()
     loadTaxStatusAllocation()
+    loadMemberAllocation()
   } else if (activeTab.value === 'asset') {
     loadAssetAllocation()
   } else if (activeTab.value === 'liability') {
@@ -913,6 +1055,9 @@ const switchTab = (tabKey) => {
     }
     if (taxStatusAllocation.value.data.length === 0) {
       loadTaxStatusAllocation()
+    }
+    if (memberAllocation.value.data.length === 0) {
+      loadMemberAllocation()
     }
   } else if (tabKey === 'asset' && assetAllocation.value.data.length === 0) {
     loadAssetAllocation()

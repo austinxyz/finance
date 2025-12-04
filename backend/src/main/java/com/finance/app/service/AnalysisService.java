@@ -1147,6 +1147,109 @@ public class AnalysisService {
         return result;
     }
 
+    // 获取按家庭成员的净资产配置
+    public Map<String, Object> getNetWorthByMember(Long familyId, LocalDate asOfDate) {
+        List<User> users;
+        if (familyId != null) {
+            // 获取指定家庭的所有活跃成员
+            users = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else {
+            // 如果没有指定家庭，获取所有活跃用户
+            users = userRepository.findAll().stream()
+                .filter(User::getIsActive)
+                .collect(Collectors.toList());
+        }
+
+        if (asOfDate == null) {
+            asOfDate = LocalDate.now();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> memberData = new ArrayList<>();
+        BigDecimal totalNetWorth = BigDecimal.ZERO;
+
+        // 计算每个成员的净资产
+        for (User user : users) {
+            // 获取该用户的所有资产账户
+            List<AssetAccount> assetAccounts = assetAccountRepository.findByUserId(user.getId());
+            BigDecimal userTotalAssets = BigDecimal.ZERO;
+
+            for (AssetAccount account : assetAccounts) {
+                Optional<AssetRecord> recordOpt = getAssetRecordAsOfDate(account.getId(), asOfDate);
+                if (recordOpt.isPresent()) {
+                    BigDecimal value = recordOpt.get().getValue();
+                    // 转换为USD
+                    if (!"USD".equals(recordOpt.get().getCurrency())) {
+                        BigDecimal rate = exchangeRateService.getExchangeRate(
+                            recordOpt.get().getCurrency(), "USD", recordOpt.get().getRecordDate()
+                        );
+                        value = value.multiply(rate);
+                    }
+                    userTotalAssets = userTotalAssets.add(value);
+                }
+            }
+
+            // 获取该用户的所有负债账户
+            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository.findByUserId(user.getId());
+            BigDecimal userTotalLiabilities = BigDecimal.ZERO;
+
+            for (LiabilityAccount account : liabilityAccounts) {
+                Optional<LiabilityRecord> recordOpt = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+                if (recordOpt.isPresent()) {
+                    BigDecimal value = recordOpt.get().getValue();
+                    // 转换为USD
+                    if (!"USD".equals(recordOpt.get().getCurrency())) {
+                        BigDecimal rate = exchangeRateService.getExchangeRate(
+                            recordOpt.get().getCurrency(), "USD", recordOpt.get().getRecordDate()
+                        );
+                        value = value.multiply(rate);
+                    }
+                    userTotalLiabilities = userTotalLiabilities.add(value);
+                }
+            }
+
+            // 计算该用户的净资产
+            BigDecimal userNetWorth = userTotalAssets.subtract(userTotalLiabilities);
+
+            // 只添加净资产不为零的成员
+            if (userNetWorth.compareTo(BigDecimal.ZERO) != 0) {
+                Map<String, Object> memberInfo = new HashMap<>();
+                memberInfo.put("userId", user.getId());
+                memberInfo.put("userName", user.getUsername());
+                memberInfo.put("displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
+                memberInfo.put("value", userNetWorth);
+                memberInfo.put("assets", userTotalAssets);
+                memberInfo.put("liabilities", userTotalLiabilities);
+
+                memberData.add(memberInfo);
+                totalNetWorth = totalNetWorth.add(userNetWorth);
+            }
+        }
+
+        // 计算百分比
+        for (Map<String, Object> member : memberData) {
+            BigDecimal value = (BigDecimal) member.get("value");
+            BigDecimal percentage = totalNetWorth.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : value.divide(totalNetWorth, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+            member.put("percentage", percentage);
+        }
+
+        // 按净资产值降序排序
+        memberData.sort((a, b) -> {
+            BigDecimal valueA = (BigDecimal) a.get("value");
+            BigDecimal valueB = (BigDecimal) b.get("value");
+            return valueB.compareTo(valueA);
+        });
+
+        result.put("total", totalNetWorth);
+        result.put("data", memberData);
+        result.put("currency", "USD");
+        result.put("asOfDate", asOfDate.toString());
+
+        return result;
+    }
+
     // 获取财务指标
     public FinancialMetricsDTO getFinancialMetrics(Long userId, LocalDate asOfDate) {
         // 如果没有指定日期,使用当前日期
