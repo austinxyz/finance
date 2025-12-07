@@ -79,6 +79,14 @@
           <span>趋势分析</span>
         </router-link>
         <router-link
+          to="/analysis/annual-trend"
+          class="nav-item"
+          :class="isActive('/analysis/annual-trend')"
+        >
+          <Calendar class="w-5 h-5" />
+          <span>年度趋势</span>
+        </router-link>
+        <router-link
           to="/analysis/allocation"
           class="nav-item"
           :class="isActive('/analysis/allocation')"
@@ -171,6 +179,7 @@ import {
   History,
   CreditCard,
   TrendingUp,
+  Calendar,
   PieChart,
   BarChart3,
   Shield,

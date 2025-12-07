@@ -1,0 +1,946 @@
+<template>
+  <div class="p-6 space-y-6">
+    <!-- 页面标题和控制栏 -->
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold text-gray-900">年度趋势分析</h1>
+        <div class="flex items-center gap-4">
+          <!-- 家庭选择 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">选择家庭：</label>
+            <select v-model.number="familyId" @change="onFamilyChange"
+                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-w-[180px]">
+              <option v-for="family in families" :key="family.id" :value="family.id">
+                {{ family.familyName }}
+              </option>
+            </select>
+          </div>
+
+          <!-- 年份选择 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">显示年数：</label>
+            <select v-model.number="displayYears" @change="fetchData"
+                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+              <option :value="3">最近3年</option>
+              <option :value="5">最近5年</option>
+              <option :value="10">最近10年</option>
+              <option :value="999">全部</option>
+            </select>
+          </div>
+
+          <!-- 货币选择 -->
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <select v-model="selectedCurrency" @change="onCurrencyChange"
+                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+              <option value="USD">USD ($)</option>
+              <option value="CNY">CNY (¥)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="JPY">JPY (¥)</option>
+            </select>
+          </div>
+
+          <button @click="calculateSummary"
+                  class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium">
+            刷新数据
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="loading" class="bg-white rounded-lg shadow p-12">
+      <div class="flex flex-col items-center justify-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p class="text-gray-600 mt-4">加载中...</p>
+      </div>
+    </div>
+
+    <!-- Tab 切换 -->
+    <div v-else-if="summaries.length > 0" class="space-y-6">
+      <div class="bg-white rounded-lg shadow">
+        <div class="border-b border-gray-200">
+          <nav class="-mb-px flex space-x-4 px-6" aria-label="Tabs">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              @click="activeTab = tab.key"
+              :class="[
+                'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
+                activeTab === tab.key
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ]"
+            >
+              {{ tab.label }}
+            </button>
+          </nav>
+        </div>
+
+        <!-- 综合趋势 -->
+        <div v-show="activeTab === 'overall'" class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">综合趋势</h2>
+            <p class="text-sm text-gray-500 mt-1">资产、负债、净资产年度变化趋势</p>
+          </div>
+          <div class="h-96">
+            <canvas ref="comprehensiveChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 净资产趋势 -->
+        <div v-show="activeTab === 'networth'" class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">净资产趋势</h2>
+            <p class="text-sm text-gray-500 mt-1">净资产年度变化及同比增长率</p>
+          </div>
+          <div class="h-80">
+            <canvas ref="netWorthChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 资产趋势 -->
+        <div v-show="activeTab === 'asset'" class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">资产趋势</h2>
+            <p class="text-sm text-gray-500 mt-1">总资产年度变化及同比增长率</p>
+          </div>
+          <div class="h-80">
+            <canvas ref="assetChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 负债趋势 -->
+        <div v-show="activeTab === 'liability'" class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">负债趋势</h2>
+            <p class="text-sm text-gray-500 mt-1">总负债年度变化及同比增长率</p>
+          </div>
+          <div class="h-80">
+            <canvas ref="liabilityChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 汇总表格 -->
+        <div v-show="activeTab === 'table'" class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">年度汇总表</h2>
+            <p class="text-sm text-gray-500 mt-1">各年度财务数据对比</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">总资产</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">资产同比</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">总负债</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">负债同比</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产同比</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">房产净值同比</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">非房产净值同比</th>
+                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">房产占比</th>
+                  <th class="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase">日期</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white">
+                <template v-for="summary in summaries" :key="summary.year">
+                  <!-- 主行 -->
+                  <tr class="hover:bg-gray-50 border-b border-gray-200">
+                    <td class="px-2 py-2 whitespace-nowrap">
+                      <div class="flex items-center gap-1">
+                        <button @click="toggleYearExpand(summary.year)"
+                                class="text-gray-500 hover:text-gray-700 transition">
+                          <svg v-if="!isYearExpanded(summary.year)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                          </svg>
+                          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                          </svg>
+                        </button>
+                        <div class="text-xs font-medium text-gray-900">{{ summary.year }}</div>
+                      </div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div class="text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets) }}</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyAssetChange !== null" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyAssetChange)" class="font-medium">
+                          {{ formatChange(summary.yoyAssetChange) }}
+                        </div>
+                        <div :class="getChangeColor(summary.yoyAssetChangePct)" class="text-xs">
+                          ({{ formatPercent(summary.yoyAssetChangePct) }})
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div class="text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities) }}</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyLiabilityChange !== null" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyLiabilityChange, true)" class="font-medium">
+                          {{ formatChange(summary.yoyLiabilityChange) }}
+                        </div>
+                        <div :class="getChangeColor(summary.yoyLiabilityChangePct, true)" class="text-xs">
+                          ({{ formatPercent(summary.yoyLiabilityChangePct) }})
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div class="text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth) }}</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyNetWorthChange !== null" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.yoyNetWorthChange) }}
+                        </div>
+                        <div :class="getChangeColor(summary.yoyNetWorthChangePct)" class="text-xs">
+                          ({{ formatPercent(summary.yoyNetWorthChangePct) }})
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">基准年</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyRealEstateNetWorthChange !== null" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.yoyRealEstateNetWorthChange) }}
+                        </div>
+                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChangePct)" class="text-xs">
+                          ({{ formatPercent(summary.yoyRealEstateNetWorthChangePct) }})
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyNonRealEstateNetWorthChange !== null" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.yoyNonRealEstateNetWorthChange) }}
+                        </div>
+                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChangePct)" class="text-xs">
+                          ({{ formatPercent(summary.yoyNonRealEstateNetWorthChangePct) }})
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.realEstateToNetWorthRatio !== null" class="text-xs font-medium text-purple-600">
+                        {{ formatPercent(summary.realEstateToNetWorthRatio) }}
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
+                    </td>
+                    <td class="px-2 py-2 whitespace-nowrap text-center">
+                      <div class="text-xs text-gray-600">{{ summary.summaryDate }}</div>
+                    </td>
+                  </tr>
+
+                  <!-- 展开的分类明细 -->
+                  <tr v-if="isYearExpanded(summary.year)" class="bg-gray-50">
+                    <td colspan="11" class="px-6 py-4">
+                      <div class="grid grid-cols-2 gap-6">
+                        <!-- 资产分类 -->
+                        <div v-if="summary.assetBreakdown && Object.keys(summary.assetBreakdown).length > 0">
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">资产分类明细</h4>
+                          <div class="space-y-2">
+                            <div v-for="(value, category) in summary.assetBreakdown" :key="category"
+                                 class="flex justify-between items-center text-sm">
+                              <span class="text-gray-600">{{ category }}</span>
+                              <span class="font-medium text-green-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else>
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">资产分类明细</h4>
+                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                        </div>
+
+                        <!-- 负债分类 -->
+                        <div v-if="summary.liabilityBreakdown && Object.keys(summary.liabilityBreakdown).length > 0">
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">负债分类明细</h4>
+                          <div class="space-y-2">
+                            <div v-for="(value, category) in summary.liabilityBreakdown" :key="category"
+                                 class="flex justify-between items-center text-sm">
+                              <span class="text-gray-600">{{ category }}</span>
+                              <span class="font-medium text-red-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else>
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">负债分类明细</h4>
+                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 无数据提示 -->
+    <div v-else>
+      <!-- 家庭选择（无数据时） -->
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="flex items-center gap-3">
+          <label class="text-sm font-medium text-gray-700">家庭：</label>
+          <select v-model.number="familyId" @change="onFamilyChange"
+                  class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]">
+            <option v-for="family in families" :key="family.id" :value="family.id">
+              {{ family.familyName }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 无数据提示 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-12 text-center">
+        <div class="text-gray-400 mb-2">
+          <svg class="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">暂无年度数据</h3>
+        <p class="text-gray-600 mb-4">请先添加资产和负债记录，然后计算年度汇总</p>
+        <button @click="calculateSummary"
+                class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
+          计算年度汇总
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { Chart, registerables } from 'chart.js'
+import annualSummaryAPI from '@/api/annualSummary'
+import familyAPI from '@/api/family'
+import exchangeRateAPI from '@/api/exchangeRate'
+
+Chart.register(...registerables)
+
+// 数据
+const summaries = ref([])
+const families = ref([])
+const loading = ref(false)
+const displayYears = ref(5)
+const familyId = ref(null)
+const activeTab = ref('overall')
+const expandedYears = ref(new Set())
+const selectedCurrency = ref('USD')
+const baseCurrency = ref('USD')
+const exchangeRate = ref(1)
+
+// Tabs 配置
+const tabs = [
+  { key: 'overall', label: '综合趋势' },
+  { key: 'networth', label: '净资产趋势' },
+  { key: 'asset', label: '资产趋势' },
+  { key: 'liability', label: '负债趋势' },
+  { key: 'table', label: '汇总表格' }
+]
+
+// 图表引用
+const comprehensiveChartCanvas = ref(null)
+const netWorthChartCanvas = ref(null)
+const assetChartCanvas = ref(null)
+const liabilityChartCanvas = ref(null)
+
+// 图表实例
+let comprehensiveChart = null
+let netWorthChart = null
+let assetChart = null
+let liabilityChart = null
+
+// 获取家庭列表
+const fetchFamilies = async () => {
+  try {
+    const response = await familyAPI.getAll()
+    families.value = response.data
+
+    // 如果还没有选择家庭，默认选择第一个
+    if (!familyId.value && families.value.length > 0) {
+      familyId.value = families.value[0].id
+    }
+  } catch (error) {
+    console.error('获取家庭列表失败:', error)
+  }
+}
+
+// 家庭切换事件
+const onFamilyChange = () => {
+  fetchData()
+}
+
+// 获取数据
+const fetchData = async () => {
+  if (!familyId.value) return
+
+  loading.value = true
+  try {
+    const response = await annualSummaryAPI.getRecent(familyId.value, displayYears.value)
+    summaries.value = response.data.sort((a, b) => b.year - a.year)
+
+    // 设置基础货币
+    if (summaries.value.length > 0 && summaries.value[0].currency) {
+      baseCurrency.value = summaries.value[0].currency
+      if (!selectedCurrency.value) {
+        selectedCurrency.value = summaries.value[0].currency
+      }
+    }
+
+    // 获取汇率
+    await fetchExchangeRate()
+
+    await nextTick()
+    renderCharts()
+  } catch (error) {
+    console.error('获取年度汇总数据失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取汇率
+const fetchExchangeRate = async () => {
+  if (selectedCurrency.value === baseCurrency.value) {
+    exchangeRate.value = 1
+    return
+  }
+
+  try {
+    const response = await exchangeRateAPI.getRate(selectedCurrency.value)
+    if (response.success && response.data) {
+      // 数据库存储的是该货币对USD的汇率
+      // 如果基础货币是USD，直接使用
+      if (baseCurrency.value === 'USD') {
+        exchangeRate.value = 1 / response.data.rateToUsd
+      } else {
+        // 如果基础货币不是USD，需要先获取基础货币的汇率
+        const baseRateResponse = await exchangeRateAPI.getRate(baseCurrency.value)
+        if (baseRateResponse.success && baseRateResponse.data) {
+          // 计算相对汇率: baseCurrency -> USD -> selectedCurrency
+          exchangeRate.value = baseRateResponse.data.rateToUsd / response.data.rateToUsd
+        } else {
+          exchangeRate.value = 1
+        }
+      }
+    } else {
+      exchangeRate.value = 1
+    }
+  } catch (error) {
+    console.error('获取汇率失败:', error)
+    exchangeRate.value = 1
+  }
+}
+
+// 货币切换处理
+const onCurrencyChange = async () => {
+  await fetchExchangeRate()
+  await nextTick()
+  renderCharts()
+}
+
+// 计算年度汇总
+const calculateSummary = async () => {
+  loading.value = true
+  try {
+    // 生成从2000年到当前年份的所有年份
+    const currentYear = new Date().getFullYear()
+    const startYear = 2000
+    const allYears = []
+    for (let year = startYear; year <= currentYear; year++) {
+      allYears.push(year)
+    }
+
+    // 批量计算所有年份（存储过程会自动跳过没有数据的年份）
+    await annualSummaryAPI.batchCalculate(familyId.value, allYears)
+
+    await fetchData()
+  } catch (error) {
+    console.error('计算年度汇总失败:', error)
+    alert('计算失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 渲染图表
+const renderCharts = () => {
+  if (summaries.value.length === 0) return
+
+  const sortedData = [...summaries.value].reverse() // 从旧到新排序
+  const years = sortedData.map(s => s.year)
+  const assets = sortedData.map(s => convertAmount(s.totalAssets))
+  const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities))
+  const netWorths = sortedData.map(s => convertAmount(s.netWorth))
+  const assetGrowths = sortedData.map(s => s.yoyAssetChangePct || 0)
+  const liabilityGrowths = sortedData.map(s => s.yoyLiabilityChangePct || 0)
+  const netWorthGrowths = sortedData.map(s => s.yoyNetWorthChangePct || 0)
+
+  const currencySymbol = getCurrencySymbol(selectedCurrency.value)
+
+  // 综合趋势图
+  if (comprehensiveChart) comprehensiveChart.destroy()
+  if (comprehensiveChartCanvas.value) {
+    comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: '总资产',
+            data: assets,
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: '总负债',
+            data: liabilities,
+            borderColor: 'rgb(239, 68, 68)',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: '净资产',
+            data: netWorths,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                const converted = value
+                if (converted >= 1000000) {
+                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                } else if (converted >= 1000) {
+                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                }
+                return currencySymbol + converted.toFixed(0)
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+
+  // 净资产趋势图（双Y轴）
+  if (netWorthChart) netWorthChart.destroy()
+  if (netWorthChartCanvas.value) {
+    netWorthChart = new Chart(netWorthChartCanvas.value, {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: '净资产',
+            data: netWorths,
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: 'rgb(59, 130, 246)',
+            borderWidth: 1,
+            yAxisID: 'y'
+          },
+          {
+            label: '同比增长率',
+            data: netWorthGrowths,
+            type: 'line',
+            borderColor: 'rgb(234, 88, 12)',
+            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.label === '净资产') {
+                  return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                const converted = value
+                if (converted >= 1000000) {
+                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                } else if (converted >= 1000) {
+                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                }
+                return currencySymbol + converted.toFixed(0)
+              }
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: {
+              drawOnChartArea: false,
+            },
+            ticks: {
+              callback: function(value) {
+                return value.toFixed(1) + '%'
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+
+  // 资产趋势图（双Y轴）
+  if (assetChart) assetChart.destroy()
+  if (assetChartCanvas.value) {
+    assetChart = new Chart(assetChartCanvas.value, {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: '总资产',
+            data: assets,
+            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+            borderColor: 'rgb(34, 197, 94)',
+            borderWidth: 1,
+            yAxisID: 'y'
+          },
+          {
+            label: '同比增长率',
+            data: assetGrowths,
+            type: 'line',
+            borderColor: 'rgb(234, 88, 12)',
+            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.label === '总资产') {
+                  return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                const converted = value
+                if (converted >= 1000000) {
+                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                } else if (converted >= 1000) {
+                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                }
+                return currencySymbol + converted.toFixed(0)
+              }
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: {
+              drawOnChartArea: false,
+            },
+            ticks: {
+              callback: function(value) {
+                return value.toFixed(1) + '%'
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+
+  // 负债趋势图（双Y轴）
+  if (liabilityChart) liabilityChart.destroy()
+  if (liabilityChartCanvas.value) {
+    liabilityChart = new Chart(liabilityChartCanvas.value, {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: '总负债',
+            data: liabilities,
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderColor: 'rgb(239, 68, 68)',
+            borderWidth: 1,
+            yAxisID: 'y'
+          },
+          {
+            label: '同比增长率',
+            data: liabilityGrowths,
+            type: 'line',
+            borderColor: 'rgb(234, 88, 12)',
+            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.label === '总负债') {
+                  return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })
+                } else {
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                const converted = value
+                if (converted >= 1000000) {
+                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                } else if (converted >= 1000) {
+                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                }
+                return currencySymbol + converted.toFixed(0)
+              }
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: {
+              drawOnChartArea: false,
+            },
+            ticks: {
+              callback: function(value) {
+                return value.toFixed(1) + '%'
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+}
+
+// 货币符号映射
+const getCurrencySymbol = (currency) => {
+  const symbols = {
+    'USD': '$',
+    'CNY': '¥',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥',
+    'AUD': 'A$',
+    'CAD': 'C$'
+  }
+  return symbols[currency] || currency
+}
+
+// 应用汇率转换
+const convertAmount = (amount) => {
+  if (!amount && amount !== 0) return 0
+  return Number(amount) * exchangeRate.value
+}
+
+// 格式化金额
+const formatAmount = (amount) => {
+  if (!amount && amount !== 0) return '0.00'
+  const converted = convertAmount(amount)
+  return Number(converted).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+// 格式化金额（简短）
+const formatAmountShort = (amount) => {
+  const converted = convertAmount(amount)
+  if (converted >= 1000000) {
+    return (converted / 1000000).toFixed(1) + 'M'
+  } else if (converted >= 1000) {
+    return (converted / 1000).toFixed(1) + 'K'
+  }
+  return converted.toFixed(0)
+}
+
+// 格式化变化金额
+const formatChange = (amount) => {
+  if (!amount && amount !== 0) return '-'
+  const prefix = amount > 0 ? '+' : ''
+  const symbol = getCurrencySymbol(selectedCurrency.value)
+  return prefix + symbol + formatAmount(Math.abs(amount))
+}
+
+// 格式化百分比
+const formatPercent = (percent) => {
+  if (!percent && percent !== 0) return '-'
+  const prefix = percent > 0 ? '+' : ''
+  return prefix + Number(percent).toFixed(2) + '%'
+}
+
+// 获取变化颜色
+const getChangeColor = (value, isLiability = false) => {
+  if (!value && value !== 0) return 'text-gray-400'
+
+  // 对于负债，减少是好的（绿色），增加是不好的（红色）
+  if (isLiability) {
+    return value > 0 ? 'text-red-600' : 'text-green-600'
+  }
+
+  // 对于资产和净资产，增加是好的（绿色），减少是不好的（红色）
+  return value > 0 ? 'text-green-600' : 'text-red-600'
+}
+
+// 切换年份展开状态
+const toggleYearExpand = (year) => {
+  if (expandedYears.value.has(year)) {
+    expandedYears.value.delete(year)
+  } else {
+    expandedYears.value.add(year)
+  }
+  // 强制更新
+  expandedYears.value = new Set(expandedYears.value)
+}
+
+// 检查是否展开
+const isYearExpanded = (year) => {
+  return expandedYears.value.has(year)
+}
+
+// 监听 activeTab 变化，重新渲染图表
+watch(activeTab, async () => {
+  await nextTick()
+  renderCharts()
+})
+
+// 组件挂载时获取数据
+onMounted(async () => {
+  await fetchFamilies()
+  await fetchData()
+})
+</script>
+
+<style scoped>
+/* 表格样式 */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+table th {
+  position: sticky;
+  top: 0;
+  background-color: #f9fafb;
+  z-index: 10;
+}
+</style>

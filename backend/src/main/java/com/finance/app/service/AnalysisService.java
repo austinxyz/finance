@@ -52,6 +52,7 @@ public class AnalysisService {
     private final NetAssetCategoryLiabilityTypeMappingRepository liabilityTypeMappingRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
+    private final ExchangeRateService exchangeRateService;
 
     // 获取资产总览
     public AssetSummaryDTO getAssetSummary(Long userId) {
@@ -87,7 +88,13 @@ public class AnalysisService {
             // 根据asOfDate获取记录
             Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                BigDecimal amount = record.get().getAmountInBaseCurrency();
+                // 使用查询日期的汇率重新计算金额，而不是使用记录时的amountInBaseCurrency
+                AssetRecord assetRecord = record.get();
+                BigDecimal amount = convertToUSD(
+                    assetRecord.getAmount(),
+                    assetRecord.getCurrency(),
+                    asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                );
                 totalAssets = totalAssets.add(amount);
 
                 // 追踪最早的记录日期
@@ -120,11 +127,17 @@ public class AnalysisService {
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                BigDecimal balance = record.get().getBalanceInBaseCurrency();
+                // 使用查询日期的汇率重新计算金额，而不是使用记录时的balanceInBaseCurrency
+                LiabilityRecord liabilityRecord = record.get();
+                BigDecimal balance = convertToUSD(
+                    liabilityRecord.getOutstandingBalance(),
+                    liabilityRecord.getCurrency(),
+                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                );
                 totalLiabilities = totalLiabilities.add(balance);
 
                 // 追踪最早的记录日期
-                LocalDate recordDate = record.get().getRecordDate();
+                LocalDate recordDate = liabilityRecord.getRecordDate();
                 if (earliestDate == null || recordDate.isBefore(earliestDate)) {
                     earliestDate = recordDate;
                 }
@@ -164,6 +177,51 @@ public class AnalysisService {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBeforeOrEqual(accountId, asOfDate);
             return records.isEmpty() ? Optional.empty() : Optional.of(records.get(0));
         }
+    }
+
+    /**
+     * 根据指定日期的汇率将金额转换为基准货币（USD）
+     * @param amount 原始金额
+     * @param currency 原始货币
+     * @param asOfDate 查询日期（使用该日期的汇率）
+     * @param baseCurrency 基准货币（默认USD）
+     * @return 转换后的金额
+     */
+    private BigDecimal convertToBaseCurrency(BigDecimal amount, String currency, LocalDate asOfDate, String baseCurrency) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+
+        // 如果没有指定日期，使用当前日期
+        LocalDate conversionDate = (asOfDate != null) ? asOfDate : LocalDate.now();
+
+        // 如果货币相同，直接返回
+        if (currency == null || currency.equalsIgnoreCase(baseCurrency)) {
+            return amount;
+        }
+
+        // 如果基准货币是USD
+        if (baseCurrency == null || baseCurrency.equalsIgnoreCase("USD")) {
+            // 获取原始货币到USD的汇率
+            BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
+            return amount.multiply(rateToUsd).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        // 如果基准货币不是USD，需要两步转换
+        // 1. 原始货币 -> USD
+        BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
+        BigDecimal amountInUsd = amount.multiply(rateToUsd);
+
+        // 2. USD -> 基准货币
+        BigDecimal baseRateToUsd = exchangeRateService.getExchangeRate(baseCurrency, conversionDate);
+        return amountInUsd.divide(baseRateToUsd, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 根据指定日期的汇率将金额转换为USD（简化版本）
+     */
+    private BigDecimal convertToUSD(BigDecimal amount, String currency, LocalDate asOfDate) {
+        return convertToBaseCurrency(amount, currency, asOfDate, "USD");
     }
 
     // 获取总资产趋势
@@ -219,7 +277,13 @@ public class AnalysisService {
             .map(record -> {
                 TrendDataDTO dto = new TrendDataDTO();
                 dto.setDate(record.getRecordDate());
-                dto.setAmount(record.getAmountInBaseCurrency());
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal amount = convertToUSD(
+                    record.getAmount(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                dto.setAmount(amount);
                 if (account != null) {
                     dto.setAccountName(account.getAccountName());
                     if (account.getCategory() != null) {
@@ -523,7 +587,13 @@ public class AnalysisService {
             List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (AssetRecord record : records) {
-                assetsByDate.merge(record.getRecordDate(), record.getAmountInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal amount = convertToUSD(
+                    record.getAmount(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                assetsByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
             }
         }
 
@@ -533,7 +603,13 @@ public class AnalysisService {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (LiabilityRecord record : records) {
-                liabilitiesByDate.merge(record.getRecordDate(), record.getBalanceInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal balance = convertToUSD(
+                    record.getOutstandingBalance(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                liabilitiesByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
             }
         }
 
@@ -591,7 +667,13 @@ public class AnalysisService {
             List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (AssetRecord record : records) {
-                totalByDate.merge(record.getRecordDate(), record.getAmountInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal amount = convertToUSD(
+                    record.getAmount(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                totalByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
             }
         }
 
@@ -637,7 +719,13 @@ public class AnalysisService {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (LiabilityRecord record : records) {
-                totalByDate.merge(record.getRecordDate(), record.getBalanceInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal balance = convertToUSD(
+                    record.getOutstandingBalance(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                totalByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
             }
         }
 
@@ -718,7 +806,13 @@ public class AnalysisService {
             List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (AssetRecord record : records) {
-                assetsByDate.merge(record.getRecordDate(), record.getAmountInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal amount = convertToUSD(
+                    record.getAmount(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                assetsByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
             }
         }
 
@@ -728,7 +822,13 @@ public class AnalysisService {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (LiabilityRecord record : records) {
-                liabilitiesByDate.merge(record.getRecordDate(), record.getBalanceInBaseCurrency(), BigDecimal::add);
+                // 使用记录日期的汇率重新计算金额
+                BigDecimal balance = convertToUSD(
+                    record.getOutstandingBalance(),
+                    record.getCurrency(),
+                    record.getRecordDate()
+                );
+                liabilitiesByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
             }
         }
 
@@ -855,7 +955,13 @@ public class AnalysisService {
                 for (AssetRecord record : records) {
                     AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
                     point.setDate(record.getRecordDate().toString());
-                    point.setBalance(record.getAmountInBaseCurrency());
+                    // 使用记录日期的汇率重新计算金额
+                    BigDecimal balance = convertToUSD(
+                        record.getAmount(),
+                        record.getCurrency(),
+                        record.getRecordDate()
+                    );
+                    point.setBalance(balance);
                     point.setAccountName(account.getAccountName());
                     accountTrend.add(point);
                 }
@@ -910,7 +1016,13 @@ public class AnalysisService {
                 for (LiabilityRecord record : records) {
                     AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
                     point.setDate(record.getRecordDate().toString());
-                    point.setBalance(record.getBalanceInBaseCurrency());
+                    // 使用记录日期的汇率重新计算金额
+                    BigDecimal balance = convertToUSD(
+                        record.getOutstandingBalance(),
+                        record.getCurrency(),
+                        record.getRecordDate()
+                    );
+                    point.setBalance(balance);
                     point.setAccountName(account.getAccountName());
                     accountTrend.add(point);
                 }
@@ -1032,7 +1144,13 @@ public class AnalysisService {
         for (AssetAccount account : assetAccounts) {
             Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                BigDecimal amount = record.get().getAmountInBaseCurrency();
+                // 使用查询日期的汇率重新计算金额
+                AssetRecord assetRecord = record.get();
+                BigDecimal amount = convertToUSD(
+                    assetRecord.getAmount(),
+                    assetRecord.getCurrency(),
+                    asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                );
                 String taxStatus = account.getTaxStatus() != null ? account.getTaxStatus().name() : "TAXABLE";
                 assetsByTaxStatus.merge(taxStatus, amount, BigDecimal::add);
             }
@@ -1050,7 +1168,13 @@ public class AnalysisService {
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                BigDecimal balance = record.get().getBalanceInBaseCurrency();
+                // 使用查询日期的汇率重新计算金额
+                LiabilityRecord liabilityRecord = record.get();
+                BigDecimal balance = convertToUSD(
+                    liabilityRecord.getOutstandingBalance(),
+                    liabilityRecord.getCurrency(),
+                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                );
                 totalLiabilities = totalLiabilities.add(balance);
             }
         }
@@ -1177,8 +1301,13 @@ public class AnalysisService {
             for (AssetAccount account : assetAccounts) {
                 Optional<AssetRecord> recordOpt = getAssetRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    // Records already store values in base currency (USD)
-                    BigDecimal value = recordOpt.get().getAmountInBaseCurrency();
+                    // 使用查询日期的汇率重新计算金额
+                    AssetRecord assetRecord = recordOpt.get();
+                    BigDecimal value = convertToUSD(
+                        assetRecord.getAmount(),
+                        assetRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                    );
                     userTotalAssets = userTotalAssets.add(value);
                 }
             }
@@ -1190,8 +1319,13 @@ public class AnalysisService {
             for (LiabilityAccount account : liabilityAccounts) {
                 Optional<LiabilityRecord> recordOpt = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    // Records already store values in base currency (USD)
-                    BigDecimal value = recordOpt.get().getBalanceInBaseCurrency();
+                    // 使用查询日期的汇率重新计算金额
+                    LiabilityRecord liabilityRecord = recordOpt.get();
+                    BigDecimal value = convertToUSD(
+                        liabilityRecord.getOutstandingBalance(),
+                        liabilityRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                    );
                     userTotalLiabilities = userTotalLiabilities.add(value);
                 }
             }
@@ -2529,7 +2663,14 @@ public class AnalysisService {
             for (AssetAccount account : currencyAssetAccounts) {
                 Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
                 if (record.isPresent()) {
-                    assetsInBase = assetsInBase.add(record.get().getAmountInBaseCurrency());
+                    // 使用查询日期的汇率重新计算金额
+                    AssetRecord assetRecord = record.get();
+                    BigDecimal amountInUSD = convertToUSD(
+                        assetRecord.getAmount(),
+                        assetRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                    );
+                    assetsInBase = assetsInBase.add(amountInUSD);
                 }
             }
 
@@ -2541,7 +2682,14 @@ public class AnalysisService {
             for (LiabilityAccount account : currencyLiabilityAccounts) {
                 Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
                 if (record.isPresent()) {
-                    liabilitiesInBase = liabilitiesInBase.add(record.get().getBalanceInBaseCurrency());
+                    // 使用查询日期的汇率重新计算金额
+                    LiabilityRecord liabilityRecord = record.get();
+                    BigDecimal balanceInUSD = convertToUSD(
+                        liabilityRecord.getOutstandingBalance(),
+                        liabilityRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                    );
+                    liabilitiesInBase = liabilitiesInBase.add(balanceInUSD);
                 }
             }
 

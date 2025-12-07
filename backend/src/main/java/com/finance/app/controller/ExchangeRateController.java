@@ -34,6 +34,20 @@ public class ExchangeRateController {
     }
 
     /**
+     * 获取所有汇率（包括停用的）
+     */
+    @GetMapping("/all")
+    public ResponseEntity<Map<String, Object>> getAllRates() {
+        List<ExchangeRate> rates = exchangeRateService.getAllRates();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", rates);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * 获取特定货币的所有汇率历史
      */
     @GetMapping("/currency/{currency}")

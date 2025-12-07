@@ -87,6 +87,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/annual-trend',
+        name: 'AnnualTrend',
+        component: () => import('../views/AnnualTrend.vue'),
+        meta: {
+          title: '年度趋势',
+          description: '查看家庭财务年度变化趋势'
+        }
+      },
+      {
         path: 'analysis/allocation',
         name: 'AssetAllocation',
         component: () => import('../views/analysis/AssetAllocation.vue'),

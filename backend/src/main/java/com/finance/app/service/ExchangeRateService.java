@@ -25,6 +25,13 @@ public class ExchangeRateService {
     }
 
     /**
+     * 获取所有汇率（包括停用的），按生效日期降序排列
+     */
+    public List<ExchangeRate> getAllRates() {
+        return exchangeRateRepository.findAllByOrderByEffectiveDateDesc();
+    }
+
+    /**
      * 获取特定货币的所有汇率
      */
     public List<ExchangeRate> getRatesByCurrency(String currency) {

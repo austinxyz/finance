@@ -710,7 +710,10 @@ const updateChart = () => {
   )
 
   const labels = sortedRecords.map(r => formatDate(r.recordDate))
-  const data = sortedRecords.map(r => r.amountInBaseCurrency || r.amount)
+  // 使用账户的原始货币金额，而不是基准货币金额
+  const data = sortedRecords.map(r => r.amount)
+  // 获取账户货币符号用于显示
+  const currencySymbol = getCurrencySymbol(selectedAccount.value?.currency || 'USD')
 
   if (chartInstance) {
     chartInstance.destroy()
@@ -741,7 +744,7 @@ const updateChart = () => {
         tooltip: {
           callbacks: {
             label: function(context) {
-              return '金额: $' + formatNumber(context.parsed.y)
+              return '金额: ' + currencySymbol + formatNumber(context.parsed.y)
             }
           }
         }
@@ -751,7 +754,7 @@ const updateChart = () => {
           beginAtZero: false,
           ticks: {
             callback: function(value) {
-              return '$' + formatNumber(value)
+              return currencySymbol + formatNumber(value)
             }
           }
         }

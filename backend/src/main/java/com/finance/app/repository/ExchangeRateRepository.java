@@ -13,6 +13,9 @@ import java.util.Optional;
 @Repository
 public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long> {
 
+    // 查找所有汇率（包括停用的）
+    List<ExchangeRate> findAllByOrderByEffectiveDateDesc();
+
     // 查找所有启用的汇率
     List<ExchangeRate> findByIsActiveTrueOrderByEffectiveDateDesc();
 
