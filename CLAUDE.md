@@ -115,11 +115,7 @@ export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
 # MySQL client location (Homebrew)
 export MYSQL_CLIENT=/opt/homebrew/opt/mysql-client/bin/mysql
 
-# Direct connection with credentials from .env
-# Host: 10.0.0.7, Port: 37719, Database: finance
-$MYSQL_CLIENT -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
-
-# Or using environment variables (after sourcing setup-env.sh)
+# Using environment variables (after sourcing setup-env.sh)
 source setup-env.sh
 $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
 ```

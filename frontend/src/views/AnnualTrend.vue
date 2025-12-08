@@ -277,6 +277,64 @@
                     </td>
                   </tr>
                 </template>
+
+                <!-- 累计行 -->
+                <tr v-if="summaries.length > 0" class="bg-blue-50 border-t-2 border-blue-300 font-semibold">
+                  <td class="px-2 py-3 whitespace-nowrap">
+                    <div class="text-xs font-bold text-blue-900">累计</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs">
+                      <div :class="getChangeColor(cumulativeNetWorthChange)" class="font-bold">
+                        {{ formatChange(cumulativeNetWorthChange) }}
+                      </div>
+                      <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-xs">
+                        ({{ formatPercent(averageAnnualGrowthRate) }})
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs">
+                      <div :class="getChangeColor(cumulativeRealEstateChange)" class="font-bold">
+                        {{ formatChange(cumulativeRealEstateChange) }}
+                      </div>
+                      <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-xs">
+                        ({{ formatPercent(averageRealEstateGrowthRate) }})
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs">
+                      <div :class="getChangeColor(cumulativeNonRealEstateChange)" class="font-bold">
+                        {{ formatChange(cumulativeNonRealEstateChange) }}
+                      </div>
+                      <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-xs">
+                        ({{ formatPercent(averageNonRealEstateGrowthRate) }})
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-right">
+                    <div class="text-xs text-gray-600">-</div>
+                  </td>
+                  <td class="px-2 py-3 whitespace-nowrap text-center">
+                    <div class="text-xs text-gray-600">{{ yearRange }}</div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -359,6 +417,104 @@ let comprehensiveChart = null
 let netWorthChart = null
 let assetChart = null
 let liabilityChart = null
+
+// 累计数据计算
+// 累计净资产变化
+const cumulativeNetWorthChange = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0] // 最新年份（summaries已按年份降序排列）
+  const earliest = summaries.value[summaries.value.length - 1] // 最早年份
+  return latest.netWorth - earliest.netWorth
+})
+
+// 平均年化增长率（净资产）
+const averageAnnualGrowthRate = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0]
+  const earliest = summaries.value[summaries.value.length - 1]
+  const years = latest.year - earliest.year
+  if (years === 0 || earliest.netWorth <= 0) return 0
+  return (Math.pow(latest.netWorth / earliest.netWorth, 1 / years) - 1) * 100
+})
+
+// 累计房产净值变化
+const cumulativeRealEstateChange = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0]
+  const earliest = summaries.value[summaries.value.length - 1]
+
+  // 计算最新年份的房产净值
+  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
+    (latest.liabilityBreakdown?.['房贷'] || 0)
+
+  // 计算最早年份的房产净值
+  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
+    (earliest.liabilityBreakdown?.['房贷'] || 0)
+
+  return latestRealEstateNetWorth - earliestRealEstateNetWorth
+})
+
+// 平均年化增长率（房产净值）
+const averageRealEstateGrowthRate = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0]
+  const earliest = summaries.value[summaries.value.length - 1]
+  const years = latest.year - earliest.year
+
+  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
+    (latest.liabilityBreakdown?.['房贷'] || 0)
+  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
+    (earliest.liabilityBreakdown?.['房贷'] || 0)
+
+  if (years === 0 || earliestRealEstateNetWorth <= 0) return 0
+  return (Math.pow(latestRealEstateNetWorth / earliestRealEstateNetWorth, 1 / years) - 1) * 100
+})
+
+// 累计非房产净值变化
+const cumulativeNonRealEstateChange = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0]
+  const earliest = summaries.value[summaries.value.length - 1]
+
+  // 非房产净值 = 总净值 - 房产净值
+  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
+    (latest.liabilityBreakdown?.['房贷'] || 0)
+  const latestNonRealEstateNetWorth = latest.netWorth - latestRealEstateNetWorth
+
+  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
+    (earliest.liabilityBreakdown?.['房贷'] || 0)
+  const earliestNonRealEstateNetWorth = earliest.netWorth - earliestRealEstateNetWorth
+
+  return latestNonRealEstateNetWorth - earliestNonRealEstateNetWorth
+})
+
+// 平均年化增长率（非房产净值）
+const averageNonRealEstateGrowthRate = computed(() => {
+  if (summaries.value.length < 2) return 0
+  const latest = summaries.value[0]
+  const earliest = summaries.value[summaries.value.length - 1]
+  const years = latest.year - earliest.year
+
+  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
+    (latest.liabilityBreakdown?.['房贷'] || 0)
+  const latestNonRealEstateNetWorth = latest.netWorth - latestRealEstateNetWorth
+
+  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
+    (earliest.liabilityBreakdown?.['房贷'] || 0)
+  const earliestNonRealEstateNetWorth = earliest.netWorth - earliestRealEstateNetWorth
+
+  if (years === 0 || earliestNonRealEstateNetWorth <= 0) return 0
+  return (Math.pow(latestNonRealEstateNetWorth / earliestNonRealEstateNetWorth, 1 / years) - 1) * 100
+})
+
+// 年份范围
+const yearRange = computed(() => {
+  if (summaries.value.length === 0) return '-'
+  if (summaries.value.length === 1) return summaries.value[0].year.toString()
+  const latest = summaries.value[0].year
+  const earliest = summaries.value[summaries.value.length - 1].year
+  return `${earliest}-${latest}`
+})
 
 // 获取家庭列表
 const fetchFamilies = async () => {
