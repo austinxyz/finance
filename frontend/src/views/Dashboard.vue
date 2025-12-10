@@ -228,10 +228,10 @@
       </div>
     </div>
 
-    <!-- 净资产趋势图 -->
+    <!-- 年度净资产趋势图 -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">净资产趋势</h2>
+        <h2 class="text-lg font-semibold text-gray-900">年度净资产趋势</h2>
         <div class="flex gap-2">
           <button
             v-for="range in timeRanges"
@@ -257,38 +257,58 @@
         </div>
         <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- 左侧图表 (2/3) -->
-          <div class="lg:col-span-2 h-80">
-            <Line :data="overallChartData" :options="overallChartOptions" />
+          <div class="lg:col-span-2 h-96">
+            <canvas ref="annualNetWorthChartCanvas"></canvas>
           </div>
 
-          <!-- 右侧统计表格 (1/3) -->
+          <!-- 右侧年度汇总表格 (1/3) -->
           <div class="lg:col-span-1">
             <div class="border border-gray-200 rounded-lg overflow-hidden">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">指标</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最早</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">最新</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">同比</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="stat in overallStats" :key="stat.name">
-                    <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ stat.name }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-600 text-right">
-                      ${{ formatAmount(stat.earliestValue) }}
-                    </td>
+                  <tr v-for="(item, index) in annualSummaryData" :key="item.year" class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ item.year }}</td>
                     <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
-                      ${{ formatAmount(stat.latestValue) }}
+                      ${{ formatAmount(item.netWorth) }}
                     </td>
                     <td class="px-3 py-2 text-sm text-right">
-                      <span :class="getChangeColorClass(stat.change)">
-                        {{ stat.change > 0 ? '+' : '' }}{{ formatAmount(stat.change) }}%
-                      </span>
+                      <div v-if="item.yoyChange !== null">
+                        <div :class="getChangeColorClass(item.yoyChangePct)" class="font-medium">
+                          {{ item.yoyChange > 0 ? '+' : '' }}${{ formatAmount(Math.abs(item.yoyChange)) }}
+                        </div>
+                        <div :class="getChangeColorClass(item.yoyChangePct)" class="text-xs">
+                          ({{ item.yoyChangePct > 0 ? '+' : '' }}{{ item.yoyChangePct.toFixed(1) }}%)
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-gray-400">-</div>
                     </td>
                   </tr>
                 </tbody>
+                <tfoot class="bg-gray-50 border-t-2 border-gray-300">
+                  <tr>
+                    <td class="px-3 py-3 text-sm font-bold text-gray-900">累计</td>
+                    <td class="px-3 py-3 text-sm text-right font-bold text-blue-600">
+                      ${{ formatAmount(totalNetWorth) }}
+                    </td>
+                    <td class="px-3 py-3 text-sm text-right">
+                      <div v-if="totalChange !== null && annualizedGrowthRate !== null">
+                        <div :class="getChangeColorClass(totalChange)" class="font-bold">
+                          {{ totalChange > 0 ? '+' : '' }}${{ formatAmount(Math.abs(totalChange)) }}
+                        </div>
+                        <div :class="getChangeColorClass(annualizedGrowthRate)" class="text-xs mt-0.5">
+                          (年均{{ annualizedGrowthRate > 0 ? '+' : '' }}{{ annualizedGrowthRate.toFixed(2) }}%)
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
@@ -302,14 +322,17 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { assetAccountAPI, liabilityAccountAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
-import { Line } from 'vue-chartjs'
+import { annualSummaryAPI } from '@/api/annualSummary'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  BarController,
   ArcElement,
+  DoughnutController,
   Title,
   Tooltip,
   Legend,
@@ -321,7 +344,10 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  BarController,
   ArcElement,
+  DoughnutController,
   Title,
   Tooltip,
   Legend,
@@ -338,16 +364,18 @@ const loadingTrend = ref(false)
 const assetChartCanvas = ref(null)
 const liabilityChartCanvas = ref(null)
 const netAssetChartCanvas = ref(null)
+const annualNetWorthChartCanvas = ref(null)
 let assetChartInstance = null
 let liabilityChartInstance = null
 let netAssetChartInstance = null
+let annualNetWorthChartInstance = null
 
-const selectedTimeRange = ref('1y')
+const selectedTimeRange = ref('3y')
 const timeRanges = [
-  { value: '3m', label: '3个月' },
-  { value: '6m', label: '6个月' },
-  { value: '1y', label: '1年' },
-  { value: '3y', label: '3年' },
+  { value: '1y', label: '近1年' },
+  { value: '3y', label: '近3年' },
+  { value: '5y', label: '近5年' },
+  { value: '10y', label: '近10年' },
   { value: 'all', label: '全部' }
 ]
 
@@ -504,26 +532,51 @@ const getChangeColorClass = (change) => {
   return 'text-gray-600'
 }
 
+// 计算年份范围
+const getYearRange = () => {
+  let years = 5 // 默认5年
+
+  switch (selectedTimeRange.value) {
+    case '1y':
+      years = 1
+      break
+    case '3y':
+      years = 3
+      break
+    case '5y':
+      years = 5
+      break
+    case '10y':
+      years = 10
+      break
+    case 'all':
+      years = 20
+      break
+  }
+
+  return { years }
+}
+
 // 计算日期范围
 const getDateRange = () => {
   const end = new Date()
   const start = new Date()
 
   switch (selectedTimeRange.value) {
-    case '3m':
-      start.setMonth(end.getMonth() - 3)
-      break
-    case '6m':
-      start.setMonth(end.getMonth() - 6)
-      break
     case '1y':
       start.setFullYear(end.getFullYear() - 1)
       break
     case '3y':
       start.setFullYear(end.getFullYear() - 3)
       break
-    case 'all':
+    case '5y':
+      start.setFullYear(end.getFullYear() - 5)
+      break
+    case '10y':
       start.setFullYear(end.getFullYear() - 10)
+      break
+    case 'all':
+      start.setFullYear(end.getFullYear() - 20)
       break
   }
 
@@ -533,120 +586,183 @@ const getDateRange = () => {
   }
 }
 
-// 计算综合趋势统计数据
-const overallStats = computed(() => {
+// 计算年度汇总数据（用于右侧表格）
+const annualSummaryData = computed(() => {
   if (overallTrendData.value.length === 0) return []
 
-  const earliest = overallTrendData.value[0]
-  const latest = overallTrendData.value[overallTrendData.value.length - 1]
+  const data = overallTrendData.value.map((item, index) => {
+    const year = new Date(item.date).getFullYear()
+    const netWorth = item.netWorth || 0
 
-  const calculateChange = (earliestVal, latestVal) => {
-    if (!earliestVal || earliestVal === 0) return 0
-    return ((latestVal - earliestVal) / earliestVal) * 100
-  }
+    let yoyChange = null
+    let yoyChangePct = null
 
-  return [
-    {
-      name: '净资产',
-      earliestValue: earliest.netWorth || 0,
-      latestValue: latest.netWorth || 0,
-      change: calculateChange(earliest.netWorth, latest.netWorth)
-    },
-    {
-      name: '总资产',
-      earliestValue: earliest.totalAssets || 0,
-      latestValue: latest.totalAssets || 0,
-      change: calculateChange(earliest.totalAssets, latest.totalAssets)
-    },
-    {
-      name: '总负债',
-      earliestValue: earliest.totalLiabilities || 0,
-      latestValue: latest.totalLiabilities || 0,
-      change: calculateChange(earliest.totalLiabilities, latest.totalLiabilities)
+    if (index > 0) {
+      const prevNetWorth = overallTrendData.value[index - 1].netWorth || 0
+      yoyChange = netWorth - prevNetWorth
+      yoyChangePct = prevNetWorth !== 0 ? (yoyChange / prevNetWorth) * 100 : 0
     }
-  ]
+
+    return {
+      year,
+      netWorth,
+      yoyChange,
+      yoyChangePct
+    }
+  })
+
+  return data.reverse() // 最新年份在上
 })
 
-// 综合趋势图表数据
-const overallChartData = computed(() => {
-  const labels = overallTrendData.value.map(item => item.date)
+// 计算累计净资产（最新年份）
+const totalNetWorth = computed(() => {
+  if (annualSummaryData.value.length === 0) return 0
+  return annualSummaryData.value[0].netWorth
+})
 
-  return {
-    labels,
-    datasets: [
-      {
-        label: '净资产',
-        data: overallTrendData.value.map(item => item.netWorth || 0),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.3,
-        fill: true
-      },
-      {
-        label: '总资产',
-        data: overallTrendData.value.map(item => item.totalAssets || 0),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.3,
-        fill: false
-      },
-      {
-        label: '总负债',
-        data: overallTrendData.value.map(item => item.totalLiabilities || 0),
-        borderColor: 'rgb(239, 68, 68)',
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        tension: 0.3,
-        fill: false
-      }
-    ]
+// 计算总变化（从最早到最新）
+const totalChange = computed(() => {
+  if (annualSummaryData.value.length < 2) return null
+  const latest = annualSummaryData.value[0].netWorth
+  const earliest = annualSummaryData.value[annualSummaryData.value.length - 1].netWorth
+  return latest - earliest
+})
+
+const totalChangePct = computed(() => {
+  if (totalChange.value === null) return null
+  const earliest = annualSummaryData.value[annualSummaryData.value.length - 1].netWorth
+  return earliest !== 0 ? (totalChange.value / earliest) * 100 : 0
+})
+
+// 计算年化复合增长率（CAGR）
+const annualizedGrowthRate = computed(() => {
+  if (annualSummaryData.value.length < 2) return null
+  const latest = annualSummaryData.value[0].netWorth
+  const earliest = annualSummaryData.value[annualSummaryData.value.length - 1].netWorth
+  const years = annualSummaryData.value[0].year - annualSummaryData.value[annualSummaryData.value.length - 1].year
+
+  if (years === 0 || earliest <= 0) return null
+
+  // CAGR = (最新值/最早值)^(1/年数) - 1
+  return (Math.pow(latest / earliest, 1 / years) - 1) * 100
+})
+
+// 更新年度净资产图表（双Y轴：柱状图+折线图）
+function updateAnnualNetWorthChart() {
+  if (!annualNetWorthChartCanvas.value) {
+    console.warn('Canvas element not ready')
+    return
   }
-})
 
-// 综合趋势图表配置
-const overallChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: true,
-      position: 'top'
+  if (overallTrendData.value.length === 0) {
+    console.warn('No trend data available')
+    return
+  }
+
+  if (annualNetWorthChartInstance) {
+    annualNetWorthChartInstance.destroy()
+  }
+
+  console.log('Creating annual net worth chart with', overallTrendData.value.length, 'data points')
+
+  // 准备数据
+  const years = overallTrendData.value.map(item => new Date(item.date).getFullYear())
+  const netWorths = overallTrendData.value.map(item => item.netWorth || 0)
+
+  // 计算同比增长率
+  const growthRates = overallTrendData.value.map((item, index) => {
+    if (index === 0) return null
+    const current = item.netWorth || 0
+    const previous = overallTrendData.value[index - 1].netWorth || 0
+    return previous !== 0 ? ((current - previous) / previous) * 100 : 0
+  })
+
+  const ctx = annualNetWorthChartCanvas.value.getContext('2d')
+  annualNetWorthChartInstance = new ChartJS(ctx, {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [
+        {
+          label: '净资产',
+          data: netWorths,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgb(59, 130, 246)',
+          borderWidth: 1,
+          yAxisID: 'y'
+        },
+        {
+          label: '同比增长率',
+          data: growthRates,
+          type: 'line',
+          borderColor: 'rgb(234, 88, 12)',
+          backgroundColor: 'rgba(234, 88, 12, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          yAxisID: 'y1'
+        }
+      ]
     },
-    tooltip: {
-      mode: 'index',
-      intersect: false,
-      callbacks: {
-        label: function(context) {
-          let label = context.dataset.label || ''
-          if (label) {
-            label += ': '
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              if (context.dataset.label === '净资产') {
+                return context.dataset.label + ': $' + Number(context.parsed.y).toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })
+              } else {
+                return context.dataset.label + ': ' + (context.parsed.y !== null ? context.parsed.y.toFixed(2) + '%' : '-')
+              }
+            }
           }
-          if (context.parsed.y !== null) {
-            label += '$' + context.parsed.y.toLocaleString('zh-CN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })
+        }
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              if (value >= 1000000) {
+                return '$' + (value / 1000000).toFixed(1) + 'M'
+              } else if (value >= 1000) {
+                return '$' + (value / 1000).toFixed(1) + 'K'
+              }
+              return '$' + value.toFixed(0)
+            }
           }
-          return label
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          grid: {
+            drawOnChartArea: false,
+          },
+          ticks: {
+            callback: function(value) {
+              return value.toFixed(1) + '%'
+            }
+          }
         }
       }
     }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: function(value) {
-          return '$' + value.toLocaleString('zh-CN')
-        }
-      }
-    }
-  },
-  interaction: {
-    mode: 'nearest',
-    axis: 'x',
-    intersect: false
-  }
-}))
+  })
+}
 
 // 格式化金额
 function formatAmount(amount) {
@@ -692,10 +808,19 @@ async function loadAccounts() {
 async function loadOverallTrend() {
   loadingTrend.value = true
   try {
-    const { start, end } = getDateRange()
-    const response = await analysisAPI.getOverallTrend(start, end)
+    // 使用AnnualSummary API代替OverallTrend API以确保数据一致性
+    const { years } = getYearRange()
+    const response = await annualSummaryAPI.getRecent(1, years) // familyId=1
     if (response.success) {
+      // 转换AnnualSummary数据格式为OverallTrend格式
       overallTrendData.value = response.data
+        .map(item => ({
+          date: item.summaryDate,
+          netWorth: item.netWorth,
+          totalAssets: item.totalAssets,
+          totalLiabilities: item.totalLiabilities
+        }))
+        .reverse() // AnnualSummary返回的是倒序，需要reverse
     }
   } catch (error) {
     console.error('加载综合趋势失败:', error)
@@ -862,6 +987,18 @@ function updateNetAssetChart() {
     }
   })
 }
+
+// 监听趋势数据变化，自动更新图表
+watch(overallTrendData, async () => {
+  if (overallTrendData.value.length > 0) {
+    // 使用setTimeout确保DOM完全渲染
+    setTimeout(() => {
+      if (annualNetWorthChartCanvas.value) {
+        updateAnnualNetWorthChart()
+      }
+    }, 100)
+  }
+}, { deep: true })
 
 onMounted(() => {
   loadAccounts()
