@@ -238,17 +238,18 @@
                     </td>
                   </tr>
 
-                  <!-- 展开的分类明细 -->
+                  <!-- 展开的分类明细（按TYPE显示） -->
                   <tr v-if="isYearExpanded(summary.year)" class="bg-gray-50">
                     <td colspan="11" class="px-6 py-4">
-                      <div class="grid grid-cols-2 gap-6">
+                      <div class="grid grid-cols-3 gap-6">
+
                         <!-- 资产分类 -->
                         <div v-if="summary.assetBreakdown && Object.keys(summary.assetBreakdown).length > 0">
                           <h4 class="text-sm font-semibold text-gray-700 mb-3">资产分类明细</h4>
                           <div class="space-y-2">
                             <div v-for="(value, category) in summary.assetBreakdown" :key="category"
                                  class="flex justify-between items-center text-sm">
-                              <span class="text-gray-600">{{ category }}</span>
+                              <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium text-green-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
                             </div>
                           </div>
@@ -264,13 +265,31 @@
                           <div class="space-y-2">
                             <div v-for="(value, category) in summary.liabilityBreakdown" :key="category"
                                  class="flex justify-between items-center text-sm">
-                              <span class="text-gray-600">{{ category }}</span>
+                              <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium text-red-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
                             </div>
                           </div>
                         </div>
                         <div v-else>
                           <h4 class="text-sm font-semibold text-gray-700 mb-3">负债分类明细</h4>
+                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                        </div>
+
+                        <!-- 净资产分类 -->
+                        <div v-if="summary.netAssetBreakdown && Object.keys(summary.netAssetBreakdown).length > 0">
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">净资产分类明细</h4>
+                          <div class="space-y-2">
+                            <div v-for="(value, category) in summary.netAssetBreakdown" :key="category"
+                                 class="flex justify-between items-center text-sm">
+                              <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
+                              <span class="font-medium" :class="value >= 0 ? 'text-blue-700' : 'text-red-700'">
+                                {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else>
+                          <h4 class="text-sm font-semibold text-gray-700 mb-3">净资产分类明细</h4>
                           <p class="text-sm text-gray-400">暂无分类数据</p>
                         </div>
                       </div>
@@ -419,91 +438,80 @@ let assetChart = null
 let liabilityChart = null
 
 // 累计数据计算
-// 累计净资产变化
+// 累计净资产变化（从基准年到最新年份的总变化）
 const cumulativeNetWorthChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0] // 最新年份（summaries已按年份降序排列）
-  const earliest = summaries.value[summaries.value.length - 1] // 最早年份
+  const earliest = summaries.value[summaries.value.length - 1] // 最早年份（基准年）
   return latest.netWorth - earliest.netWorth
 })
 
-// 平均年化增长率（净资产）
+// 平均年化增长率（净资产）- CAGR从基准年开始计算
 const averageAnnualGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
-  const earliest = summaries.value[summaries.value.length - 1]
+  const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
   if (years === 0 || earliest.netWorth <= 0) return 0
+  // CAGR = (最新值/基准值)^(1/年数) - 1
   return (Math.pow(latest.netWorth / earliest.netWorth, 1 / years) - 1) * 100
 })
 
-// 累计房产净值变化
+// 累计房产净值变化（从基准年到最新年份的总变化）
 const cumulativeRealEstateChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1]
 
-  // 计算最新年份的房产净值
-  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
-    (latest.liabilityBreakdown?.['房贷'] || 0)
-
-  // 计算最早年份的房产净值
-  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
-    (earliest.liabilityBreakdown?.['房贷'] || 0)
+  // 直接使用后端计算好的房产净值字段
+  const latestRealEstateNetWorth = latest.realEstateNetWorth || 0
+  const earliestRealEstateNetWorth = earliest.realEstateNetWorth || 0
 
   return latestRealEstateNetWorth - earliestRealEstateNetWorth
 })
 
-// 平均年化增长率（房产净值）
+// 平均年化增长率（房产净值）- CAGR从基准年开始计算
 const averageRealEstateGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
-  const earliest = summaries.value[summaries.value.length - 1]
+  const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
 
-  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
-    (latest.liabilityBreakdown?.['房贷'] || 0)
-  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
-    (earliest.liabilityBreakdown?.['房贷'] || 0)
+  // 直接使用后端计算好的房产净值字段
+  const latestRealEstateNetWorth = latest.realEstateNetWorth || 0
+  const earliestRealEstateNetWorth = earliest.realEstateNetWorth || 0
 
   if (years === 0 || earliestRealEstateNetWorth <= 0) return 0
+  // CAGR = (最新值/基准值)^(1/年数) - 1
   return (Math.pow(latestRealEstateNetWorth / earliestRealEstateNetWorth, 1 / years) - 1) * 100
 })
 
-// 累计非房产净值变化
+// 累计非房产净值变化（从基准年到最新年份的总变化）
 const cumulativeNonRealEstateChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1]
 
-  // 非房产净值 = 总净值 - 房产净值
-  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
-    (latest.liabilityBreakdown?.['房贷'] || 0)
-  const latestNonRealEstateNetWorth = latest.netWorth - latestRealEstateNetWorth
-
-  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
-    (earliest.liabilityBreakdown?.['房贷'] || 0)
-  const earliestNonRealEstateNetWorth = earliest.netWorth - earliestRealEstateNetWorth
+  // 直接使用后端计算好的非房产净值字段
+  const latestNonRealEstateNetWorth = latest.nonRealEstateNetWorth || 0
+  const earliestNonRealEstateNetWorth = earliest.nonRealEstateNetWorth || 0
 
   return latestNonRealEstateNetWorth - earliestNonRealEstateNetWorth
 })
 
-// 平均年化增长率（非房产净值）
+// 平均年化增长率（非房产净值）- CAGR从基准年开始计算
 const averageNonRealEstateGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
-  const earliest = summaries.value[summaries.value.length - 1]
+  const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
 
-  const latestRealEstateNetWorth = (latest.assetBreakdown?.['房地产'] || 0) -
-    (latest.liabilityBreakdown?.['房贷'] || 0)
-  const latestNonRealEstateNetWorth = latest.netWorth - latestRealEstateNetWorth
-
-  const earliestRealEstateNetWorth = (earliest.assetBreakdown?.['房地产'] || 0) -
-    (earliest.liabilityBreakdown?.['房贷'] || 0)
-  const earliestNonRealEstateNetWorth = earliest.netWorth - earliestRealEstateNetWorth
+  // 直接使用后端计算好的非房产净值字段
+  const latestNonRealEstateNetWorth = latest.nonRealEstateNetWorth || 0
+  const earliestNonRealEstateNetWorth = earliest.nonRealEstateNetWorth || 0
 
   if (years === 0 || earliestNonRealEstateNetWorth <= 0) return 0
+  // CAGR = (最新值/基准值)^(1/年数) - 1
   return (Math.pow(latestNonRealEstateNetWorth / earliestNonRealEstateNetWorth, 1 / years) - 1) * 100
 })
 
@@ -1055,6 +1063,34 @@ const getChangeColor = (value, isLiability = false) => {
 
   // 对于资产和净资产，增加是好的（绿色），减少是不好的（红色）
   return value > 0 ? 'text-green-600' : 'text-red-600'
+}
+
+// 分类显示名称映射（TYPE -> 中文名称）
+const getCategoryDisplayName = (categoryType) => {
+  const categoryNames = {
+    // 资产分类
+    'CASH': '现金类',
+    'STOCKS': '股票投资',
+    'RETIREMENT_FUND': '退休基金',
+    'INSURANCE': '保险',
+    'REAL_ESTATE': '房地产',
+    'CRYPTOCURRENCY': '数字货币',
+    'PRECIOUS_METALS': '贵金属',
+    'OTHER': '其他',
+    // 负债分类
+    'MORTGAGE': '房贷',
+    'AUTO_LOAN': '车贷',
+    'CREDIT_CARD': '信用卡',
+    'PERSONAL_LOAN': '个人贷款',
+    'STUDENT_LOAN': '学生贷款',
+    // 净资产分类
+    'REAL_ESTATE_NET': '房地产净值',
+    'RETIREMENT_FUND_NET': '退休基金净值',
+    'LIQUID_NET': '流动资产净值',
+    'INVESTMENT_NET': '投资净值',
+    'OTHER_NET': '其他净值'
+  }
+  return categoryNames[categoryType] || categoryType
 }
 
 // 切换年份展开状态

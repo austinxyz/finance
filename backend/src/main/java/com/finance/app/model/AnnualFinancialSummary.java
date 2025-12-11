@@ -57,6 +57,10 @@ public class AnnualFinancialSummary {
     @Column(name = "liability_breakdown", columnDefinition = "JSON")
     private Map<String, BigDecimal> liabilityBreakdown;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "net_asset_breakdown", columnDefinition = "JSON")
+    private Map<String, BigDecimal> netAssetBreakdown;
+
     // 货币单位
     @Column(length = 10)
     private String currency = "USD";

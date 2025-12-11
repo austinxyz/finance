@@ -118,7 +118,18 @@ export MYSQL_CLIENT=/opt/homebrew/opt/mysql-client/bin/mysql
 # Using environment variables (after sourcing setup-env.sh)
 source setup-env.sh
 $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
+
+# Direct access (from project root, using .env credentials)
+/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance
+
+# Execute a query
+/opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance -e "SHOW TABLES;"
 ```
+
+**Database Category Tables:**
+- `asset_categories` - Asset category definitions (type: CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER)
+- `liability_categories` - Liability category definitions (type: MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, OTHER)
+- `net_asset_categories` - Net asset category definitions (code: REAL_ESTATE_NET, RETIREMENT_FUND_NET, LIQUID_NET, INVESTMENT_NET, OTHER_NET)
 
 ## Architecture
 

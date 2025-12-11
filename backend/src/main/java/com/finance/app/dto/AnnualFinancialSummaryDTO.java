@@ -29,6 +29,7 @@ public class AnnualFinancialSummaryDTO {
     // 分类明细
     private Map<String, BigDecimal> assetBreakdown;
     private Map<String, BigDecimal> liabilityBreakdown;
+    private Map<String, BigDecimal> netAssetBreakdown;
 
     // 货币单位
     private String currency;

@@ -76,6 +76,34 @@ const routes = [
           description: '管理账户和查看历史记录'
         }
       },
+      // 支出管理
+      {
+        path: 'expenses/categories',
+        name: 'ExpenseCategories',
+        component: () => import('../views/expenses/ExpenseCategories.vue'),
+        meta: {
+          title: '分类与记录',
+          description: '管理支出分类，查看历史记录和趋势'
+        }
+      },
+      {
+        path: 'expenses/batch-update',
+        name: 'ExpenseBatchUpdate',
+        component: () => import('../views/expenses/ExpenseBatchUpdate.vue'),
+        meta: {
+          title: '批量录入',
+          description: '按月批量录入家庭支出'
+        }
+      },
+      {
+        path: 'expenses/budget',
+        name: 'ExpenseBudget',
+        component: () => import('../views/expenses/ExpenseBudget.vue'),
+        meta: {
+          title: '年度预算',
+          description: '设定家庭年度支出预算'
+        }
+      },
       // 数据分析
       {
         path: 'analysis/trend',
@@ -111,6 +139,24 @@ const routes = [
         meta: {
           title: '财务指标',
           description: '查看关键财务指标'
+        }
+      },
+      {
+        path: 'analysis/expense-annual',
+        name: 'ExpenseAnnual',
+        component: () => import('../views/analysis/ExpenseAnnual.vue'),
+        meta: {
+          title: '年度支出分析',
+          description: '分析年度支出结构和趋势'
+        }
+      },
+      {
+        path: 'analysis/expense-budget',
+        name: 'ExpenseBudgetAnalysis',
+        component: () => import('../views/analysis/ExpenseBudgetAnalysis.vue'),
+        meta: {
+          title: '预算执行分析',
+          description: '对比预算与实际支出'
         }
       },
       {

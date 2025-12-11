@@ -160,6 +160,7 @@ public class AnnualFinancialSummaryService {
         dto.setNetWorth(entity.getNetWorth());
         dto.setAssetBreakdown(entity.getAssetBreakdown());
         dto.setLiabilityBreakdown(entity.getLiabilityBreakdown());
+        dto.setNetAssetBreakdown(entity.getNetAssetBreakdown());
         dto.setCurrency(entity.getCurrency());
         dto.setYoyAssetChange(entity.getYoyAssetChange());
         dto.setYoyLiabilityChange(entity.getYoyLiabilityChange());
@@ -202,6 +203,7 @@ public class AnnualFinancialSummaryService {
         entity.setNetWorth(dto.getNetWorth());
         entity.setAssetBreakdown(dto.getAssetBreakdown());
         entity.setLiabilityBreakdown(dto.getLiabilityBreakdown());
+        entity.setNetAssetBreakdown(dto.getNetAssetBreakdown());
         entity.setCurrency(dto.getCurrency());
         entity.setYoyAssetChange(dto.getYoyAssetChange());
         entity.setYoyLiabilityChange(dto.getYoyLiabilityChange());

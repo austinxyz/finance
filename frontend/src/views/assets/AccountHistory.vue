@@ -469,6 +469,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { assetCategoryAPI, assetAccountAPI, assetRecordAPI } from '@/api/asset'
 import { userAPI } from '@/api/user'
 import { Chart, registerables } from 'chart.js'
+import 'chartjs-adapter-date-fns'
 
 Chart.register(...registerables)
 
@@ -709,9 +710,12 @@ const updateChart = () => {
     new Date(a.recordDate) - new Date(b.recordDate)
   )
 
-  const labels = sortedRecords.map(r => formatDate(r.recordDate))
-  // 使用账户的原始货币金额，而不是基准货币金额
-  const data = sortedRecords.map(r => r.amount)
+  // 使用 {x, y} 格式的数据点，x为日期对象
+  const data = sortedRecords.map(r => ({
+    x: new Date(r.recordDate),
+    y: r.amount
+  }))
+
   // 获取账户货币符号用于显示
   const currencySymbol = getCurrencySymbol(selectedAccount.value?.currency || 'USD')
 
@@ -723,7 +727,6 @@ const updateChart = () => {
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: labels,
       datasets: [{
         label: '资产金额',
         data: data,
@@ -750,8 +753,27 @@ const updateChart = () => {
         }
       },
       scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: {
+              day: 'yyyy-MM-dd',
+              month: 'yyyy-MM',
+              year: 'yyyy'
+            }
+          },
+          title: {
+            display: true,
+            text: '日期'
+          }
+        },
         y: {
           beginAtZero: false,
+          title: {
+            display: true,
+            text: '金额'
+          },
           ticks: {
             callback: function(value) {
               return currencySymbol + formatNumber(value)

@@ -842,7 +842,7 @@ const getDateRange = () => {
       start.setFullYear(end.getFullYear() - 3)
       break
     case 'all':
-      start.setFullYear(end.getFullYear() - 10)
+      start.setFullYear(end.getFullYear() - 20)  // 回溯20年以包含所有历史数据
       break
   }
 

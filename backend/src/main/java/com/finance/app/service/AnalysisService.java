@@ -618,8 +618,8 @@ public class AnalysisService {
         allDates.addAll(assetsByDate.keySet());
         allDates.addAll(liabilitiesByDate.keySet());
 
-        // 创建趋势数据点
-        List<OverallTrendDataPointDTO> result = new ArrayList<>();
+        // 创建趋势数据点（按日期）
+        Map<LocalDate, OverallTrendDataPointDTO> dailyData = new HashMap<>();
         for (LocalDate date : allDates) {
             BigDecimal assets = assetsByDate.getOrDefault(date, BigDecimal.ZERO);
             BigDecimal liabilities = liabilitiesByDate.getOrDefault(date, BigDecimal.ZERO);
@@ -631,10 +631,24 @@ public class AnalysisService {
             point.setTotalLiabilities(liabilities);
             point.setNetWorth(netWorth);
 
-            result.add(point);
+            dailyData.put(date, point);
         }
 
-        // 按日期排序
+        // 按年度聚合数据 - 每年只保留最后一天的数据
+        Map<Integer, OverallTrendDataPointDTO> yearlyData = new HashMap<>();
+        for (LocalDate date : allDates) {
+            int year = date.getYear();
+            OverallTrendDataPointDTO currentPoint = dailyData.get(date);
+
+            // 如果该年还没有数据，或者当前日期比已有的日期更晚，则更新
+            if (!yearlyData.containsKey(year) ||
+                date.isAfter(LocalDate.parse(yearlyData.get(year).getDate()))) {
+                yearlyData.put(year, currentPoint);
+            }
+        }
+
+        // 将年度数据转换为列表并按年份排序
+        List<OverallTrendDataPointDTO> result = new ArrayList<>(yearlyData.values());
         result.sort(Comparator.comparing(OverallTrendDataPointDTO::getDate));
 
         return result;

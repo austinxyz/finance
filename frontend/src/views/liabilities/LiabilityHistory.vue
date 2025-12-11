@@ -450,6 +450,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { userAPI } from '@/api/user'
 import { Chart, registerables } from 'chart.js'
+import 'chartjs-adapter-date-fns'
 
 Chart.register(...registerables)
 
@@ -686,8 +687,11 @@ const updateChart = () => {
     new Date(a.recordDate) - new Date(b.recordDate)
   )
 
-  const labels = sortedRecords.map(r => formatDate(r.recordDate))
-  const data = sortedRecords.map(r => r.balanceInBaseCurrency || r.outstandingBalance || 0)
+  // 使用 {x, y} 格式的数据点，x为日期对象
+  const data = sortedRecords.map(r => ({
+    x: new Date(r.recordDate),
+    y: r.balanceInBaseCurrency || r.outstandingBalance || 0
+  }))
 
   if (chartInstance) {
     chartInstance.destroy()
@@ -697,7 +701,6 @@ const updateChart = () => {
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: labels,
       datasets: [{
         label: '负债余额',
         data: data,
@@ -724,8 +727,27 @@ const updateChart = () => {
         }
       },
       scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: {
+              day: 'yyyy-MM-dd',
+              month: 'yyyy-MM',
+              year: 'yyyy'
+            }
+          },
+          title: {
+            display: true,
+            text: '日期'
+          }
+        },
         y: {
           beginAtZero: false,
+          title: {
+            display: true,
+            text: '余额'
+          },
           ticks: {
             callback: function(value) {
               return '$' + formatNumber(value)

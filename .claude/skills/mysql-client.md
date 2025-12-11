@@ -1,4 +1,4 @@
-# MySQL Client Access
+1# MySQL Client Access
 
 This skill provides MySQL database client access for the finance project.
 

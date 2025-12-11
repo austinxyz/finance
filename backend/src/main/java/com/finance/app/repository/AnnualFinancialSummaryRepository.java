@@ -36,9 +36,10 @@ public interface AnnualFinancialSummaryRepository extends JpaRepository<AnnualFi
             @Param("endYear") Integer endYear);
 
     /**
-     * 根据家庭ID查询最近N年的摘要
+     * 根据家庭ID查询最近N年的摘要（只返回有数据的年份，net_worth != 0）
      */
     @Query(value = "SELECT * FROM annual_financial_summary WHERE family_id = :familyId " +
+                   "AND (total_assets > 0 OR total_liabilities > 0) " +
                    "ORDER BY year DESC LIMIT :limit", nativeQuery = true)
     List<AnnualFinancialSummary> findRecentYears(@Param("familyId") Long familyId, @Param("limit") int limit);
 
