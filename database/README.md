@@ -35,6 +35,20 @@
 **包含的存储过程**：
 - `sp_calculate_annual_summary` - 计算年度财务汇总
 
+### 4. `04_annual_expense_summary_tables_and_procedures.sql` - 年度支出汇总功能 🆕
+年度支出汇总功能的完整定义（USD基准货币版本）。
+
+**包含的表**：
+- `expense_category_adjustment_config` - 支出类别调整配置表
+- `annual_expense_summary` - 年度支出汇总表
+
+**包含的存储过程**：
+- `calculate_annual_expense_summary_v2` - 计算年度支出汇总（USD版本）
+
+**初始化数据**：
+- 住房类别（id=4）- 房贷本金偿还调整配置
+- 保险类别（id=6）- 保险现金价值增加调整配置
+
 ## 其他SQL文件位置
 
 ### Flyway Migration Files
@@ -58,6 +72,9 @@ mysql -h <host> -P <port> -u <user> -p<password> finance < 02_initial_data.sql
 
 # 3. 创建存储过程
 mysql -h <host> -P <port> -u <user> -p<password> finance < 03_stored_procedures.sql
+
+# 4. 创建年度支出汇总表和存储过程 (可选)
+mysql -h <host> -P <port> -u <user> -p<password> finance < 04_annual_expense_summary_tables_and_procedures.sql
 ```
 
 ### 更新数据库
@@ -97,6 +114,6 @@ mysqldump -h <host> -P <port> -u <user> -p<password> \
 
 ---
 
-**最后更新**: 2025-12-10
+**最后更新**: 2025-12-12
 **数据库版本**: MySQL 8.0+
 **字符集**: UTF8MB4

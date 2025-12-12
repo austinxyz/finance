@@ -1,8 +1,8 @@
 # Database Tables Overview
 
 ## 总览
-- **总表数**: 24个表 + 4个视图
-- **存储过程**: 1个
+- **总表数**: 26个表 + 4个视图
+- **存储过程**: 2个
 - **字符集**: UTF8MB4
 - **引擎**: InnoDB
 
@@ -40,16 +40,19 @@
 | `net_asset_category_liability_type_mappings` | 负债类型映射 | net_asset_category_id → liability_category_id |
 | `asset_liability_type_mappings` | 资产负债关联 | asset_type_code ↔ liability_type_code |
 
-### 5️⃣ 支出管理 (3个表) 🆕
+### 5️⃣ 支出管理 (5个表) 🆕
 | 表名 | 说明 | 关键字段 |
 |------|------|---------|
 | `expense_categories_major` | 支出大类 | code(CHILDREN/FOOD/HOUSING等), icon, color |
 | `expense_categories_minor` | 支出子分类 | major_category_id, name, is_default |
 | `expense_records` | 支出记录 | expense_period(YYYY-MM), amount, expense_type |
+| `expense_category_adjustment_config` 🆕 | 支出类别调整配置 | major_category_id, adjustment_type(ASSET/LIABILITY) |
+| `annual_expense_summary` 🆕 | 年度支出汇总 | summary_year, base_expense_amount, actual_expense_amount |
 
 **初始数据**:
 - 10个大类：子女👶/衣👔/食🍜/住🏠/行🚗/保险🛡️/人情🎁/娱乐🎮/经营💼/其他📦
 - 10个默认子分类（极简版，用户自行扩展）
+- 2条调整配置：住房(房贷调整)、保险(资产调整)
 
 ### 6️⃣ 交易管理 (2个表)
 | 表名 | 说明 | 关键字段 |
@@ -88,8 +91,11 @@
 | 过程名 | 说明 | 参数 |
 |--------|------|------|
 | `sp_calculate_annual_summary` | 计算年度财务汇总 | p_family_id, p_year |
+| `calculate_annual_expense_summary_v2` 🆕 | 计算年度支出汇总（USD版本） | p_family_id, p_summary_year |
 
-**功能**: 计算指定家庭、指定年份的年末财务快照（12月31日），包括净资产、总资产、总负债、各类资产/负债分项。
+**功能说明**:
+- `sp_calculate_annual_summary`: 计算指定家庭、指定年份的年末财务快照（12月31日），包括净资产、总资产、总负债、各类资产/负债分项
+- `calculate_annual_expense_summary_v2`: 计算年度支出汇总，自动进行USD货币转换，并根据配置调整资产/负债变化对实际支出的影响
 
 ---
 
@@ -122,4 +128,4 @@ transaction_categories (1) ──── (N) transactions
 
 ---
 
-**最后更新**: 2025-12-10
+**最后更新**: 2025-12-12
