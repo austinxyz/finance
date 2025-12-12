@@ -286,8 +286,11 @@
 
           <!-- 右侧年度汇总表格 (1/3) -->
           <div class="lg:col-span-1">
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 移动端横向滚动容器 -->
+            <div class="overflow-x-auto -mx-2 sm:mx-0">
+              <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                  <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
@@ -333,6 +336,8 @@
                   </tr>
                 </tfoot>
               </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,14 +1,14 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-4 md:space-y-6">
     <!-- 页面头部 -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">年度预算分析</h1>
-        <p class="text-sm text-gray-500 mt-1">对比预算与实际支出</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900">年度预算分析</h1>
+        <p class="text-xs md:text-sm text-gray-500 mt-1">对比预算与实际支出</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">家庭：</label>
+          <label class="text-xs md:text-sm font-medium text-gray-700">家庭：</label>
           <select
             v-model="selectedFamilyId"
             class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -19,7 +19,7 @@
           </select>
         </div>
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">年份：</label>
+          <label class="text-xs md:text-sm font-medium text-gray-700">年份：</label>
           <input
             v-model.number="selectedYear"
             type="number"
@@ -29,7 +29,7 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">货币：</label>
+          <label class="text-xs md:text-sm font-medium text-gray-700">货币：</label>
           <select
             v-model="selectedCurrency"
             class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -49,28 +49,28 @@
 
     <template v-else>
       <!-- 总览卡片 -->
-      <div class="grid grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div class="text-sm text-gray-600 mb-1">年度预算总额</div>
-          <div class="text-2xl font-bold text-blue-600">
+          <div class="text-xs md:text-sm text-gray-600 mb-1">年度预算总额</div>
+          <div class="text-xl md:text-2xl font-bold text-blue-600">
             {{ formatCurrency(totalBudget) }}
           </div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div class="text-sm text-gray-600 mb-1">实际支出总额</div>
-          <div class="text-2xl font-bold text-orange-600">
+          <div class="text-xs md:text-sm text-gray-600 mb-1">实际支出总额</div>
+          <div class="text-xl md:text-2xl font-bold text-orange-600">
             {{ formatCurrency(totalActual) }}
           </div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div class="text-sm text-gray-600 mb-1">剩余预算</div>
-          <div class="text-2xl font-bold" :class="totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'">
+          <div class="text-xs md:text-sm text-gray-600 mb-1">剩余预算</div>
+          <div class="text-xl md:text-2xl font-bold" :class="totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'">
             {{ formatCurrency(totalRemaining) }}
           </div>
         </div>
         <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div class="text-sm text-gray-600 mb-1">预算执行率</div>
-          <div class="text-2xl font-bold text-gray-900">
+          <div class="text-xs md:text-sm text-gray-600 mb-1">预算执行率</div>
+          <div class="text-xl md:text-2xl font-bold text-gray-900">
             {{ executionRate }}%
           </div>
         </div>
@@ -78,7 +78,7 @@
 
       <!-- 对比图表 -->
       <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">预算 vs 实际支出对比</h2>
+        <h2 class="text-md md:text-lg font-semibold text-gray-900 mb-4">预算 vs 实际支出对比</h2>
         <div style="height: 500px;">
           <canvas ref="comparisonChartCanvas"></canvas>
         </div>
@@ -87,7 +87,7 @@
       <!-- 分类详细对比表 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">分类详细对比</h2>
+          <h2 class="text-md md:text-lg font-semibold text-gray-900">分类详细对比</h2>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">

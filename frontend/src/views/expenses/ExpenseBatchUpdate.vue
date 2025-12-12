@@ -1,55 +1,59 @@
 <template>
-  <div class="p-6 space-y-4">
-    <!-- 页面头部 -->
+  <div class="p-4 md:p-6 space-y-4">
+    <!-- 页面头部 - 移动端响应式 -->
     <div class="space-y-3">
-      <!-- 第一行：基础选择器 -->
-      <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-bold text-gray-900">批量录入支出</h1>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">家庭：</label>
+      <!-- 第一行：标题和基础选择器 -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900 flex-shrink-0">批量录入支出</h1>
+      </div>
+
+      <!-- 第二行：家庭、货币、月份选择器 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
           <select
             v-model="selectedFamilyId"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           >
             <option v-for="family in families" :key="family.id" :value="family.id">
               {{ family.familyName }}
             </option>
           </select>
         </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">货币：</label>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">货币：</label>
           <select
             v-model="selectedCurrency"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           >
             <option v-for="currency in currencies" :key="currency" :value="currency">
               {{ currency }}
             </option>
           </select>
         </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">月份：</label>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">月份：</label>
           <input
             v-model="recordPeriod"
             type="month"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           />
         </div>
       </div>
 
-      <!-- 第二行：操作按钮 -->
+      <!-- 第三行：操作按钮 -->
       <div class="flex items-center justify-end">
         <button
           @click="saveAll"
           :disabled="saving || !hasChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap w-full sm:w-auto"
         >
           {{ saving ? '保存中...' : '保存全部' }}
         </button>
       </div>
     </div>
 
-    <!-- 支出列表 -->
+    <!-- 支出列表 - 移动端横向滚动 -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
       <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
         加载中...
@@ -57,96 +61,104 @@
       <div v-else-if="filteredCategories.length === 0" class="text-center py-8 text-gray-500 text-sm">
         暂无子分类
       </div>
-      <div v-else class="divide-y divide-gray-200">
-        <!-- 表头 -->
-        <div class="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-700">
-          <div class="col-span-3">分类</div>
-          <div class="col-span-2 text-right">{{ previousMonth3 }}</div>
-          <div class="col-span-2 text-right">{{ previousMonth2 }}</div>
-          <div class="col-span-2 text-right">{{ previousMonth1 }}</div>
-          <div class="col-span-3">{{ currentMonth }}</div>
-        </div>
+      <div v-else>
+        <!-- 横向滚动容器 -->
+        <div class="overflow-x-auto -mx-2 sm:mx-0">
+          <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+            <div class="divide-y divide-gray-200">
+              <!-- 表头 -->
+              <div class="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-700" style="min-width: 800px;">
+                <div class="col-span-3">分类</div>
+                <div class="col-span-2 text-right">{{ previousMonth3 }}</div>
+                <div class="col-span-2 text-right">{{ previousMonth2 }}</div>
+                <div class="col-span-2 text-right">{{ previousMonth1 }}</div>
+                <div class="col-span-3">{{ currentMonth }}</div>
+              </div>
 
-        <!-- 数据行 -->
-        <div
-          v-for="category in filteredCategories"
-          :key="category.id"
-          class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
-        >
-          <!-- 分类信息（含类型标签） -->
-          <div class="col-span-3">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">{{ category.majorIcon }}</span>
-              <div>
-                <div class="font-medium text-gray-900 text-sm">
-                  {{ category.majorName }} - {{ category.name }}
+              <!-- 数据行 -->
+              <div
+                v-for="category in filteredCategories"
+                :key="category.id"
+                class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
+                style="min-width: 800px;"
+              >
+                <!-- 分类信息（含类型标签） -->
+                <div class="col-span-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ category.majorIcon }}</span>
+                    <div>
+                      <div class="font-medium text-gray-900 text-sm">
+                        {{ category.majorName }} - {{ category.name }}
+                      </div>
+                      <span :class="[
+                        'inline-block px-1.5 py-0.5 text-xs rounded mt-0.5',
+                        category.expenseType === 'FIXED_DAILY'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-orange-100 text-orange-700'
+                      ]">
+                        {{ category.expenseType === 'FIXED_DAILY' ? '固定日常' : '大额不定期' }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span :class="[
-                  'inline-block px-1.5 py-0.5 text-xs rounded mt-0.5',
-                  category.expenseType === 'FIXED_DAILY'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-orange-100 text-orange-700'
-                ]">
-                  {{ category.expenseType === 'FIXED_DAILY' ? '固定日常' : '大额不定期' }}
-                </span>
+
+                <!-- 前3个月历史数据 -->
+                <div class="col-span-2 text-right">
+                  <div class="text-sm text-gray-600">
+                    {{ formatCurrency(historyData[category.id]?.month3 ?? 0) }}
+                  </div>
+                </div>
+                <div class="col-span-2 text-right">
+                  <div class="text-sm text-gray-600">
+                    {{ formatCurrency(historyData[category.id]?.month2 ?? 0) }}
+                  </div>
+                </div>
+                <div class="col-span-2 text-right">
+                  <div class="text-sm text-gray-700 font-medium">
+                    {{ formatCurrency(historyData[category.id]?.month1 ?? 0) }}
+                  </div>
+                </div>
+
+                <!-- 本月金额输入 -->
+                <div class="col-span-3">
+                  <div class="relative">
+                    <span class="absolute left-2 top-2 text-gray-500 text-sm">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
+                    <input
+                      v-model="categoryAmounts[category.id]"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                      @input="markAsChanged(category.id)"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-
-          <!-- 前3个月历史数据 -->
-          <div class="col-span-2 text-right">
-            <div class="text-sm text-gray-600">
-              {{ formatCurrency(historyData[category.id]?.month3 ?? 0) }}
-            </div>
-          </div>
-          <div class="col-span-2 text-right">
-            <div class="text-sm text-gray-600">
-              {{ formatCurrency(historyData[category.id]?.month2 ?? 0) }}
-            </div>
-          </div>
-          <div class="col-span-2 text-right">
-            <div class="text-sm text-gray-700 font-medium">
-              {{ formatCurrency(historyData[category.id]?.month1 ?? 0) }}
-            </div>
-          </div>
-
-          <!-- 本月金额输入 -->
-          <div class="col-span-3">
-            <div class="relative">
-              <span class="absolute left-2 top-2 text-gray-500 text-sm">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
-              <input
-                v-model="categoryAmounts[category.id]"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
-                @input="markAsChanged(category.id)"
-              />
-            </div>
-          </div>
         </div>
-      </div>
 
-      <!-- 底部统计 -->
-      <div v-if="!loading && filteredCategories.length > 0" class="px-4 py-4 border-t border-gray-200 bg-gray-50">
-        <div class="grid grid-cols-3 gap-6">
-          <div>
-            <div class="text-xs text-gray-600 mb-1">本月总支出</div>
-            <div class="text-2xl font-bold text-gray-900">{{ formatCurrency(summary.total) }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-600 mb-1">固定日常</div>
-            <div class="text-lg font-semibold text-blue-600">
-              {{ formatCurrency(summary.fixed) }}
-              <span class="text-xs text-gray-500 ml-1">({{ summary.fixedPercent }}%)</span>
+        <!-- 底部统计 - 移动端响应式 -->
+        <div v-if="!loading && filteredCategories.length > 0" class="px-4 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div>
+              <div class="text-xs text-gray-600 mb-1">本月总支出</div>
+              <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ formatCurrency(summary.total) }}</div>
             </div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-600 mb-1">不定期支出</div>
-            <div class="text-lg font-semibold text-purple-600">
-              {{ formatCurrency(summary.large) }}
-              <span class="text-xs text-gray-500 ml-1">({{ summary.largePercent }}%)</span>
+            <div>
+              <div class="text-xs text-gray-600 mb-1">固定日常</div>
+              <div class="text-base sm:text-lg font-semibold text-blue-600">
+                {{ formatCurrency(summary.fixed) }}
+                <span class="text-xs text-gray-500 ml-1">({{ summary.fixedPercent }}%)</span>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-600 mb-1">不定期支出</div>
+              <div class="text-base sm:text-lg font-semibold text-purple-600">
+                {{ formatCurrency(summary.large) }}
+                <span class="text-xs text-gray-500 ml-1">({{ summary.largePercent }}%)</span>
+              </div>
             </div>
           </div>
         </div>

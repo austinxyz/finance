@@ -200,40 +200,45 @@
               暂无记录
             </div>
 
-            <div v-else class="overflow-y-auto max-h-96">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">余额</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
-                      ${{ formatNumber(record.balanceInBaseCurrency || record.outstandingBalance || 0) }}
-                    </td>
-                    <td class="px-3 py-2 text-sm text-right">
-                      <div class="flex justify-end gap-2">
-                        <button
-                          @click="editRecord(record)"
-                          class="text-blue-600 hover:text-blue-800 text-xs"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          @click="deleteRecord(record)"
-                          class="text-red-600 hover:text-red-800 text-xs"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- 三层包裹器：横向滚动支持 -->
+            <div v-else class="overflow-x-auto -mx-2 sm:mx-0">
+              <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+                <div class="overflow-y-auto max-h-96">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">余额</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
+                        <td class="px-3 py-2 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
+                        <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
+                          ${{ formatNumber(record.balanceInBaseCurrency || record.outstandingBalance || 0) }}
+                        </td>
+                        <td class="px-3 py-2 text-sm text-right">
+                          <div class="flex justify-end gap-2">
+                            <button
+                              @click="editRecord(record)"
+                              class="text-blue-600 hover:text-blue-800 text-xs"
+                            >
+                              编辑
+                            </button>
+                            <button
+                              @click="deleteRecord(record)"
+                              class="text-red-600 hover:text-red-800 text-xs"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -251,195 +256,215 @@
       </div>
     </div>
 
-    <!-- 创建/编辑账户对话框 -->
+    <!-- 创建/编辑账户对话框 - 移动端全屏 -->
     <div
       v-if="showAccountDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4"
       @click.self="closeAccountDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ editingAccount ? '编辑账户' : '添加账户' }}
-        </h2>
-        <form @submit.prevent="submitAccountForm" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              负债分类 *
-            </label>
-            <div class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
-              {{ getCategoryName(selectedCategoryType) }}
+      <div class="bg-white h-full md:h-auto md:rounded-lg w-full max-w-md flex flex-col overflow-hidden">
+        <!-- 标题栏 -->
+        <div class="flex-shrink-0 px-4 md:px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg md:text-xl font-bold">
+            {{ editingAccount ? '编辑账户' : '添加账户' }}
+          </h2>
+        </div>
+
+        <!-- 滚动内容 -->
+        <div class="flex-1 overflow-y-auto">
+          <form @submit.prevent="submitAccountForm" class="p-4 md:p-6 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                负债分类 *
+              </label>
+              <div class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 min-h-[44px] flex items-center">
+                {{ getCategoryName(selectedCategoryType) }}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              关联用户 *
-            </label>
-            <select
-              v-model="accountFormData.userId"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option v-for="user in users" :key="user.id" :value="user.id">
-                {{ user.fullName }}
-              </option>
-            </select>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                关联用户 *
+              </label>
+              <select
+                v-model="accountFormData.userId"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              >
+                <option v-for="user in users" :key="user.id" :value="user.id">
+                  {{ user.fullName }}
+                </option>
+              </select>
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              账户名称 *
-            </label>
-            <input
-              v-model="accountFormData.accountName"
-              type="text"
-              required
-              placeholder="例如：招商银行信用卡"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                账户名称 *
+              </label>
+              <input
+                v-model="accountFormData.accountName"
+                type="text"
+                required
+                placeholder="例如：招商银行信用卡"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">币种 *</label>
-            <select
-              v-model="accountFormData.currency"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option value="CNY">人民币 (CNY)</option>
-              <option value="USD">美元 (USD)</option>
-              <option value="EUR">欧元 (EUR)</option>
-              <option value="HKD">港币 (HKD)</option>
-              <option value="GBP">英镑 (GBP)</option>
-              <option value="JPY">日元 (JPY)</option>
-            </select>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">币种 *</label>
+              <select
+                v-model="accountFormData.currency"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              >
+                <option value="CNY">人民币 (CNY)</option>
+                <option value="USD">美元 (USD)</option>
+                <option value="EUR">欧元 (EUR)</option>
+                <option value="HKD">港币 (HKD)</option>
+                <option value="GBP">英镑 (GBP)</option>
+                <option value="JPY">日元 (JPY)</option>
+              </select>
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">机构名称</label>
-            <input
-              v-model="accountFormData.institution"
-              type="text"
-              placeholder="例如：招商银行"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">机构名称</label>
+              <input
+                v-model="accountFormData.institution"
+                type="text"
+                placeholder="例如：招商银行"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">账号</label>
-            <input
-              v-model="accountFormData.accountNumber"
-              type="text"
-              placeholder="例如：**** **** **** 1234"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">账号</label>
+              <input
+                v-model="accountFormData.accountNumber"
+                type="text"
+                placeholder="例如：**** **** **** 1234"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
-            <textarea
-              v-model="accountFormData.notes"
-              rows="3"
-              placeholder="添加备注信息"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            ></textarea>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+              <textarea
+                v-model="accountFormData.notes"
+                rows="3"
+                placeholder="添加备注信息"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              ></textarea>
+            </div>
+          </form>
+        </div>
 
-          <div class="flex gap-3 pt-4">
+        <!-- 固定底部按钮 -->
+        <div class="flex-shrink-0 px-4 md:px-6 py-4 border-t border-gray-200 bg-white">
+          <div class="flex gap-3">
             <button
-              type="submit"
-              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              @click="submitAccountForm"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium min-h-[44px]"
             >
               {{ editingAccount ? '保存' : '创建' }}
             </button>
             <button
               type="button"
               @click="closeAccountDialog"
-              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium min-h-[44px]"
             >
               取消
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
-    <!-- 创建/编辑记录对话框 -->
+    <!-- 创建/编辑记录对话框 - 移动端全屏 -->
     <div
       v-if="showDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4"
       @click.self="closeDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ editingRecord ? '编辑记录' : '添加历史记录' }}
-        </h2>
-        <form @submit.prevent="submitForm" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              记录日期 *
-            </label>
-            <input
-              v-model="formData.recordDate"
-              type="date"
-              required
-              :max="new Date().toISOString().split('T')[0]"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
+      <div class="bg-white h-full md:h-auto md:rounded-lg w-full max-w-md flex flex-col overflow-hidden">
+        <!-- 标题栏 -->
+        <div class="flex-shrink-0 px-4 md:px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg md:text-xl font-bold">
+            {{ editingRecord ? '编辑记录' : '添加历史记录' }}
+          </h2>
+        </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">余额 *</label>
-            <input
-              v-model="formData.balance"
-              type="number"
-              step="0.01"
-              required
-              placeholder="例如：10000.00"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
+        <!-- 滚动内容 -->
+        <div class="flex-1 overflow-y-auto">
+          <form @submit.prevent="submitForm" class="p-4 md:p-6 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                记录日期 *
+              </label>
+              <input
+                v-model="formData.recordDate"
+                type="date"
+                required
+                :max="new Date().toISOString().split('T')[0]"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">币种 *</label>
-            <select
-              v-model="formData.currency"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option value="CNY">人民币 (CNY)</option>
-              <option value="USD">美元 (USD)</option>
-              <option value="EUR">欧元 (EUR)</option>
-              <option value="HKD">港币 (HKD)</option>
-            </select>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">余额 *</label>
+              <input
+                v-model="formData.balance"
+                type="number"
+                step="0.01"
+                required
+                placeholder="例如：10000.00"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
-            <textarea
-              v-model="formData.notes"
-              rows="3"
-              placeholder="添加备注信息"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            ></textarea>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">币种 *</label>
+              <select
+                v-model="formData.currency"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 min-h-[44px]"
+              >
+                <option value="CNY">人民币 (CNY)</option>
+                <option value="USD">美元 (USD)</option>
+                <option value="EUR">欧元 (EUR)</option>
+                <option value="HKD">港币 (HKD)</option>
+              </select>
+            </div>
 
-          <div class="flex gap-3 pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+              <textarea
+                v-model="formData.notes"
+                rows="3"
+                placeholder="添加备注信息"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              ></textarea>
+            </div>
+          </form>
+        </div>
+
+        <!-- 固定底部按钮 -->
+        <div class="flex-shrink-0 px-4 md:px-6 py-4 border-t border-gray-200 bg-white">
+          <div class="flex gap-3">
             <button
-              type="submit"
-              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              @click="submitForm"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium min-h-[44px]"
             >
               {{ editingRecord ? '保存' : '创建' }}
             </button>
             <button
               type="button"
               @click="closeDialog"
-              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium min-h-[44px]"
             >
               取消
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   </div>

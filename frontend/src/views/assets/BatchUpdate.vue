@@ -1,36 +1,42 @@
 <template>
-  <div class="p-6 space-y-4">
-    <!-- 页面头部 -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold text-gray-900">批量更新资产</h1>
-        <select
-          v-model="selectedCategoryType"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option :value="null">全部分类</option>
-          <option v-for="type in categoryTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
+  <div class="p-4 md:p-6 space-y-4">
+    <!-- 页面头部 - 移动端响应式 -->
+    <div class="space-y-3">
+      <!-- 第一行：标题和分类选择器 -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900 flex-shrink-0">批量更新资产</h1>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">分类：</label>
+          <select
+            v-model="selectedCategoryType"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+          >
+            <option :value="null">全部分类</option>
+            <option v-for="type in categoryTypes" :key="type.value" :value="type.value">
+              {{ type.label }}
+            </option>
+          </select>
+        </div>
       </div>
-      <div class="flex items-center gap-3">
+
+      <!-- 第二行：日期和保存按钮 -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
         <input
           v-model="recordDate"
           type="date"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
         />
         <button
           @click="saveAll"
           :disabled="saving || !hasChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap"
         >
           {{ saving ? '保存中...' : '保存全部' }}
         </button>
       </div>
     </div>
 
-    <!-- 账户列表 -->
+    <!-- 账户列表 - 移动端横向滚动 -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
       <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
         加载中...
@@ -38,55 +44,63 @@
       <div v-else-if="filteredAccounts.length === 0" class="text-center py-8 text-gray-500 text-sm">
         暂无账户
       </div>
-      <div v-else class="divide-y divide-gray-200">
-        <div
-          v-for="account in filteredAccounts"
-          :key="account.id"
-          class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
-        >
-          <!-- 账户信息 -->
-          <div class="col-span-3">
-            <div class="font-medium text-gray-900 text-sm">{{ account.accountName }}</div>
-            <div class="text-xs text-gray-500 mt-0.5">
-              {{ getTypeLabel(account.categoryType) }} › {{ account.categoryName }}
-            </div>
-          </div>
+      <div v-else>
+        <!-- 横向滚动容器 -->
+        <div class="overflow-x-auto -mx-2 sm:mx-0">
+          <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+            <div class="divide-y divide-gray-200">
+              <div
+                v-for="account in filteredAccounts"
+                :key="account.id"
+                class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
+                style="min-width: 900px;"
+              >
+                <!-- 账户信息 -->
+                <div class="col-span-3">
+                  <div class="font-medium text-gray-900 text-sm">{{ account.accountName }}</div>
+                  <div class="text-xs text-gray-500 mt-0.5">
+                    {{ getTypeLabel(account.categoryType) }} › {{ account.categoryName }}
+                  </div>
+                </div>
 
-          <!-- 用户 -->
-          <div class="col-span-1">
-            <div class="text-xs text-gray-600">{{ account.userName || '-' }}</div>
-          </div>
+                <!-- 用户 -->
+                <div class="col-span-1">
+                  <div class="text-xs text-gray-600">{{ account.userName || '-' }}</div>
+                </div>
 
-          <!-- 之前的金额和日期 (根据选择的日期) -->
-          <div class="col-span-2 text-right">
-            <div class="text-sm font-semibold text-gray-900">
-              {{ getCurrencySymbol(account.currency) }}{{ formatNumber(accountPreviousValues[account.id]?.amount ?? 0) }}
-            </div>
-            <div class="text-xs text-gray-400 mt-0.5">
-              {{ formatFullDate(accountPreviousValues[account.id]?.recordDate) }}
-              <span v-if="accountPreviousValues[account.id]?.hasExactRecord" class="ml-1 text-amber-600" title="该日期已有记录">📝</span>
-            </div>
-          </div>
+                <!-- 之前的金额和日期 (根据选择的日期) -->
+                <div class="col-span-2 text-right">
+                  <div class="text-sm font-semibold text-gray-900">
+                    {{ getCurrencySymbol(account.currency) }}{{ formatNumber(accountPreviousValues[account.id]?.amount ?? 0) }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-0.5">
+                    {{ formatFullDate(accountPreviousValues[account.id]?.recordDate) }}
+                    <span v-if="accountPreviousValues[account.id]?.hasExactRecord" class="ml-1 text-amber-600" title="该日期已有记录">📝</span>
+                  </div>
+                </div>
 
-          <!-- 新金额输入 -->
-          <div class="col-span-3">
-            <input
-              v-model="accountAmounts[account.id]"
-              type="number"
-              step="0.01"
-              placeholder="新金额"
-              class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              @input="markAsChanged(account.id)"
-            />
-          </div>
+                <!-- 新金额输入 -->
+                <div class="col-span-3">
+                  <input
+                    v-model="accountAmounts[account.id]"
+                    type="number"
+                    step="0.01"
+                    placeholder="新金额"
+                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                    @input="markAsChanged(account.id)"
+                  />
+                </div>
 
-          <!-- 差额显示 -->
-          <div class="col-span-3 text-right">
-            <div v-if="accountAmounts[account.id] !== ''" class="text-xs">
-              <span class="text-gray-500">差额: </span>
-              <span :class="getDifferenceClass(account.id, accountPreviousValues[account.id]?.amount ?? 0)">
-                {{ formatDifference(account.id, accountPreviousValues[account.id]?.amount ?? 0, account.currency) }}
-              </span>
+                <!-- 差额显示 -->
+                <div class="col-span-3 text-right">
+                  <div v-if="accountAmounts[account.id] !== ''" class="text-xs">
+                    <span class="text-gray-500">差额: </span>
+                    <span :class="getDifferenceClass(account.id, accountPreviousValues[account.id]?.amount ?? 0)">
+                      {{ formatDifference(account.id, accountPreviousValues[account.id]?.amount ?? 0, account.currency) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-64 bg-card border-r border-border flex flex-col h-full">
+  <aside class="w-64 lg:w-64 md:w-56 sm:w-64 bg-card border-r border-border flex flex-col h-full">
     <!-- Logo/Brand -->
     <div class="p-6 border-b border-border">
       <router-link to="/" class="flex items-center space-x-2">
@@ -272,6 +272,9 @@ import {
   LineChart,
   Settings
 } from 'lucide-vue-next';
+
+// Emit navigate event for mobile sidebar close
+const emit = defineEmits(['navigate']);
 
 const route = useRoute();
 const activeTopTab = ref('manage');

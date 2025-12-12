@@ -207,40 +207,45 @@
               暂无记录
             </div>
 
-            <div v-else class="overflow-y-auto max-h-96">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
-                      {{ getCurrencySymbol(record.currency) }}{{ formatNumber(record.amount) }}
-                    </td>
-                    <td class="px-3 py-2 text-sm text-right">
-                      <div class="flex justify-end gap-2">
-                        <button
-                          @click="editRecord(record)"
-                          class="text-blue-600 hover:text-blue-800 text-xs"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          @click="deleteRecord(record)"
-                          class="text-red-600 hover:text-red-800 text-xs"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- 三层包裹器：横向滚动支持 -->
+            <div v-else class="overflow-x-auto -mx-2 sm:mx-0">
+              <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+                <div class="overflow-y-auto max-h-96">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
+                        <td class="px-3 py-2 text-sm text-gray-900">{{ formatDate(record.recordDate) }}</td>
+                        <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
+                          {{ getCurrencySymbol(record.currency) }}{{ formatNumber(record.amount) }}
+                        </td>
+                        <td class="px-3 py-2 text-sm text-right">
+                          <div class="flex justify-end gap-2">
+                            <button
+                              @click="editRecord(record)"
+                              class="text-blue-600 hover:text-blue-800 text-xs"
+                            >
+                              编辑
+                            </button>
+                            <button
+                              @click="deleteRecord(record)"
+                              class="text-red-600 hover:text-red-800 text-xs"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -261,14 +266,20 @@
     <!-- 创建/编辑账户对话框 -->
     <div
       v-if="showAccountDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4"
       @click.self="closeAccountDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ editingAccount ? '编辑账户' : '添加账户' }}
-        </h2>
-        <form @submit.prevent="submitAccountForm" class="space-y-4">
+      <div class="bg-white h-full md:h-auto md:rounded-lg w-full max-w-md flex flex-col md:max-h-[90vh]">
+        <!-- 固定头部 -->
+        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200">
+          <h2 class="text-xl font-bold">
+            {{ editingAccount ? '编辑账户' : '添加账户' }}
+          </h2>
+        </div>
+
+        <!-- 可滚动内容区 -->
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <form @submit.prevent="submitAccountForm" class="space-y-4" id="accountForm">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               资产分类 *
@@ -364,36 +375,48 @@
             ></textarea>
           </div>
 
-          <div class="flex gap-3 pt-4">
+          </form>
+        </div>
+
+        <!-- 固定底部按钮 -->
+        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white">
+          <div class="flex gap-3">
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
+              form="accountForm"
+              class="flex-1 px-4 py-3 min-h-[44px] bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
             >
               {{ editingAccount ? '保存' : '创建' }}
             </button>
             <button
               type="button"
               @click="closeAccountDialog"
-              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              class="flex-1 px-4 py-3 min-h-[44px] bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
             >
               取消
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
     <!-- 创建/编辑记录对话框 -->
     <div
       v-if="showDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4"
       @click.self="closeDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ editingRecord ? '编辑记录' : '添加历史记录' }}
-        </h2>
-        <form @submit.prevent="submitForm" class="space-y-4">
+      <div class="bg-white h-full md:h-auto md:rounded-lg w-full max-w-md flex flex-col md:max-h-[90vh]">
+        <!-- 固定头部 -->
+        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200">
+          <h2 class="text-xl font-bold">
+            {{ editingRecord ? '编辑记录' : '添加历史记录' }}
+          </h2>
+        </div>
+
+        <!-- 可滚动内容区 -->
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <form @submit.prevent="submitForm" class="space-y-4" id="recordForm">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               记录日期 *
@@ -443,22 +466,28 @@
             ></textarea>
           </div>
 
-          <div class="flex gap-3 pt-4">
+          </form>
+        </div>
+
+        <!-- 固定底部按钮 -->
+        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white">
+          <div class="flex gap-3">
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
+              form="recordForm"
+              class="flex-1 px-4 py-3 min-h-[44px] bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
             >
               {{ editingRecord ? '保存' : '创建' }}
             </button>
             <button
               type="button"
               @click="closeDialog"
-              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              class="flex-1 px-4 py-3 min-h-[44px] bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
             >
               取消
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   </div>

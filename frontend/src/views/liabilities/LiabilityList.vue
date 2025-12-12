@@ -1,9 +1,9 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-6">
     <!-- 页面标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">负债账户</h1>
-      <p class="text-sm text-gray-600 mt-1">按分类管理您的所有负债账户</p>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-900">负债账户</h1>
+      <p class="text-xs md:text-sm text-gray-600 mt-1">按分类管理您的所有负债账户</p>
     </div>
 
     <!-- 加载状态 -->
@@ -12,26 +12,26 @@
     </div>
 
     <!-- 分类面板 - 两列布局 -->
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
       <div
         v-for="type in categoryTypes"
         :key="type"
         class="bg-white rounded-lg shadow-sm border border-gray-200"
       >
         <!-- 面板头部 -->
-        <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h2 class="text-base font-semibold text-gray-900">{{ getTypeLabel(type) }}</h2>
-            <p class="text-xs text-gray-500 mt-0.5">
+        <div class="px-3 md:px-4 py-2 md:py-3 border-b border-gray-200 flex justify-between items-center gap-2">
+          <div class="flex-1 min-w-0">
+            <h2 class="text-sm md:text-base font-semibold text-gray-900">{{ getTypeLabel(type) }}</h2>
+            <p class="text-xs text-gray-500 mt-0.5 truncate">
               {{ getAccountCountByType(type) }} 个账户 · ${{ formatAmount(getTotalByTypeInUSD(type)) }}
             </p>
           </div>
           <button
             @click="openCreateDialog(type)"
-            class="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium flex items-center gap-1"
+            class="px-2 md:px-3 py-1 md:py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium flex items-center gap-1 flex-shrink-0"
           >
-            <Plus class="w-3.5 h-3.5" />
-            添加
+            <Plus class="w-3 md:w-3.5 h-3 md:h-3.5" />
+            <span class="hidden sm:inline">添加</span>
           </button>
         </div>
 
@@ -96,14 +96,14 @@
     <!-- 创建/编辑账户对话框 -->
     <div
       v-if="showCreateDialog || showEditDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="closeDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
+      <div class="bg-white rounded-lg p-4 md:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">
           {{ showEditDialog ? '编辑账户' : `添加${getTypeLabel(currentType)}账户` }}
         </h2>
-        <form @submit.prevent="submitForm" class="space-y-4">
+        <form @submit.prevent="submitForm" class="space-y-3 md:space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">所有者</label>
             <select

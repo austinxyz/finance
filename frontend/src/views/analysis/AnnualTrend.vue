@@ -1,15 +1,15 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-6">
     <!-- 页面标题和控制栏 -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-bold text-gray-900">年度趋势分析</h1>
-        <div class="flex items-center gap-4">
+    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900">年度趋势分析</h1>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
           <!-- 家庭选择 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">选择家庭：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭：</label>
             <select v-model.number="familyId" @change="onFamilyChange"
-                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-w-[180px]">
+                    class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm min-w-0 sm:min-w-[180px]">
               <option v-for="family in families" :key="family.id" :value="family.id">
                 {{ family.familyName }}
               </option>
@@ -18,9 +18,9 @@
 
           <!-- 年份选择 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">显示年数：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示年数：</label>
             <select v-model.number="displayYears" @change="fetchData"
-                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                    class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm">
               <option :value="3">最近3年</option>
               <option :value="5">最近5年</option>
               <option :value="10">最近10年</option>
@@ -30,9 +30,9 @@
 
           <!-- 货币选择 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示货币：</label>
             <select v-model="selectedCurrency" @change="onCurrencyChange"
-                    class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                    class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm">
               <option value="USD">USD ($)</option>
               <option value="CNY">CNY (¥)</option>
               <option value="EUR">EUR (€)</option>
@@ -42,7 +42,7 @@
           </div>
 
           <button @click="calculateSummary"
-                  class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium">
+                  class="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-xs md:text-sm font-medium whitespace-nowrap">
             刷新数据
           </button>
         </div>
@@ -58,16 +58,16 @@
     </div>
 
     <!-- Tab 切换 -->
-    <div v-else-if="summaries.length > 0" class="space-y-6">
+    <div v-else-if="summaries.length > 0" class="space-y-4 md:space-y-6">
       <div class="bg-white rounded-lg shadow">
-        <div class="border-b border-gray-200">
-          <nav class="-mb-px flex space-x-4 px-6" aria-label="Tabs">
+        <div class="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+          <nav class="-mb-px flex space-x-2 md:space-x-4 px-3 md:px-6 min-w-max" aria-label="Tabs">
             <button
               v-for="tab in tabs"
               :key="tab.key"
               @click="activeTab = tab.key"
               :class="[
-                'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
+                'whitespace-nowrap py-2 md:py-3 px-3 md:px-4 border-b-2 font-medium text-xs md:text-sm transition-colors',
                 activeTab === tab.key
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -79,208 +79,214 @@
         </div>
 
         <!-- 综合趋势 -->
-        <div v-show="activeTab === 'overall'" class="p-6">
-          <div class="mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">综合趋势</h2>
-            <p class="text-sm text-gray-500 mt-1">资产、负债、净资产年度变化趋势</p>
+        <div v-show="activeTab === 'overall'" class="p-3 md:p-6">
+          <div class="mb-3 md:mb-4">
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">综合趋势</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">资产、负债、净资产年度变化趋势</p>
           </div>
-          <div class="h-96">
+          <div class="h-64 md:h-96">
             <canvas ref="comprehensiveChartCanvas"></canvas>
           </div>
         </div>
 
         <!-- 净资产趋势 -->
-        <div v-show="activeTab === 'networth'" class="p-6">
-          <div class="mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">净资产趋势</h2>
-            <p class="text-sm text-gray-500 mt-1">净资产年度变化及同比增长率</p>
+        <div v-show="activeTab === 'networth'" class="p-3 md:p-6">
+          <div class="mb-3 md:mb-4">
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">净资产趋势</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">净资产年度变化及同比增长率</p>
           </div>
-          <div class="h-80">
+          <div class="h-64 md:h-80">
             <canvas ref="netWorthChartCanvas"></canvas>
           </div>
         </div>
 
         <!-- 资产趋势 -->
-        <div v-show="activeTab === 'asset'" class="p-6">
-          <div class="mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">资产趋势</h2>
-            <p class="text-sm text-gray-500 mt-1">总资产年度变化及同比增长率</p>
+        <div v-show="activeTab === 'asset'" class="p-3 md:p-6">
+          <div class="mb-3 md:mb-4">
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">资产趋势</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">总资产年度变化及同比增长率</p>
           </div>
-          <div class="h-80">
+          <div class="h-64 md:h-80">
             <canvas ref="assetChartCanvas"></canvas>
           </div>
         </div>
 
         <!-- 负债趋势 -->
-        <div v-show="activeTab === 'liability'" class="p-6">
-          <div class="mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">负债趋势</h2>
-            <p class="text-sm text-gray-500 mt-1">总负债年度变化及同比增长率</p>
+        <div v-show="activeTab === 'liability'" class="p-3 md:p-6">
+          <div class="mb-3 md:mb-4">
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">负债趋势</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">总负债年度变化及同比增长率</p>
           </div>
-          <div class="h-80">
+          <div class="h-64 md:h-80">
             <canvas ref="liabilityChartCanvas"></canvas>
           </div>
         </div>
 
         <!-- 汇总表格 -->
-        <div v-show="activeTab === 'table'" class="p-6">
-          <div class="mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">年度汇总表</h2>
-            <p class="text-sm text-gray-500 mt-1">各年度财务数据对比</p>
+        <div v-show="activeTab === 'table'" class="p-3 md:p-6">
+          <div class="mb-3 md:mb-4">
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">年度汇总表</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">各年度财务数据对比</p>
+            <p class="text-xs text-blue-600 mt-1 md:hidden flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+              </svg>
+              左右滑动查看更多
+            </p>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50 border-b border-gray-200">
+          <div class="overflow-x-scroll -mx-3 md:mx-0 px-3 md:px-0">
+            <table class="min-w-[600px] w-auto border-separate border-spacing-0">
+              <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
                 <tr>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">总资产</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">资产同比</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">总负债</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">负债同比</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产同比</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">房产净值同比</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">非房产净值同比</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">房产占比</th>
-                  <th class="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase">日期</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase">年份</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">总资产</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">资产同比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">总负债</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">负债同比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">净资产</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">净资产同比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">房产净值同比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">非房产净值同比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">房产占比</th>
+                  <th class="px-1 md:px-2 py-1.5 md:py-2 text-center text-[10px] md:text-xs font-medium text-gray-500 uppercase">日期</th>
                 </tr>
               </thead>
               <tbody class="bg-white">
                 <template v-for="summary in summaries" :key="summary.year">
                   <!-- 主行 -->
                   <tr class="hover:bg-gray-50 border-b border-gray-200">
-                    <td class="px-2 py-2 whitespace-nowrap">
-                      <div class="flex items-center gap-1">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap">
+                      <div class="flex items-center gap-0.5 md:gap-1">
                         <button @click="toggleYearExpand(summary.year)"
                                 class="text-gray-500 hover:text-gray-700 transition">
-                          <svg v-if="!isYearExpanded(summary.year)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg v-if="!isYearExpanded(summary.year)" class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                           </svg>
-                          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg v-else class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                           </svg>
                         </button>
-                        <div class="text-xs font-medium text-gray-900">{{ summary.year }}</div>
+                        <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ summary.year }}</div>
                       </div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div class="text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets) }}</div>
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets) }}</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyAssetChange !== null" class="text-xs">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyAssetChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyAssetChange)" class="font-medium">
                           {{ formatChange(summary.yoyAssetChange) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyAssetChangePct)" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyAssetChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyAssetChangePct) }})
                         </div>
                       </div>
-                      <div v-else class="text-xs text-gray-400">-</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div class="text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities) }}</div>
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities) }}</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyLiabilityChange !== null" class="text-xs">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyLiabilityChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyLiabilityChange, true)" class="font-medium">
                           {{ formatChange(summary.yoyLiabilityChange) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyLiabilityChangePct, true)" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyLiabilityChangePct, true)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyLiabilityChangePct) }})
                         </div>
                       </div>
-                      <div v-else class="text-xs text-gray-400">-</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div class="text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth) }}</div>
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div class="text-[10px] md:text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth) }}</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyNetWorthChange !== null" class="text-xs">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyNetWorthChange)" class="font-medium">
                           {{ formatChange(summary.yoyNetWorthChange) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyNetWorthChangePct)" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyNetWorthChangePct) }})
                         </div>
                       </div>
-                      <div v-else class="text-xs text-gray-400">基准年</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">基准年</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyRealEstateNetWorthChange !== null" class="text-xs">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyRealEstateNetWorthChange)" class="font-medium">
                           {{ formatChange(summary.yoyRealEstateNetWorthChange) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChangePct)" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyRealEstateNetWorthChangePct) }})
                         </div>
                       </div>
-                      <div v-else class="text-xs text-gray-400">-</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyNonRealEstateNetWorthChange !== null" class="text-xs">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.yoyNonRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChange)" class="font-medium">
                           {{ formatChange(summary.yoyNonRealEstateNetWorthChange) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChangePct)" class="text-xs">
+                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyNonRealEstateNetWorthChangePct) }})
                         </div>
                       </div>
-                      <div v-else class="text-xs text-gray-400">-</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.realEstateToNetWorthRatio !== null" class="text-xs font-medium text-purple-600">
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
+                      <div v-if="summary.realEstateToNetWorthRatio !== null" class="text-[10px] md:text-xs font-medium text-purple-600">
                         {{ formatPercent(summary.realEstateToNetWorthRatio) }}
                       </div>
-                      <div v-else class="text-xs text-gray-400">-</div>
+                      <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
-                    <td class="px-2 py-2 whitespace-nowrap text-center">
-                      <div class="text-xs text-gray-600">{{ summary.summaryDate }}</div>
+                    <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-center">
+                      <div class="text-[10px] md:text-xs text-gray-600">{{ summary.summaryDate }}</div>
                     </td>
                   </tr>
 
                   <!-- 展开的分类明细（按TYPE显示） -->
                   <tr v-if="isYearExpanded(summary.year)" class="bg-gray-50">
-                    <td colspan="11" class="px-6 py-4">
-                      <div class="grid grid-cols-3 gap-6">
+                    <td colspan="11" class="px-2 md:px-6 py-3 md:py-4">
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
 
                         <!-- 资产分类 -->
                         <div v-if="summary.assetBreakdown && Object.keys(summary.assetBreakdown).length > 0">
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">资产分类明细</h4>
-                          <div class="space-y-2">
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">资产分类明细</h4>
+                          <div class="space-y-1.5 md:space-y-2">
                             <div v-for="(value, category) in summary.assetBreakdown" :key="category"
-                                 class="flex justify-between items-center text-sm">
+                                 class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium text-green-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
                             </div>
                           </div>
                         </div>
                         <div v-else>
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">资产分类明细</h4>
-                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">资产分类明细</h4>
+                          <p class="text-xs md:text-sm text-gray-400">暂无分类数据</p>
                         </div>
 
                         <!-- 负债分类 -->
                         <div v-if="summary.liabilityBreakdown && Object.keys(summary.liabilityBreakdown).length > 0">
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">负债分类明细</h4>
-                          <div class="space-y-2">
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">负债分类明细</h4>
+                          <div class="space-y-1.5 md:space-y-2">
                             <div v-for="(value, category) in summary.liabilityBreakdown" :key="category"
-                                 class="flex justify-between items-center text-sm">
+                                 class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium text-red-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
                             </div>
                           </div>
                         </div>
                         <div v-else>
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">负债分类明细</h4>
-                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">负债分类明细</h4>
+                          <p class="text-xs md:text-sm text-gray-400">暂无分类数据</p>
                         </div>
 
                         <!-- 净资产分类 -->
                         <div v-if="summary.netAssetBreakdown && Object.keys(summary.netAssetBreakdown).length > 0">
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">净资产分类明细</h4>
-                          <div class="space-y-2">
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">净资产分类明细</h4>
+                          <div class="space-y-1.5 md:space-y-2">
                             <div v-for="(value, category) in summary.netAssetBreakdown" :key="category"
-                                 class="flex justify-between items-center text-sm">
+                                 class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium" :class="value >= 0 ? 'text-blue-700' : 'text-red-700'">
                                 {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}
@@ -289,8 +295,8 @@
                           </div>
                         </div>
                         <div v-else>
-                          <h4 class="text-sm font-semibold text-gray-700 mb-3">净资产分类明细</h4>
-                          <p class="text-sm text-gray-400">暂无分类数据</p>
+                          <h4 class="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">净资产分类明细</h4>
+                          <p class="text-xs md:text-sm text-gray-400">暂无分类数据</p>
                         </div>
                       </div>
                     </td>
@@ -299,59 +305,59 @@
 
                 <!-- 累计行 -->
                 <tr v-if="summaries.length > 0" class="bg-blue-50 border-t-2 border-blue-300 font-semibold">
-                  <td class="px-2 py-3 whitespace-nowrap">
-                    <div class="text-xs font-bold text-blue-900">累计</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap">
+                    <div class="text-[10px] md:text-xs font-bold text-blue-900">累计</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs">
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNetWorthChange)" class="font-bold">
                         {{ formatChange(cumulativeNetWorthChange) }}
                       </div>
-                      <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-xs">
+                      <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageAnnualGrowthRate) }})
                       </div>
                     </div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs">
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeRealEstateChange)" class="font-bold">
                         {{ formatChange(cumulativeRealEstateChange) }}
                       </div>
-                      <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-xs">
+                      <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageRealEstateGrowthRate) }})
                       </div>
                     </div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs">
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNonRealEstateChange)" class="font-bold">
                         {{ formatChange(cumulativeNonRealEstateChange) }}
                       </div>
-                      <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-xs">
+                      <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageNonRealEstateGrowthRate) }})
                       </div>
                     </div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-right">
-                    <div class="text-xs text-gray-600">-</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
+                    <div class="text-[10px] md:text-xs text-gray-600">-</div>
                   </td>
-                  <td class="px-2 py-3 whitespace-nowrap text-center">
-                    <div class="text-xs text-gray-600">{{ yearRange }}</div>
+                  <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-center">
+                    <div class="text-[10px] md:text-xs text-gray-600">{{ yearRange }}</div>
                   </td>
                 </tr>
               </tbody>
@@ -692,17 +698,34 @@ const renderCharts = () => {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            position: 'top',
+            position: window.innerWidth < 768 ? 'bottom' : 'top',
+            labels: {
+              font: {
+                size: window.innerWidth < 768 ? 10 : 12,
+                weight: 'bold'
+              },
+              padding: window.innerWidth < 768 ? 6 : 10,
+              boxWidth: window.innerWidth < 768 ? 20 : 40
+            }
           },
           tooltip: {
             callbacks: {
               label: function(context) {
                 return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+                  minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+                  maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
                 })
               }
-            }
+            },
+            titleFont: {
+              size: window.innerWidth < 768 ? 11 : 12,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: window.innerWidth < 768 ? 10 : 12,
+              weight: 'bold'
+            },
+            padding: window.innerWidth < 768 ? 6 : 10
           }
         },
         scales: {
@@ -712,12 +735,27 @@ const renderCharts = () => {
               callback: function(value) {
                 const converted = value
                 if (converted >= 1000000) {
-                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                  return currencySymbol + (converted / 1000000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'M'
                 } else if (converted >= 1000) {
-                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                  return currencySymbol + (converted / 1000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'K'
                 }
                 return currencySymbol + converted.toFixed(0)
-              }
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
+            }
+          },
+          x: {
+            ticks: {
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxRotation: window.innerWidth < 768 ? 45 : 0,
+              minRotation: window.innerWidth < 768 ? 45 : 0
             }
           }
         }
@@ -762,21 +800,38 @@ const renderCharts = () => {
         },
         plugins: {
           legend: {
-            position: 'top',
+            position: window.innerWidth < 768 ? 'bottom' : 'top',
+            labels: {
+              font: {
+                size: window.innerWidth < 768 ? 10 : 12,
+                weight: 'bold'
+              },
+              padding: window.innerWidth < 768 ? 6 : 10,
+              boxWidth: window.innerWidth < 768 ? 20 : 40
+            }
           },
           tooltip: {
             callbacks: {
               label: function(context) {
                 if (context.dataset.label === '净资产') {
                   return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+                    maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
                   })
                 } else {
-                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(window.innerWidth < 768 ? 1 : 2) + '%'
                 }
               }
-            }
+            },
+            titleFont: {
+              size: window.innerWidth < 768 ? 11 : 12,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: window.innerWidth < 768 ? 10 : 12,
+              weight: 'bold'
+            },
+            padding: window.innerWidth < 768 ? 6 : 10
           }
         },
         scales: {
@@ -789,12 +844,17 @@ const renderCharts = () => {
               callback: function(value) {
                 const converted = value
                 if (converted >= 1000000) {
-                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                  return currencySymbol + (converted / 1000000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'M'
                 } else if (converted >= 1000) {
-                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                  return currencySymbol + (converted / 1000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'K'
                 }
                 return currencySymbol + converted.toFixed(0)
-              }
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
             }
           },
           y1: {
@@ -806,8 +866,23 @@ const renderCharts = () => {
             },
             ticks: {
               callback: function(value) {
-                return value.toFixed(1) + '%'
-              }
+                return value.toFixed(window.innerWidth < 768 ? 0 : 1) + '%'
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
+            }
+          },
+          x: {
+            ticks: {
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxRotation: window.innerWidth < 768 ? 45 : 0,
+              minRotation: window.innerWidth < 768 ? 45 : 0
             }
           }
         }
@@ -852,21 +927,38 @@ const renderCharts = () => {
         },
         plugins: {
           legend: {
-            position: 'top',
+            position: window.innerWidth < 768 ? 'bottom' : 'top',
+            labels: {
+              font: {
+                size: window.innerWidth < 768 ? 10 : 12,
+                weight: 'bold'
+              },
+              padding: window.innerWidth < 768 ? 6 : 10,
+              boxWidth: window.innerWidth < 768 ? 20 : 40
+            }
           },
           tooltip: {
             callbacks: {
               label: function(context) {
                 if (context.dataset.label === '总资产') {
                   return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+                    maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
                   })
                 } else {
-                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(window.innerWidth < 768 ? 1 : 2) + '%'
                 }
               }
-            }
+            },
+            titleFont: {
+              size: window.innerWidth < 768 ? 11 : 12,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: window.innerWidth < 768 ? 10 : 12,
+              weight: 'bold'
+            },
+            padding: window.innerWidth < 768 ? 6 : 10
           }
         },
         scales: {
@@ -879,12 +971,17 @@ const renderCharts = () => {
               callback: function(value) {
                 const converted = value
                 if (converted >= 1000000) {
-                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                  return currencySymbol + (converted / 1000000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'M'
                 } else if (converted >= 1000) {
-                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                  return currencySymbol + (converted / 1000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'K'
                 }
                 return currencySymbol + converted.toFixed(0)
-              }
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
             }
           },
           y1: {
@@ -896,8 +993,23 @@ const renderCharts = () => {
             },
             ticks: {
               callback: function(value) {
-                return value.toFixed(1) + '%'
-              }
+                return value.toFixed(window.innerWidth < 768 ? 0 : 1) + '%'
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
+            }
+          },
+          x: {
+            ticks: {
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxRotation: window.innerWidth < 768 ? 45 : 0,
+              minRotation: window.innerWidth < 768 ? 45 : 0
             }
           }
         }
@@ -942,21 +1054,38 @@ const renderCharts = () => {
         },
         plugins: {
           legend: {
-            position: 'top',
+            position: window.innerWidth < 768 ? 'bottom' : 'top',
+            labels: {
+              font: {
+                size: window.innerWidth < 768 ? 10 : 12,
+                weight: 'bold'
+              },
+              padding: window.innerWidth < 768 ? 6 : 10,
+              boxWidth: window.innerWidth < 768 ? 20 : 40
+            }
           },
           tooltip: {
             callbacks: {
               label: function(context) {
                 if (context.dataset.label === '总负债') {
                   return context.dataset.label + ': ' + currencySymbol + Number(context.parsed.y).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+                    maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
                   })
                 } else {
-                  return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%'
+                  return context.dataset.label + ': ' + context.parsed.y.toFixed(window.innerWidth < 768 ? 1 : 2) + '%'
                 }
               }
-            }
+            },
+            titleFont: {
+              size: window.innerWidth < 768 ? 11 : 12,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: window.innerWidth < 768 ? 10 : 12,
+              weight: 'bold'
+            },
+            padding: window.innerWidth < 768 ? 6 : 10
           }
         },
         scales: {
@@ -969,12 +1098,17 @@ const renderCharts = () => {
               callback: function(value) {
                 const converted = value
                 if (converted >= 1000000) {
-                  return currencySymbol + (converted / 1000000).toFixed(1) + 'M'
+                  return currencySymbol + (converted / 1000000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'M'
                 } else if (converted >= 1000) {
-                  return currencySymbol + (converted / 1000).toFixed(1) + 'K'
+                  return currencySymbol + (converted / 1000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'K'
                 }
                 return currencySymbol + converted.toFixed(0)
-              }
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
             }
           },
           y1: {
@@ -986,8 +1120,23 @@ const renderCharts = () => {
             },
             ticks: {
               callback: function(value) {
-                return value.toFixed(1) + '%'
-              }
+                return value.toFixed(window.innerWidth < 768 ? 0 : 1) + '%'
+              },
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxTicksLimit: window.innerWidth < 768 ? 5 : 8
+            }
+          },
+          x: {
+            ticks: {
+              font: {
+                size: window.innerWidth < 768 ? 9 : 11,
+                weight: 'bold'
+              },
+              maxRotation: window.innerWidth < 768 ? 45 : 0,
+              minRotation: window.innerWidth < 768 ? 45 : 0
             }
           }
         }
@@ -1122,17 +1271,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-/* 表格样式 */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-table th {
-  position: sticky;
-  top: 0;
-  background-color: #f9fafb;
-  z-index: 10;
-}
-</style>

@@ -1,159 +1,225 @@
 <template>
-  <div class="p-6 space-y-6">
-    <!-- 页面标题 -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">用户管理</h1>
-        <p class="text-sm text-gray-600 mt-1">管理系统用户账号</p>
+  <div class="min-h-screen bg-gray-50 sm:bg-transparent">
+    <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <!-- 页面标题 -->
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-white sm:bg-transparent p-4 sm:p-0 rounded-lg sm:rounded-none shadow-sm sm:shadow-none">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-gray-900">用户管理</h1>
+          <p class="text-sm text-gray-600 mt-1">管理系统用户账号</p>
+        </div>
+        <button
+          @click="openCreateDialog"
+          class="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 text-sm font-medium flex items-center justify-center gap-2 touch-manipulation"
+        >
+          <UserPlus class="w-4 h-4" />
+          添加用户
+        </button>
       </div>
-      <button
-        @click="openCreateDialog"
-        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium flex items-center gap-2"
+
+      <!-- 用户列表 -->
+      <div v-if="loading" class="flex justify-center py-12 bg-white sm:bg-transparent rounded-lg sm:rounded-none">
+        <div class="text-gray-500">加载中...</div>
+      </div>
+
+      <!-- 移动端卡片视图 -->
+      <div v-if="!loading" class="block sm:hidden space-y-3">
+        <div
+          v-for="user in users"
+          :key="user.id"
+          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+        >
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+              <h3 class="font-medium text-gray-900">{{ user.username }}</h3>
+              <p class="text-sm text-gray-600 mt-0.5">{{ user.fullName || '-' }}</p>
+            </div>
+            <span
+              :class="[
+                'px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2',
+                user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+              ]"
+            >
+              {{ user.isActive ? '活跃' : '停用' }}
+            </span>
+          </div>
+
+          <div class="space-y-1.5 text-sm mb-3">
+            <div class="flex items-center text-gray-600">
+              <span class="w-16 text-gray-500">邮箱:</span>
+              <span class="truncate">{{ user.email }}</span>
+            </div>
+            <div class="flex items-center text-gray-600">
+              <span class="w-16 text-gray-500">创建:</span>
+              <span>{{ formatDate(user.createdAt) }}</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-3 border-t border-gray-100">
+            <button
+              @click="editUser(user)"
+              class="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center gap-1.5 touch-manipulation"
+            >
+              <Pencil class="w-4 h-4" />
+              编辑
+            </button>
+            <button
+              @click="toggleUserStatus(user)"
+              class="flex-1 px-3 py-2 bg-yellow-50 hover:bg-yellow-100 active:bg-yellow-200 rounded-lg text-sm font-medium text-yellow-700 flex items-center justify-center gap-1.5 touch-manipulation"
+            >
+              <component :is="user.isActive ? ShieldOff : ShieldCheck" class="w-4 h-4" />
+              {{ user.isActive ? '停用' : '启用' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 桌面端表格视图 -->
+      <div v-if="!loading" class="hidden sm:block bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户名</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ user.username }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ user.fullName || '-' }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ user.email }}</td>
+                <td class="px-6 py-4 text-sm">
+                  <span
+                    :class="[
+                      'px-2 py-1 rounded-full text-xs font-medium',
+                      user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    ]"
+                  >
+                    {{ user.isActive ? '活跃' : '停用' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ formatDate(user.createdAt) }}</td>
+                <td class="px-6 py-4 text-center">
+                  <div class="flex justify-center gap-2">
+                    <button
+                      @click="editUser(user)"
+                      class="p-1.5 hover:bg-gray-100 rounded"
+                      title="编辑"
+                    >
+                      <Pencil class="w-4 h-4 text-gray-600" />
+                    </button>
+                    <button
+                      @click="toggleUserStatus(user)"
+                      class="p-1.5 hover:bg-yellow-50 rounded"
+                      :title="user.isActive ? '停用' : '启用'"
+                    >
+                      <component :is="user.isActive ? ShieldOff : ShieldCheck" class="w-4 h-4 text-yellow-600" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 创建/编辑用户对话框 -->
+      <div
+        v-if="showCreateDialog || showEditDialog"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+        @click.self="closeDialog"
       >
-        <UserPlus class="w-4 h-4" />
-        添加用户
-      </button>
-    </div>
-
-    <!-- 用户列表 -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <div class="text-gray-500">加载中...</div>
-    </div>
-
-    <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户名</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
-              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50">
-              <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ user.username }}</td>
-              <td class="px-6 py-4 text-sm text-gray-600">{{ user.fullName || '-' }}</td>
-              <td class="px-6 py-4 text-sm text-gray-600">{{ user.email }}</td>
-              <td class="px-6 py-4 text-sm">
-                <span
-                  :class="[
-                    'px-2 py-1 rounded-full text-xs font-medium',
-                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  ]"
-                >
-                  {{ user.isActive ? '活跃' : '停用' }}
-                </span>
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-600">{{ formatDate(user.createdAt) }}</td>
-              <td class="px-6 py-4 text-center">
-                <div class="flex justify-center gap-2">
-                  <button
-                    @click="editUser(user)"
-                    class="p-1.5 hover:bg-gray-100 rounded"
-                    title="编辑"
-                  >
-                    <Pencil class="w-4 h-4 text-gray-600" />
-                  </button>
-                  <button
-                    @click="toggleUserStatus(user)"
-                    class="p-1.5 hover:bg-yellow-50 rounded"
-                    :title="user.isActive ? '停用' : '启用'"
-                  >
-                    <component :is="user.isActive ? ShieldOff : ShieldCheck" class="w-4 h-4 text-yellow-600" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 创建/编辑用户对话框 -->
-    <div
-      v-if="showCreateDialog || showEditDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click.self="closeDialog"
-    >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
-          {{ showEditDialog ? '编辑用户' : '添加用户' }}
-        </h2>
-        <form @submit.prevent="submitForm" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">用户名 *</label>
-            <input
-              v-model="formData.username"
-              type="text"
-              required
-              :disabled="showEditDialog"
-              placeholder="请输入用户名"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-            <input
-              v-model="formData.fullName"
-              type="text"
-              placeholder="请输入姓名"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 *</label>
-            <input
-              v-model="formData.email"
-              type="email"
-              required
-              placeholder="请输入邮箱"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div v-if="!showEditDialog">
-            <label class="block text-sm font-medium text-gray-700 mb-1">密码 *</label>
-            <input
-              v-model="formData.passwordHash"
-              type="password"
-              required
-              placeholder="请输入密码"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div v-else>
-            <label class="block text-sm font-medium text-gray-700 mb-1">新密码（留空则不修改）</label>
-            <input
-              v-model="formData.passwordHash"
-              type="password"
-              placeholder="请输入新密码"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div class="flex gap-3 pt-4">
+        <div class="bg-white rounded-t-2xl sm:rounded-lg w-full sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up">
+          <div class="sticky top-0 bg-white px-4 sm:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg sm:text-xl font-bold">
+              {{ showEditDialog ? '编辑用户' : '添加用户' }}
+            </h2>
             <button
-              type="submit"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium"
-            >
-              {{ showEditDialog ? '保存' : '创建' }}
-            </button>
-            <button
-              type="button"
               @click="closeDialog"
-              class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              class="p-2 hover:bg-gray-100 active:bg-gray-200 rounded-full touch-manipulation"
             >
-              取消
+              <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
             </button>
           </div>
-        </form>
+
+          <form @submit.prevent="submitForm" class="px-4 sm:px-6 py-4 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">用户名 *</label>
+              <input
+                v-model="formData.username"
+                type="text"
+                required
+                :disabled="showEditDialog"
+                placeholder="请输入用户名"
+                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 text-base sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+              <input
+                v-model="formData.fullName"
+                type="text"
+                placeholder="请输入姓名"
+                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 *</label>
+              <input
+                v-model="formData.email"
+                type="email"
+                required
+                placeholder="请输入邮箱"
+                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
+              />
+            </div>
+
+            <div v-if="!showEditDialog">
+              <label class="block text-sm font-medium text-gray-700 mb-1">密码 *</label>
+              <input
+                v-model="formData.passwordHash"
+                type="password"
+                required
+                placeholder="请输入密码"
+                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
+              />
+            </div>
+
+            <div v-else>
+              <label class="block text-sm font-medium text-gray-700 mb-1">新密码（留空则不修改）</label>
+              <input
+                v-model="formData.passwordHash"
+                type="password"
+                placeholder="请输入新密码"
+                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
+              />
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                @click="closeDialog"
+                class="w-full px-4 py-2.5 sm:py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 active:bg-gray-400 font-medium touch-manipulation"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                class="w-full px-4 py-2.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 font-medium touch-manipulation"
+              >
+                {{ showEditDialog ? '保存' : '创建' }}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -283,3 +349,29 @@ onMounted(() => {
   loadUsers()
 })
 </script>
+
+<style scoped>
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 640px) {
+  input, textarea, select, button {
+    font-size: 16px; /* 防止iOS自动缩放 */
+  }
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}
+</style>

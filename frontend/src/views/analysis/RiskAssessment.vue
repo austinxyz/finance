@@ -1,27 +1,27 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 md:space-y-6">
     <!-- 页头和日期选择 -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">风险评估</h2>
+    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+        <h2 class="text-md md:text-lg font-semibold text-gray-900">风险评估</h2>
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">查询日期：</label>
+          <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
           <input
             v-model="selectedDate"
             type="date"
             @change="loadRiskAssessment"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
           <button
             v-if="selectedDate"
             @click="clearDate"
-            class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+            class="px-2 md:px-3 py-1.5 md:py-2 text-sm text-gray-600 hover:text-gray-800"
           >
             清除
           </button>
         </div>
       </div>
-      <div class="text-sm text-gray-600">
+      <div class="text-xs md:text-sm text-gray-600">
         <span v-if="!selectedDate && assessment.asOfDate" class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -47,11 +47,11 @@
     </div>
 
     <!-- 风险评估内容 -->
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-4 md:space-y-6">
       <!-- 综合风险评分卡片 -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">综合风险评估</h3>
-        <div class="flex items-center gap-6">
+      <div class="bg-white rounded-lg shadow p-3 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">综合风险评估</h3>
+        <div class="flex items-center gap-4 md:gap-6">
           <!-- 风险评分圆形进度 -->
           <div class="relative w-32 h-32 flex-shrink-0">
             <svg class="w-32 h-32 transform -rotate-90">
@@ -89,15 +89,15 @@
             <div class="flex items-center gap-3 mb-3">
               <span class="text-2xl">{{ getRiskLevelIcon(assessment.overallRiskLevel) }}</span>
               <div>
-                <div class="text-xl font-bold" :class="getRiskLevelTextColor(assessment.overallRiskLevel)">
+                <div class="text-lg md:text-xl font-bold" :class="getRiskLevelTextColor(assessment.overallRiskLevel)">
                   {{ getRiskLevelName(assessment.overallRiskLevel) }}
                 </div>
-                <div class="text-sm text-gray-600">{{ getRiskLevelDescription(assessment.overallRiskLevel) }}</div>
+                <div class="text-xs md:text-sm text-gray-600">{{ getRiskLevelDescription(assessment.overallRiskLevel) }}</div>
               </div>
             </div>
 
             <!-- 各维度风险概览 -->
-            <div class="grid grid-cols-2 gap-3 mt-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               <div class="flex items-center gap-2 text-sm">
                 <span :class="getRiskLevelBadgeClass(assessment.concentrationRisk?.level)">
                   集中度风险
@@ -128,9 +128,9 @@
       </div>
 
       <!-- 资产集中度风险 -->
-      <div v-if="assessment.concentrationRisk" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">资产集中度风险</h3>
+      <div v-if="assessment.concentrationRisk" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">资产集中度风险</h3>
           <span :class="getRiskLevelBadgeClass(assessment.concentrationRisk.level)">
             {{ getRiskLevelName(assessment.concentrationRisk.level) }}
           </span>
@@ -139,26 +139,26 @@
         <div class="space-y-4">
           <!-- 风险描述 -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700">{{ assessment.concentrationRisk.description }}</p>
+            <p class="text-xs md:text-sm text-gray-700">{{ assessment.concentrationRisk.description }}</p>
           </div>
 
           <!-- 关键指标 -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">最高集中类别</div>
-              <div class="text-lg font-semibold text-gray-900">
+              <div class="text-md md:text-lg font-semibold text-gray-900">
                 {{ assessment.concentrationRisk.topConcentratedCategory }}
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">集中度占比</div>
-              <div class="text-lg font-semibold" :class="getConcentrationColor(assessment.concentrationRisk.topConcentrationPercentage)">
+              <div class="text-md md:text-lg font-semibold" :class="getConcentrationColor(assessment.concentrationRisk.topConcentrationPercentage)">
                 {{ formatNumber(assessment.concentrationRisk.topConcentrationPercentage) }}%
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">赫芬达尔指数</div>
-              <div class="text-lg font-semibold" :class="getHerfindahlColor(assessment.concentrationRisk.herfindahlIndex)">
+              <div class="text-md md:text-lg font-semibold" :class="getHerfindahlColor(assessment.concentrationRisk.herfindahlIndex)">
                 {{ formatNumber(assessment.concentrationRisk.herfindahlIndex, 3) }}
               </div>
             </div>
@@ -166,7 +166,7 @@
 
           <!-- 建议 -->
           <div v-if="assessment.concentrationRisk.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">改善建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">改善建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in assessment.concentrationRisk.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -179,9 +179,9 @@
       </div>
 
       <!-- 负债压力评估 -->
-      <div v-if="assessment.debtPressure" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">负债压力评估</h3>
+      <div v-if="assessment.debtPressure" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">负债压力评估</h3>
           <span :class="getRiskLevelBadgeClass(assessment.debtPressure.level)">
             {{ getRiskLevelName(assessment.debtPressure.level) }}
           </span>
@@ -190,26 +190,26 @@
         <div class="space-y-4">
           <!-- 风险描述 -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700">{{ assessment.debtPressure.description }}</p>
+            <p class="text-xs md:text-sm text-gray-700">{{ assessment.debtPressure.description }}</p>
           </div>
 
           <!-- 关键指标 -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">资产负债率</div>
-              <div class="text-lg font-semibold" :class="getDebtRatioColor(assessment.debtPressure.debtToAssetRatio)">
+              <div class="text-md md:text-lg font-semibold" :class="getDebtRatioColor(assessment.debtPressure.debtToAssetRatio)">
                 {{ formatNumber(assessment.debtPressure.debtToAssetRatio) }}%
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">总资产</div>
-              <div class="text-lg font-semibold text-green-600">
+              <div class="text-md md:text-lg font-semibold text-green-600">
                 ${{ formatNumber(assessment.debtPressure.totalAssets) }}
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">总负债</div>
-              <div class="text-lg font-semibold text-red-600">
+              <div class="text-md md:text-lg font-semibold text-red-600">
                 ${{ formatNumber(assessment.debtPressure.totalLiabilities) }}
               </div>
             </div>
@@ -217,7 +217,7 @@
 
           <!-- 建议 -->
           <div v-if="assessment.debtPressure.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">改善建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">改善建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in assessment.debtPressure.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -230,9 +230,9 @@
       </div>
 
       <!-- 流动性风险 -->
-      <div v-if="assessment.liquidityRisk" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">流动性风险</h3>
+      <div v-if="assessment.liquidityRisk" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">流动性风险</h3>
           <span :class="getRiskLevelBadgeClass(assessment.liquidityRisk.level)">
             {{ getRiskLevelName(assessment.liquidityRisk.level) }}
           </span>
@@ -241,26 +241,26 @@
         <div class="space-y-4">
           <!-- 风险描述 -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700">{{ assessment.liquidityRisk.description }}</p>
+            <p class="text-xs md:text-sm text-gray-700">{{ assessment.liquidityRisk.description }}</p>
           </div>
 
           <!-- 关键指标 -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">流动性比率</div>
-              <div class="text-lg font-semibold" :class="getLiquidityRatioColor(assessment.liquidityRisk.liquidityRatio)">
+              <div class="text-md md:text-lg font-semibold" :class="getLiquidityRatioColor(assessment.liquidityRisk.liquidityRatio)">
                 {{ formatNumber(assessment.liquidityRisk.liquidityRatio) }}%
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">现金储备</div>
-              <div class="text-lg font-semibold text-blue-600">
+              <div class="text-md md:text-lg font-semibold text-blue-600">
                 ${{ formatNumber(assessment.liquidityRisk.cashAmount) }}
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">建议储备金</div>
-              <div class="text-lg font-semibold text-gray-600">
+              <div class="text-md md:text-lg font-semibold text-gray-600">
                 ${{ formatNumber(assessment.liquidityRisk.recommendedEmergencyFund) }}
               </div>
             </div>
@@ -268,7 +268,7 @@
 
           <!-- 建议 -->
           <div v-if="assessment.liquidityRisk.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">改善建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">改善建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in assessment.liquidityRisk.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -281,9 +281,9 @@
       </div>
 
       <!-- 市场风险 -->
-      <div v-if="assessment.marketRisk" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">市场风险</h3>
+      <div v-if="assessment.marketRisk" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">市场风险</h3>
           <span :class="getRiskLevelBadgeClass(assessment.marketRisk.level)">
             {{ getRiskLevelName(assessment.marketRisk.level) }}
           </span>
@@ -292,26 +292,26 @@
         <div class="space-y-4">
           <!-- 风险描述 -->
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700">{{ assessment.marketRisk.description }}</p>
+            <p class="text-xs md:text-sm text-gray-700">{{ assessment.marketRisk.description }}</p>
           </div>
 
           <!-- 关键指标 -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">高风险资产占比</div>
-              <div class="text-lg font-semibold" :class="getMarketRiskColor(assessment.marketRisk.highRiskAssetsPercentage)">
+              <div class="text-md md:text-lg font-semibold" :class="getMarketRiskColor(assessment.marketRisk.highRiskAssetsPercentage)">
                 {{ formatNumber(assessment.marketRisk.highRiskAssetsPercentage) }}%
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">股票投资占比</div>
-              <div class="text-lg font-semibold text-purple-600">
+              <div class="text-md md:text-lg font-semibold text-purple-600">
                 {{ formatNumber(assessment.marketRisk.stockAllocationPercentage) }}%
               </div>
             </div>
             <div class="border border-gray-200 rounded-lg p-4">
               <div class="text-xs text-gray-500 mb-1">数字货币占比</div>
-              <div class="text-lg font-semibold text-orange-600">
+              <div class="text-md md:text-lg font-semibold text-orange-600">
                 {{ formatNumber(assessment.marketRisk.cryptoAllocationPercentage) }}%
               </div>
             </div>
@@ -319,7 +319,7 @@
 
           <!-- 建议 -->
           <div v-if="assessment.marketRisk.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">改善建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">改善建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in assessment.marketRisk.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -332,14 +332,14 @@
       </div>
 
       <!-- 综合建议 -->
-      <div v-if="assessment.recommendations?.length" class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">综合建议</h3>
+      <div v-if="assessment.recommendations?.length" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">综合建议</h3>
         <div class="space-y-3">
           <div v-for="(recommendation, index) in assessment.recommendations" :key="index"
                class="flex items-start gap-3 p-4 rounded-lg"
                :class="getRecommendationBgClass(recommendation)">
             <span class="text-xl flex-shrink-0">{{ getRecommendationIcon(recommendation) }}</span>
-            <p class="text-sm text-gray-700 flex-1">{{ recommendation }}</p>
+            <p class="text-xs md:text-sm text-gray-700 flex-1">{{ recommendation }}</p>
           </div>
         </div>
       </div>

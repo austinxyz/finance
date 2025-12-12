@@ -1,16 +1,16 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-4 md:space-y-6">
     <!-- 页面标题和控制 -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">年度支出分析</h1>
-        <p class="text-sm text-gray-600 mt-1">分析年度支出结构和趋势</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900">年度支出分析</h1>
+        <p class="text-xs md:text-sm text-gray-600 mt-1">分析年度支出结构和趋势</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
         <!-- 家庭选择 -->
         <select
           v-model="selectedFamilyId"
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          class="px-3 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
         >
           <option v-for="family in families" :key="family.id" :value="family.id">
             {{ family.familyName }}
@@ -20,7 +20,7 @@
         <!-- 年份选择 -->
         <select
           v-model="selectedYear"
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          class="px-3 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
         >
           <option v-for="year in availableYears" :key="year" :value="year">
             {{ year }}年
@@ -30,7 +30,7 @@
         <!-- 货币选择 -->
         <select
           v-model="selectedCurrency"
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          class="px-3 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
         >
           <option v-for="currency in currencies" :key="currency" :value="currency">
             {{ currency }}
@@ -45,13 +45,13 @@
     </div>
 
     <!-- 主内容 -->
-    <div v-else class="grid grid-cols-12 gap-6 auto-rows-min">
+    <div v-else class="grid grid-cols-12 gap-4 md:gap-6 auto-rows-min">
       <!-- 左侧：大类饼图和表格（跨两行） -->
-      <div class="col-span-12 lg:col-span-6 lg:row-span-2 bg-white rounded-lg shadow border border-gray-200 p-6 flex flex-col" style="min-height: 800px;">
-        <h3 class="text-lg font-semibold mb-4">大类分布</h3>
+      <div class="col-span-12 lg:col-span-6 lg:row-span-2 bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6 flex flex-col min-h-[500px] lg:min-h-[800px]">
+        <h3 class="text-md md:text-lg font-semibold mb-3 md:mb-4">大类分布</h3>
 
         <!-- 大类饼图 -->
-        <div class="mb-6 flex-shrink-0" style="height: 400px;">
+        <div class="mb-4 md:mb-6 flex-shrink-0 h-64 md:h-96 lg:h-[400px]">
           <canvas ref="majorCategoryChartCanvas"></canvas>
         </div>
 
@@ -60,9 +60,9 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">占比</th>
+                <th class="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase">分类</th>
+                <th class="px-3 md:px-4 py-2 md:py-3 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">金额</th>
+                <th class="px-3 md:px-4 py-2 md:py-3 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">占比</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -72,14 +72,14 @@
                 @click="selectMajorCategory(item)"
                 class="cursor-pointer hover:bg-gray-50 transition-colors"
               >
-                <td class="px-4 py-3 whitespace-nowrap">
+                <td class="px-3 md:px-4 py-2 md:py-3 whitespace-nowrap">
                   <span class="text-xl mr-2">{{ item.majorCategoryIcon }}</span>
                   {{ item.majorCategoryName }}
                 </td>
-                <td class="px-4 py-3 text-right font-medium">
+                <td class="px-3 md:px-4 py-2 md:py-3 text-right font-medium">
                   {{ formatCurrency(item.totalAmount) }}
                 </td>
-                <td class="px-4 py-3 text-right text-gray-600">
+                <td class="px-3 md:px-4 py-2 md:py-3 text-right text-gray-600">
                   {{ ((item.totalAmount / totalExpense) * 100).toFixed(1) }}%
                 </td>
               </tr>
@@ -89,13 +89,13 @@
       </div>
 
       <!-- 右侧上：小类饼图和表格（点击大类后显示） -->
-      <div v-if="selectedMajorCategoryId" class="col-span-12 lg:col-span-6 bg-white rounded-lg shadow border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold mb-3">{{ selectedMajorCategoryName }} - 小类分布</h3>
+      <div v-if="selectedMajorCategoryId" class="col-span-12 lg:col-span-6 bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold mb-3">{{ selectedMajorCategoryName }} - 小类分布</h3>
 
         <!-- 饼图和表格横向排列 -->
-        <div class="flex gap-4">
+        <div class="flex flex-col lg:flex-row gap-3 md:gap-4">
           <!-- 左侧：小类饼图 -->
-          <div class="flex-shrink-0" style="width: 280px; height: 280px;">
+          <div class="flex-shrink-0 w-full lg:w-[280px] h-64 lg:h-[280px]">
             <canvas ref="minorCategoryChartCanvas"></canvas>
           </div>
 
@@ -104,8 +104,8 @@
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50 sticky top-0">
                 <tr>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">子分类</th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
+                  <th class="px-2 md:px-3 py-1.5 md:py-2 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase">子分类</th>
+                  <th class="px-2 md:px-3 py-1.5 md:py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 uppercase">金额</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -115,7 +115,7 @@
                   @click="selectMinorCategory(item)"
                   class="cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <td class="px-3 py-2">
+                  <td class="px-2 md:px-3 py-1.5 md:py-2">
                     <div class="whitespace-nowrap font-medium">{{ item.minorCategoryName }}</div>
                     <div class="text-xs text-gray-500 mt-1">
                       <span
@@ -130,7 +130,7 @@
                       <span class="ml-2">{{ ((item.totalAmount / minorCategoryTotal) * 100).toFixed(1) }}%</span>
                     </div>
                   </td>
-                  <td class="px-3 py-2 text-right font-medium whitespace-nowrap">
+                  <td class="px-2 md:px-3 py-1.5 md:py-2 text-right font-medium whitespace-nowrap">
                     {{ formatCurrency(item.totalAmount) }}
                   </td>
                 </tr>
@@ -141,9 +141,9 @@
       </div>
 
       <!-- 右侧下：月度趋势柱状图（点击小类后显示） -->
-      <div v-if="selectedMinorCategoryId" class="col-span-12 lg:col-span-6 bg-white rounded-lg shadow border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold mb-3">{{ selectedMinorCategoryName }} - 月度趋势</h3>
-        <div style="height: 300px;">
+      <div v-if="selectedMinorCategoryId" class="col-span-12 lg:col-span-6 bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold mb-3">{{ selectedMinorCategoryName }} - 月度趋势</h3>
+        <div class="h-64 md:h-72 lg:h-[300px]">
           <canvas ref="monthlyTrendChartCanvas"></canvas>
         </div>
       </div>

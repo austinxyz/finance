@@ -1,14 +1,14 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-6">
     <!-- 页面标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">支出分类与记录</h1>
-      <p class="text-sm text-gray-600 mt-1">管理支出分类，按大类查看历史记录和趋势分析</p>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-900">支出分类与记录</h1>
+      <p class="text-xs md:text-sm text-gray-600 mt-1">管理支出分类，按大类查看历史记录和趋势分析</p>
     </div>
 
     <!-- 大类 Tab -->
     <div class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+      <nav class="-mb-px flex space-x-2 md:space-x-4 overflow-x-auto" aria-label="Tabs">
         <button
           v-for="category in majorCategories"
           :key="category.id"
@@ -260,14 +260,14 @@
     </div>
 
     <!-- 子分类对话框 -->
-    <div v-if="showCategoryDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div class="px-6 py-4 border-b border-gray-200">
+    <div v-if="showCategoryDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 md:p-4">
+      <div class="bg-white md:rounded-lg shadow-xl w-full max-w-md h-full md:h-auto md:mx-4 flex flex-col md:max-h-[90vh]">
+        <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <h3 class="text-lg font-semibold text-gray-900">
             {{ editingCategory ? '编辑子分类' : '添加子分类' }}
           </h3>
         </div>
-        <div class="px-6 py-4 space-y-4">
+        <div class="px-4 md:px-6 py-4 space-y-4 overflow-y-auto flex-1">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">名称 *</label>
             <input
@@ -288,40 +288,44 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">支出类型 *</label>
-            <div class="flex gap-4">
-              <label class="flex items-center gap-2 cursor-pointer">
+            <div class="flex flex-col md:flex-row gap-3 md:gap-4">
+              <label class="flex items-start md:items-center gap-2 cursor-pointer p-3 md:p-0 border md:border-0 border-gray-200 rounded-lg md:rounded-none">
                 <input
                   v-model="categoryForm.expenseType"
                   type="radio"
                   value="FIXED_DAILY"
-                  class="w-4 h-4 text-primary focus:ring-2 focus:ring-primary"
+                  class="w-4 h-4 mt-0.5 md:mt-0 text-primary focus:ring-2 focus:ring-primary flex-shrink-0"
                 />
-                <span class="text-sm text-gray-700">固定日常</span>
-                <span class="text-xs text-gray-500">（如：房租、水电、伙食）</span>
+                <div class="flex-1">
+                  <span class="text-sm text-gray-700 font-medium">固定日常</span>
+                  <span class="block md:inline text-xs text-gray-500 mt-0.5 md:mt-0 md:ml-1">（如：房租、水电、伙食）</span>
+                </div>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer">
+              <label class="flex items-start md:items-center gap-2 cursor-pointer p-3 md:p-0 border md:border-0 border-gray-200 rounded-lg md:rounded-none">
                 <input
                   v-model="categoryForm.expenseType"
                   type="radio"
                   value="LARGE_IRREGULAR"
-                  class="w-4 h-4 text-primary focus:ring-2 focus:ring-primary"
+                  class="w-4 h-4 mt-0.5 md:mt-0 text-primary focus:ring-2 focus:ring-primary flex-shrink-0"
                 />
-                <span class="text-sm text-gray-700">大额不定期</span>
-                <span class="text-xs text-gray-500">（如：旅游、装修、家电）</span>
+                <div class="flex-1">
+                  <span class="text-sm text-gray-700 font-medium">大额不定期</span>
+                  <span class="block md:inline text-xs text-gray-500 mt-0.5 md:mt-0 md:ml-1">（如：旅游、装修、家电）</span>
+                </div>
               </label>
             </div>
           </div>
         </div>
-        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <div class="px-4 md:px-6 py-4 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
           <button
             @click="closeCategoryDialog"
-            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 min-h-[44px]"
           >
             取消
           </button>
           <button
             @click="saveCategory"
-            class="px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary-dark"
+            class="px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary-dark min-h-[44px]"
           >
             保存
           </button>

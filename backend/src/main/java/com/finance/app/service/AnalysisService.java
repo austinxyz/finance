@@ -77,7 +77,7 @@ public class AnalysisService {
         BigDecimal totalAssets = BigDecimal.ZERO;
         Map<String, BigDecimal> assetsByCategory = new HashMap<>();
         Map<String, BigDecimal> assetsByType = new HashMap<>();
-        LocalDate earliestDate = null;  // 追踪实际使用的最早数据日期
+        LocalDate actualDate = null;  // 追踪实际使用的数据日期（最新记录的日期）
 
         for (AssetAccount account : accounts) {
             // 如果不包含自住房，跳过标记为自住房的账户
@@ -97,10 +97,10 @@ public class AnalysisService {
                 );
                 totalAssets = totalAssets.add(amount);
 
-                // 追踪最早的记录日期
+                // 追踪实际使用的最新数据日期
                 LocalDate recordDate = record.get().getRecordDate();
-                if (earliestDate == null || recordDate.isBefore(earliestDate)) {
-                    earliestDate = recordDate;
+                if (actualDate == null || recordDate.isAfter(actualDate)) {
+                    actualDate = recordDate;
                 }
 
                 // 按分类汇总
@@ -136,10 +136,10 @@ public class AnalysisService {
                 );
                 totalLiabilities = totalLiabilities.add(balance);
 
-                // 追踪最早的记录日期
+                // 追踪实际使用的最新数据日期
                 LocalDate recordDate = liabilityRecord.getRecordDate();
-                if (earliestDate == null || recordDate.isBefore(earliestDate)) {
-                    earliestDate = recordDate;
+                if (actualDate == null || recordDate.isAfter(actualDate)) {
+                    actualDate = recordDate;
                 }
             }
         }
@@ -150,7 +150,7 @@ public class AnalysisService {
         summary.setNetWorth(totalAssets.subtract(totalLiabilities));
         summary.setAssetsByCategory(assetsByCategory);
         summary.setAssetsByType(assetsByType);
-        summary.setActualDate(earliestDate);  // 设置实际使用的最早数据日期
+        summary.setActualDate(actualDate);  // 设置实际使用的数据日期
 
         return summary;
     }

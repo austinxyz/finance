@@ -10,12 +10,26 @@
 
 <style scoped>
 .home {
-  padding: 20px;
+  padding: 12px;
   text-align: center;
+}
+
+@media (min-width: 768px) {
+  .home {
+    padding: 20px;
+  }
 }
 
 h1 {
   color: #409eff;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  h1 {
+    margin-bottom: 20px;
+    font-size: 2rem;
+  }
 }
 </style>

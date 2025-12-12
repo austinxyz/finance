@@ -117,7 +117,7 @@ const routes = [
       {
         path: 'analysis/annual-trend',
         name: 'AnnualTrend',
-        component: () => import('../views/AnnualTrend.vue'),
+        component: () => import('../views/analysis/AnnualTrend.vue'),
         meta: {
           title: '年度趋势',
           description: '查看家庭财务年度变化趋势'

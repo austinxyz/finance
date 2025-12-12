@@ -1,17 +1,17 @@
 <template>
-  <div class="space-y-6 p-6">
+  <div class="space-y-4 md:space-y-6 p-3 md:p-6">
     <!-- 页面标题和控制栏 -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-bold text-gray-900">趋势分析</h1>
-        <div class="flex items-center gap-4">
+    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900">趋势分析</h1>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
           <!-- 家庭选择器 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">选择家庭：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭：</label>
             <select
               v-model="selectedFamilyId"
               @change="onFamilyChange"
-              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-w-[180px]"
+              class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm min-w-0 sm:min-w-[180px]"
             >
               <option v-for="family in allFamilies" :key="family.id" :value="family.id">
                 {{ family.familyName }}
@@ -20,10 +20,10 @@
           </div>
           <!-- 显示货币 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示货币：</label>
             <select
               v-model="selectedCurrency"
-              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm"
             >
               <option value="USD">美元 (USD)</option>
               <option value="CNY">人民币 (CNY)</option>
@@ -33,53 +33,59 @@
       </div>
 
       <!-- 日期范围选择 -->
-      <div class="flex items-center gap-3">
-        <label class="text-sm font-medium text-gray-700">时间范围：</label>
-        <div class="flex gap-2">
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">时间范围：</label>
+          <div class="flex gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
+            <button
+              v-for="range in timeRanges"
+              :key="range.value"
+              @click="selectTimeRange(range.value)"
+              :class="[
+                'px-2 md:px-3 py-1 text-xs md:text-sm rounded-md font-medium transition-colors whitespace-nowrap',
+                selectedTimeRange === range.value
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              {{ range.label }}
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <span class="text-xs md:text-sm text-gray-500 hidden sm:inline">或</span>
+          <div class="flex items-center gap-2 flex-1">
+            <input
+              v-model="customStartDate"
+              type="date"
+              class="flex-1 px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-md text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <span class="text-xs md:text-sm text-gray-500">至</span>
+            <input
+              v-model="customEndDate"
+              type="date"
+              class="flex-1 px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-md text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
           <button
-            v-for="range in timeRanges"
-            :key="range.value"
-            @click="selectTimeRange(range.value)"
-            :class="[
-              'px-3 py-1 text-sm rounded-md font-medium transition-colors',
-              selectedTimeRange === range.value
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            ]"
+            @click="loadAllTrends"
+            class="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-xs md:text-sm font-medium whitespace-nowrap"
           >
-            {{ range.label }}
+            查询
           </button>
         </div>
-        <span class="text-gray-500 mx-2">或</span>
-        <input
-          v-model="customStartDate"
-          type="date"
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        <span class="text-gray-500">至</span>
-        <input
-          v-model="customEndDate"
-          type="date"
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        <button
-          @click="loadAllTrends"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium"
-        >
-          查询
-        </button>
       </div>
     </div>
 
     <!-- Tab 切换 -->
-    <div class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+    <div class="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+      <nav class="-mb-px flex space-x-2 md:space-x-4 min-w-max" aria-label="Tabs">
         <button
           v-for="tab in tabs"
           :key="tab.key"
           @click="activeTab = tab.key"
           :class="[
-            'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
+            'whitespace-nowrap py-2 md:py-3 px-3 md:px-4 border-b-2 font-medium text-xs md:text-sm transition-colors',
             activeTab === tab.key
               ? 'border-primary text-primary'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -91,26 +97,28 @@
     </div>
 
     <!-- 综合趋势（净资产、总资产、总负债） -->
-    <div v-if="activeTab === 'overall'" class="bg-white rounded-lg shadow p-6 space-y-6">
-      <div v-if="loading" class="flex justify-center items-center h-96">
+    <div v-if="activeTab === 'overall'" class="bg-white rounded-lg shadow p-3 md:p-6 space-y-4 md:space-y-6">
+      <div v-if="loading" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">加载中...</div>
       </div>
-      <div v-else-if="overallTrendData.length === 0" class="flex justify-center items-center h-96">
+      <div v-else-if="overallTrendData.length === 0" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">暂无数据，请先添加资产或负债记录</div>
       </div>
       <div v-else>
-        <!-- 第一行：金额趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
+        <!-- 第一行：金额趋势 - 图表和表格左右并排 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <!-- 左列：图表 -->
+          <div class="h-80 md:h-96">
             <Line :data="overallChartData" :options="overallChartOptions" />
           </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200">
+          <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+          <div>
+            <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">指标</th>
@@ -128,40 +136,68 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="stat in overallStats" :key="stat.name">
                     <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ stat.name }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-600 text-right" :title="stat.earliestDate">
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
                       {{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}
                     </td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium" :title="stat.latestDate">
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                       {{ currencySymbol }}{{ formatNumber(stat.latestValue) }}
                     </td>
-                    <td class="px-3 py-2 text-sm text-right">
+                    <td class="px-3 py-2 text-xs text-right">
                       <div :class="getChangeColorClass(stat.change)">
                         <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%</div>
-                        <div class="text-xs">{{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}</div>
+                        <div class="text-xs opacity-80">{{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}</div>
                       </div>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2">
+              <div v-for="stat in overallStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早 ({{ overallGlobalDateRange.earliestDate }})</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新 ({{ overallGlobalDateRange.latestDate }})</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 第二行：占比趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 pt-6 border-t border-gray-200">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
-            <div class="h-96">
-              <Line :data="overallRatioChartData" :options="overallRatioChartOptions" />
+        <!-- 第二行：占比趋势 - 图表和表格左右并排 -->
+        <div class="pt-6 border-t border-gray-200">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
+              <div class="h-80 md:h-96">
+                <Line :data="overallRatioChartData" :options="overallRatioChartOptions" />
+              </div>
             </div>
-          </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 右列：统计数据 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">指标</th>
@@ -179,13 +215,13 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="stat in overallRatioStats" :key="stat.name">
                     <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ stat.name }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-600 text-right" :title="stat.earliestDate">
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
                       {{ formatNumber(stat.earliestValue) }}%
                     </td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium" :title="stat.latestDate">
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                       {{ formatNumber(stat.latestValue) }}%
                     </td>
-                    <td class="px-3 py-2 text-sm text-right">
+                    <td class="px-3 py-2 text-xs text-right">
                       <div :class="getChangeColorClass(stat.change)">
                         <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp</div>
                       </div>
@@ -194,32 +230,57 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2">
+              <div v-for="stat in overallRatioStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ formatNumber(stat.earliestValue) }}%</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ formatNumber(stat.latestValue) }}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 资产分类趋势（所有分类在一个图表中） -->
-    <div v-if="activeTab === 'asset'" class="bg-white rounded-lg shadow p-6 space-y-6">
-      <div v-if="loadingAssetCategories" class="flex justify-center items-center h-96">
+    <div v-if="activeTab === 'asset'" class="bg-white rounded-lg shadow p-3 md:p-6 space-y-4 md:space-y-6">
+      <div v-if="loadingAssetCategories" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">加载中...</div>
       </div>
-      <div v-else-if="!hasAssetCategoryData" class="flex justify-center items-center h-96">
+      <div v-else-if="!hasAssetCategoryData" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">暂无数据</div>
       </div>
       <div v-else>
-        <!-- 第一行：金额趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
+        <!-- 第一行：金额趋势 - 图表和表格左右并排 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <!-- 左列：图表 -->
+          <div class="h-80 md:h-96">
             <Line :data="assetCategoriesChartData" :options="categoryChartOptions" />
           </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+          <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+          <div>
+            <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
@@ -279,24 +340,82 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in assetCategoryStats" :key="stat.name"
+                   @click="selectAssetCategory(stat)"
+                   :class="[
+                     'border rounded-lg p-3 cursor-pointer transition-colors',
+                     selectedAssetCategory?.name === stat.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'
+                   ]">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早 ({{ assetGlobalDateRange.earliestDate }})</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新 ({{ assetGlobalDateRange.latestDate }})</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+              <!-- 总计行 -->
+              <div class="border-2 border-blue-200 rounded-lg p-3 bg-blue-50">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-gray-900 text-sm">总计</span>
+                  <div :class="getChangeColorClass(assetCategoryTotal.change)" class="text-sm font-bold">
+                    {{ assetCategoryTotal.change > 0 ? '+' : '' }}{{ formatNumber(assetCategoryTotal.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-600">最早</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(assetCategoryTotal.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-600">最新</div>
+                    <div class="font-bold text-gray-900">{{ currencySymbol }}{{ formatNumber(assetCategoryTotal.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-blue-200 text-xs text-gray-700 font-medium">
+                  变化金额: {{ assetCategoryTotal.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(assetCategoryTotal.absoluteChange)) }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 第二行：占比趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 pt-6 border-t border-gray-200">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
-            <div class="h-96">
-              <Line :data="assetCategoryRatioChartData" :options="categoryRatioChartOptions" />
+        <!-- 第二行：占比趋势 - 图表和表格左右并排 -->
+        <div class="pt-6 border-t border-gray-200">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
+              <div class="h-80 md:h-96">
+                <Line :data="assetCategoryRatioChartData" :options="categoryRatioChartOptions" />
+              </div>
             </div>
-          </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 右列：统计数据 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
@@ -334,6 +453,32 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in assetCategoryRatioStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ formatNumber(stat.earliestValue) }}%</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ formatNumber(stat.latestValue) }}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       </div>
@@ -341,7 +486,7 @@
       <!-- 资产账号趋势（选中分类后显示） -->
       <div v-if="selectedAssetCategory" class="mt-6 pt-6 border-t border-gray-200">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">
             {{ selectedAssetCategory.name }} - 账号趋势
           </h3>
           <button
@@ -358,17 +503,21 @@
         <div v-else-if="!hasAccountsTrendData" class="flex justify-center items-center h-64">
           <div class="text-gray-500">该分类下暂无账号数据</div>
         </div>
-        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
-            <Line :data="accountsTrendChartData" :options="categoryChartOptions" />
-          </div>
+        <div v-else>
+          <!-- 账号趋势 - 图表和表格左右并排 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div class="h-80 md:h-96">
+              <Line :data="accountsTrendChartData" :options="categoryChartOptions" />
+            </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h4 class="text-md font-semibold mb-3 text-gray-900">账号明细</h4>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+            <div>
+              <h4 class="text-sm md:text-md font-semibold mb-3 text-gray-900">账号明细</h4>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">账号</th>
@@ -398,32 +547,60 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in accountsTrendStats" :key="stat.accountId" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-semibold text-gray-900 text-sm">{{ stat.accountName }}</span>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 负债分类趋势（所有分类在一个图表中） -->
-    <div v-if="activeTab === 'liability'" class="bg-white rounded-lg shadow p-6 space-y-6">
-      <div v-if="loadingLiabilityCategories" class="flex justify-center items-center h-96">
+    <div v-if="activeTab === 'liability'" class="bg-white rounded-lg shadow p-3 md:p-6 space-y-4 md:space-y-6">
+      <div v-if="loadingLiabilityCategories" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">加载中...</div>
       </div>
-      <div v-else-if="!hasLiabilityCategoryData" class="flex justify-center items-center h-96">
+      <div v-else-if="!hasLiabilityCategoryData" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">暂无数据</div>
       </div>
       <div v-else>
-        <!-- 第一行：金额趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
+        <!-- 第一行：金额趋势 - 图表和表格左右并排 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <!-- 左列：图表 -->
+          <div class="h-80 md:h-96">
             <Line :data="liabilityCategoriesChartData" :options="categoryChartOptions" />
           </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+          <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+          <div>
+            <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
@@ -483,24 +660,82 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in liabilityCategoryStats" :key="stat.name"
+                   @click="selectLiabilityCategory(stat)"
+                   :class="[
+                     'border rounded-lg p-3 cursor-pointer transition-colors',
+                     selectedLiabilityCategory?.name === stat.name ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white hover:border-red-300'
+                   ]">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早 ({{ liabilityGlobalDateRange.earliestDate }})</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新 ({{ liabilityGlobalDateRange.latestDate }})</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+              <!-- 总计行 -->
+              <div class="border-2 border-red-200 rounded-lg p-3 bg-red-50">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-gray-900 text-sm">总计</span>
+                  <div :class="getChangeColorClass(liabilityCategoryTotal.change)" class="text-sm font-bold">
+                    {{ liabilityCategoryTotal.change > 0 ? '+' : '' }}{{ formatNumber(liabilityCategoryTotal.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-600">最早</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(liabilityCategoryTotal.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-600">最新</div>
+                    <div class="font-bold text-gray-900">{{ currencySymbol }}{{ formatNumber(liabilityCategoryTotal.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-red-200 text-xs text-gray-700 font-medium">
+                  变化金额: {{ liabilityCategoryTotal.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(liabilityCategoryTotal.absoluteChange)) }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 第二行：占比趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 pt-6 border-t border-gray-200">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
-            <div class="h-96">
-              <Line :data="liabilityCategoryRatioChartData" :options="categoryRatioChartOptions" />
+        <!-- 第二行：占比趋势 - 图表和表格左右并排 -->
+        <div class="pt-6 border-t border-gray-200">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
+              <div class="h-80 md:h-96">
+                <Line :data="liabilityCategoryRatioChartData" :options="categoryRatioChartOptions" />
+              </div>
             </div>
-          </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 右列：统计数据 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
@@ -538,6 +773,32 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in liabilityCategoryRatioStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="font-semibold text-gray-900 text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ formatNumber(stat.earliestValue) }}%</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ formatNumber(stat.latestValue) }}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       </div>
@@ -545,7 +806,7 @@
       <!-- 负债账号趋势（选中分类后显示） -->
       <div v-if="selectedLiabilityCategory" class="mt-6 pt-6 border-t border-gray-200">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">
             {{ selectedLiabilityCategory.name }} - 账号趋势
           </h3>
           <button
@@ -562,17 +823,21 @@
         <div v-else-if="!hasLiabilityAccountsTrendData" class="flex justify-center items-center h-64">
           <div class="text-gray-500">该分类下暂无账号数据</div>
         </div>
-        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
-            <Line :data="liabilityAccountsTrendChartData" :options="categoryChartOptions" />
-          </div>
+        <div v-else>
+          <!-- 账号趋势 - 图表和表格左右并排 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div class="h-80 md:h-96">
+              <Line :data="liabilityAccountsTrendChartData" :options="categoryChartOptions" />
+            </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h4 class="text-md font-semibold mb-3 text-gray-900">账号明细</h4>
-            <div class="border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-              <table class="min-w-full divide-y divide-gray-200">
+            <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+            <div>
+              <h4 class="text-sm md:text-md font-semibold mb-3 text-gray-900">账号明细</h4>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">账号</th>
@@ -602,61 +867,89 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2 max-h-96 overflow-y-auto">
+              <div v-for="stat in liabilityAccountsTrendStats" :key="stat.accountId" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-semibold text-gray-900 text-sm">{{ stat.accountName }}</span>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 净资产分类趋势（所有分类在一个图表中） -->
-    <div v-if="activeTab === 'netAsset'" class="bg-white rounded-lg shadow p-6 space-y-6">
-      <div v-if="loadingNetAssetCategories" class="flex justify-center items-center h-96">
+    <div v-if="activeTab === 'netAsset'" class="bg-white rounded-lg shadow p-3 md:p-6 space-y-4 md:space-y-6">
+      <div v-if="loadingNetAssetCategories" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">加载中...</div>
       </div>
-      <div v-else-if="!hasNetAssetCategoryData" class="flex justify-center items-center h-96">
+      <div v-else-if="!hasNetAssetCategoryData" class="flex justify-center items-center h-64 md:h-96">
         <div class="text-gray-500">暂无数据</div>
       </div>
       <div v-else>
-        <!-- 第一行：金额趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3 h-96">
+        <!-- 第一行：金额趋势 - 图表和表格左右并排 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <!-- 左列:图表 -->
+          <div class="h-80 md:h-96">
             <Line :data="netAssetCategoriesChartData" :options="categoryChartOptions" />
           </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+          <!-- 右列：统计数据 - 桌面端表格，移动端卡片 -->
+          <div>
+            <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">金额趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
               <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                       <div>最早</div>
                       <div class="text-xs text-gray-400 font-normal normal-case">{{ netAssetGlobalDateRange.earliestDate }}</div>
                     </th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                       <div>最新</div>
                       <div class="text-xs text-gray-400 font-normal normal-case">{{ netAssetGlobalDateRange.latestDate }}</div>
                     </th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="stat in netAssetCategoryStats" :key="stat.name">
-                    <td class="px-4 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
                       <div class="flex items-center gap-2">
                         <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
                         {{ stat.name }}
                       </div>
                     </td>
-                    <td class="px-4 py-2 text-xs text-gray-600 text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
                       {{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}
                     </td>
-                    <td class="px-4 py-2 text-xs text-gray-900 text-right font-medium whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                       {{ currencySymbol }}{{ formatNumber(stat.latestValue) }}
                     </td>
-                    <td class="px-4 py-2 text-xs text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-right">
                       <div :class="getChangeColorClass(stat.change)">
                         <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%</div>
                         <div class="text-xs opacity-80">{{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}</div>
@@ -665,14 +958,14 @@
                   </tr>
                   <!-- 总计行 -->
                   <tr class="bg-blue-50 font-semibold">
-                    <td class="px-4 py-2 text-sm text-gray-900">总计</td>
-                    <td class="px-4 py-2 text-xs text-gray-900 text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-sm text-gray-900">总计</td>
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right">
                       {{ currencySymbol }}{{ formatNumber(netAssetCategoryTotal.earliestValue) }}
                     </td>
-                    <td class="px-4 py-2 text-xs text-gray-900 text-right font-medium whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                       {{ currencySymbol }}{{ formatNumber(netAssetCategoryTotal.latestValue) }}
                     </td>
-                    <td class="px-4 py-2 text-xs text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-right">
                       <div :class="getChangeColorClass(netAssetCategoryTotal.change)">
                         <div class="font-medium">{{ netAssetCategoryTotal.change > 0 ? '+' : '' }}{{ formatNumber(netAssetCategoryTotal.change) }}%</div>
                         <div class="text-xs opacity-80">{{ netAssetCategoryTotal.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(netAssetCategoryTotal.absoluteChange)) }}</div>
@@ -682,53 +975,104 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2">
+              <div v-for="stat in netAssetCategoryStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2 font-semibold text-gray-900">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早 ({{ netAssetGlobalDateRange.earliestDate }})</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新 ({{ netAssetGlobalDateRange.latestDate }})</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(stat.latestValue) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                  变化金额: {{ stat.absoluteChange > 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(Math.abs(stat.absoluteChange)) }}
+                </div>
+              </div>
+
+              <!-- 移动端总计卡片 -->
+              <div class="border-2 border-blue-200 rounded-lg p-3 bg-blue-50">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-gray-900">总计</span>
+                  <div :class="getChangeColorClass(netAssetCategoryTotal.change)" class="text-sm font-bold">
+                    {{ netAssetCategoryTotal.change > 0 ? '+' : '' }}{{ formatNumber(netAssetCategoryTotal.change) }}%
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-600">最早</div>
+                    <div class="font-medium text-gray-900">{{ currencySymbol }}{{ formatNumber(netAssetCategoryTotal.earliestValue) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-600">最新</div>
+                    <div class="font-semibold text-gray-900">{{ currencySymbol }}{{ formatNumber(netAssetCategoryTotal.latestValue) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 第二行：占比趋势 -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 pt-6 border-t border-gray-200">
-          <!-- 左侧图表 (3/5) -->
-          <div class="lg:col-span-3">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
-            <div class="h-96">
-              <Line :data="netAssetCategoryRatioChartData" :options="netAssetRatioChartOptions" />
+        <!-- 第二行：占比趋势 - 图表和表格左右并排 -->
+        <div class="pt-6 border-t border-gray-200">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- 左列：图表 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势图</h3>
+              <div class="h-80 md:h-96">
+                <Line :data="netAssetCategoryRatioChartData" :options="netAssetRatioChartOptions" />
+              </div>
             </div>
-          </div>
 
-          <!-- 右侧统计表格 (2/5) -->
-          <div class="lg:col-span-2">
-            <h3 class="text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
-            <div class="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+            <!-- 右列：统计数据 -->
+            <div>
+              <h3 class="text-sm md:text-md font-semibold mb-3 text-gray-900">占比趋势</h3>
+
+            <!-- 桌面端：表格视图 -->
+            <div class="hidden md:block border border-gray-200 rounded-lg overflow-hidden">
               <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                       <div>最早</div>
                       <div class="text-xs text-gray-400 font-normal normal-case">{{ netAssetGlobalDateRange.earliestDate }}</div>
                     </th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                       <div>最新</div>
                       <div class="text-xs text-gray-400 font-normal normal-case">{{ netAssetGlobalDateRange.latestDate }}</div>
                     </th>
-                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">变化</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="stat in netAssetCategoryRatioStats" :key="stat.name">
-                    <td class="px-4 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">
                       <div class="flex items-center gap-2">
                         <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
                         {{ stat.name }}
                       </div>
                     </td>
-                    <td class="px-4 py-2 text-xs text-gray-600 text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-gray-600 text-right">
                       {{ formatNumber(stat.earliestValue) }}%
                     </td>
-                    <td class="px-4 py-2 text-xs text-gray-900 text-right font-medium whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-gray-900 text-right font-medium">
                       {{ formatNumber(stat.latestValue) }}%
                     </td>
-                    <td class="px-4 py-2 text-xs text-right whitespace-nowrap">
+                    <td class="px-3 py-2 text-xs text-right">
                       <div :class="getChangeColorClass(stat.change)">
                         <div class="font-medium">{{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp</div>
                       </div>
@@ -736,6 +1080,32 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- 移动端：卡片视图 -->
+            <div class="md:hidden space-y-2">
+              <div v-for="stat in netAssetCategoryRatioStats" :key="stat.name" class="border border-gray-200 rounded-lg p-3 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2 font-semibold text-gray-900">
+                    <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: stat.color }"></div>
+                    <span class="text-sm">{{ stat.name }}</span>
+                  </div>
+                  <div :class="getChangeColorClass(stat.change)" class="text-sm font-bold">
+                    {{ stat.change > 0 ? '+' : '' }}{{ formatNumber(stat.change) }}pp
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div class="text-gray-500">最早</div>
+                    <div class="font-medium text-gray-900">{{ formatNumber(stat.earliestValue) }}%</div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500">最新</div>
+                    <div class="font-semibold text-gray-900">{{ formatNumber(stat.latestValue) }}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
             </div>
           </div>
         </div>
@@ -1342,11 +1712,14 @@ const netAssetRatioChartOptions = computed(() => ({
   plugins: {
     legend: {
       display: true,
-      position: 'top',
+      position: window.innerWidth < 768 ? 'bottom' : 'top',
       labels: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        padding: window.innerWidth < 768 ? 6 : 10,
+        boxWidth: window.innerWidth < 768 ? 15 : 40
       }
     },
     tooltip: {
@@ -1359,17 +1732,20 @@ const netAssetRatioChartOptions = computed(() => ({
             label += ': '
           }
           if (context.parsed.y !== null) {
-            label += context.parsed.y.toFixed(2) + '%'
+            label += context.parsed.y.toFixed(window.innerWidth < 768 ? 1 : 2) + '%'
           }
           return label
         }
       },
       titleFont: {
-        weight: 'bold'
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 10 : 12
       },
       bodyFont: {
-        weight: 'bold'
-      }
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 9 : 11
+      },
+      padding: window.innerWidth < 768 ? 6 : 10
     },
     datalabels: {
       display: false // 占比图不显示数据标签，避免过于拥挤
@@ -1381,11 +1757,13 @@ const netAssetRatioChartOptions = computed(() => ({
       max: 100,
       ticks: {
         callback: function(value) {
-          return value.toFixed(2) + '%'
+          return value.toFixed(window.innerWidth < 768 ? 0 : 2) + '%'
         },
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxTicksLimit: window.innerWidth < 768 ? 5 : 8
       }
     },
     x: {
@@ -1393,13 +1771,16 @@ const netAssetRatioChartOptions = computed(() => ({
       time: {
         unit: 'day',
         displayFormats: {
-          day: 'yyyy-MM-dd'
+          day: window.innerWidth < 768 ? 'MM-dd' : 'yyyy-MM-dd'
         }
       },
       ticks: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxRotation: window.innerWidth < 768 ? 45 : 0,
+        minRotation: window.innerWidth < 768 ? 45 : 0
       }
     }
   },
@@ -1983,11 +2364,14 @@ const overallChartOptions = computed(() => ({
   plugins: {
     legend: {
       display: true,
-      position: 'top',
+      position: window.innerWidth < 768 ? 'bottom' : 'top',
       labels: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 10 : 12
+        },
+        padding: window.innerWidth < 768 ? 8 : 10,
+        boxWidth: window.innerWidth < 768 ? 20 : 40
       }
     },
     tooltip: {
@@ -2016,11 +2400,14 @@ const overallChartOptions = computed(() => ({
         }
       },
       titleFont: {
-        weight: 'bold'
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 11 : 12
       },
       bodyFont: {
-        weight: 'bold'
-      }
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 10 : 12
+      },
+      padding: window.innerWidth < 768 ? 8 : 12
     },
     datalabels: {
       display: function(context) {
@@ -2061,16 +2448,18 @@ const overallChartOptions = computed(() => ({
           const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
           // 格式化：>100000 显示为 K 格式
           if (value >= 100000) {
-            return symbol + (value / 1000).toFixed(2) + 'K'
+            return symbol + (value / 1000).toFixed(window.innerWidth < 768 ? 0 : 2) + 'K'
           }
           return symbol + value.toLocaleString('zh-CN', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+            maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
           })
         },
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxTicksLimit: window.innerWidth < 768 ? 5 : 8
       }
     },
     x: {
@@ -2078,13 +2467,16 @@ const overallChartOptions = computed(() => ({
       time: {
         unit: 'day',
         displayFormats: {
-          day: 'yyyy-MM-dd'
+          day: window.innerWidth < 768 ? 'MM-dd' : 'yyyy-MM-dd'
         }
       },
       ticks: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxRotation: window.innerWidth < 768 ? 45 : 0,
+        minRotation: window.innerWidth < 768 ? 45 : 0
       }
     }
   },
@@ -2102,11 +2494,14 @@ const overallRatioChartOptions = computed(() => ({
   plugins: {
     legend: {
       display: true,
-      position: 'top',
+      position: window.innerWidth < 768 ? 'bottom' : 'top',
       labels: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 10 : 12
+        },
+        padding: window.innerWidth < 768 ? 8 : 10,
+        boxWidth: window.innerWidth < 768 ? 20 : 40
       }
     },
     tooltip: {
@@ -2125,11 +2520,14 @@ const overallRatioChartOptions = computed(() => ({
         }
       },
       titleFont: {
-        weight: 'bold'
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 11 : 12
       },
       bodyFont: {
-        weight: 'bold'
-      }
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 10 : 12
+      },
+      padding: window.innerWidth < 768 ? 8 : 12
     },
     datalabels: {
       display: function(context) {
@@ -2164,11 +2562,13 @@ const overallRatioChartOptions = computed(() => ({
       max: 100,
       ticks: {
         callback: function(value) {
-          return value.toFixed(2) + '%'
+          return value.toFixed(window.innerWidth < 768 ? 0 : 2) + '%'
         },
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxTicksLimit: window.innerWidth < 768 ? 5 : 8
       }
     },
     x: {
@@ -2176,13 +2576,16 @@ const overallRatioChartOptions = computed(() => ({
       time: {
         unit: 'day',
         displayFormats: {
-          day: 'yyyy-MM-dd'
+          day: window.innerWidth < 768 ? 'MM-dd' : 'yyyy-MM-dd'
         }
       },
       ticks: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxRotation: window.innerWidth < 768 ? 45 : 0,
+        minRotation: window.innerWidth < 768 ? 45 : 0
       }
     }
   },
@@ -2200,7 +2603,14 @@ const categoryChartOptions = computed(() => ({
   plugins: {
     legend: {
       display: true,
-      position: 'top'
+      position: window.innerWidth < 768 ? 'bottom' : 'top',
+      labels: {
+        font: {
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        padding: window.innerWidth < 768 ? 6 : 10,
+        boxWidth: window.innerWidth < 768 ? 15 : 40
+      }
     },
     tooltip: {
       mode: 'index',
@@ -2214,13 +2624,20 @@ const categoryChartOptions = computed(() => ({
           if (context.parsed.y !== null) {
             const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
             label += symbol + context.parsed.y.toLocaleString('zh-CN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
+              minimumFractionDigits: window.innerWidth < 768 ? 0 : 2,
+              maximumFractionDigits: window.innerWidth < 768 ? 0 : 2
             })
           }
           return label
         }
-      }
+      },
+      titleFont: {
+        size: window.innerWidth < 768 ? 10 : 12
+      },
+      bodyFont: {
+        size: window.innerWidth < 768 ? 9 : 11
+      },
+      padding: window.innerWidth < 768 ? 6 : 10
     },
     datalabels: {
       display: false
@@ -2232,8 +2649,15 @@ const categoryChartOptions = computed(() => ({
       ticks: {
         callback: function(value) {
           const symbol = selectedCurrency.value === 'CNY' ? '¥' : '$'
+          if (value >= 100000) {
+            return symbol + (value / 1000).toFixed(window.innerWidth < 768 ? 0 : 1) + 'K'
+          }
           return symbol + value.toLocaleString('zh-CN')
-        }
+        },
+        font: {
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxTicksLimit: window.innerWidth < 768 ? 5 : 8
       }
     },
     x: {
@@ -2241,8 +2665,15 @@ const categoryChartOptions = computed(() => ({
       time: {
         unit: 'day',
         displayFormats: {
-          day: 'yyyy-MM-dd'
+          day: window.innerWidth < 768 ? 'MM-dd' : 'yyyy-MM-dd'
         }
+      },
+      ticks: {
+        font: {
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxRotation: window.innerWidth < 768 ? 45 : 0,
+        minRotation: window.innerWidth < 768 ? 45 : 0
       }
     }
   },
@@ -2260,11 +2691,14 @@ const categoryRatioChartOptions = computed(() => ({
   plugins: {
     legend: {
       display: true,
-      position: 'top',
+      position: window.innerWidth < 768 ? 'bottom' : 'top',
       labels: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        padding: window.innerWidth < 768 ? 6 : 10,
+        boxWidth: window.innerWidth < 768 ? 15 : 40
       }
     },
     tooltip: {
@@ -2277,17 +2711,20 @@ const categoryRatioChartOptions = computed(() => ({
             label += ': '
           }
           if (context.parsed.y !== null) {
-            label += context.parsed.y.toFixed(2) + '%'
+            label += context.parsed.y.toFixed(window.innerWidth < 768 ? 1 : 2) + '%'
           }
           return label
         }
       },
       titleFont: {
-        weight: 'bold'
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 10 : 12
       },
       bodyFont: {
-        weight: 'bold'
-      }
+        weight: 'bold',
+        size: window.innerWidth < 768 ? 9 : 11
+      },
+      padding: window.innerWidth < 768 ? 6 : 10
     },
     datalabels: {
       display: false
@@ -2299,11 +2736,13 @@ const categoryRatioChartOptions = computed(() => ({
       max: 100,
       ticks: {
         callback: function(value) {
-          return value.toFixed(2) + '%'
+          return value.toFixed(window.innerWidth < 768 ? 0 : 2) + '%'
         },
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxTicksLimit: window.innerWidth < 768 ? 5 : 8
       }
     },
     x: {
@@ -2311,13 +2750,16 @@ const categoryRatioChartOptions = computed(() => ({
       time: {
         unit: 'day',
         displayFormats: {
-          day: 'yyyy-MM-dd'
+          day: window.innerWidth < 768 ? 'MM-dd' : 'yyyy-MM-dd'
         }
       },
       ticks: {
         font: {
-          weight: 'bold'
-        }
+          weight: 'bold',
+          size: window.innerWidth < 768 ? 9 : 11
+        },
+        maxRotation: window.innerWidth < 768 ? 45 : 0,
+        minRotation: window.innerWidth < 768 ? 45 : 0
       }
     }
   },

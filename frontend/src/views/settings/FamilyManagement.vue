@@ -1,18 +1,18 @@
 <template>
-  <div class="space-y-6">
+  <div class="min-h-screen bg-gray-50 sm:bg-transparent p-4 sm:p-6 space-y-4 sm:space-y-6">
     <!-- Header with Family Selector -->
-    <div class="flex items-start justify-between">
+    <div class="flex flex-col sm:flex-row items-start justify-between gap-3 bg-white sm:bg-transparent p-4 sm:p-0 rounded-lg sm:rounded-none shadow-sm sm:shadow-none">
       <div>
         <h2 class="text-2xl font-bold text-gray-900">家庭配置</h2>
         <p class="mt-1 text-sm text-gray-500">
           管理家庭财务信息和家庭成员
         </p>
       </div>
-      <div class="flex space-x-3 ml-4" v-if="!loading">
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto sm:ml-4" v-if="!loading">
         <select
           v-model="selectedFamilyId"
           @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 min-w-[200px]"
+          class="w-full sm:w-auto px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 sm:min-w-[200px] text-base sm:text-sm"
         >
           <option :value="null">-- 请选择家庭 --</option>
           <option v-for="family in allFamilies" :key="family.id" :value="family.id">
@@ -21,7 +21,7 @@
         </select>
         <button
           @click="showCreateFamilyDialog = true"
-          class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 whitespace-nowrap"
+          class="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 active:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 whitespace-nowrap touch-manipulation"
         >
           + 新建家庭
         </button>
@@ -314,8 +314,8 @@
     </div>
 
     <!-- 添加成员对话框 -->
-    <div v-if="showAddMemberDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div v-if="showAddMemberDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div class="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up">
         <div class="px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-medium text-gray-900">添加成员</h3>
         </div>
@@ -390,8 +390,8 @@
     </div>
 
     <!-- 创建新家庭对话框 -->
-    <div v-if="showCreateFamilyDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div v-if="showCreateFamilyDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div class="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md animate-slide-up">
         <div class="px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-medium text-gray-900">创建新家庭</h3>
         </div>
@@ -842,5 +842,16 @@ onMounted(() => {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 640px) {
+  input, textarea, select, button {
+    font-size: 16px; /* 防止iOS自动缩放 */
+  }
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
 }
 </style>

@@ -1,8 +1,8 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-3 md:p-6 space-y-4 md:space-y-6">
     <!-- 返回按钮 -->
-    <button @click="router.back()" class="flex items-center text-gray-600 hover:text-gray-900">
-      <ChevronLeft class="w-5 h-5" />
+    <button @click="router.back()" class="flex items-center text-gray-600 hover:text-gray-900 text-sm md:text-base">
+      <ChevronLeft class="w-4 h-4 md:w-5 md:h-5" />
       <span>返回</span>
     </button>
 
@@ -16,28 +16,28 @@
         <CardHeader>
           <div class="flex justify-between items-start">
             <div>
-              <CardTitle class="text-2xl">{{ account.accountName }}</CardTitle>
-              <p class="text-sm text-gray-500 mt-1">{{ account.categoryName }}</p>
+              <CardTitle class="text-lg md:text-2xl">{{ account.accountName }}</CardTitle>
+              <p class="text-xs md:text-sm text-gray-500 mt-1">{{ account.categoryName }}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div>
-              <div class="text-sm text-gray-600">机构</div>
-              <div class="font-medium">{{ account.institution || '-' }}</div>
+              <div class="text-xs md:text-sm text-gray-600">机构</div>
+              <div class="text-sm md:text-base font-medium">{{ account.institution || '-' }}</div>
             </div>
             <div>
-              <div class="text-sm text-gray-600">账号</div>
-              <div class="font-medium">{{ maskAccountNumber(account.accountNumber) || '-' }}</div>
+              <div class="text-xs md:text-sm text-gray-600">账号</div>
+              <div class="text-sm md:text-base font-medium truncate">{{ maskAccountNumber(account.accountNumber) || '-' }}</div>
             </div>
             <div>
-              <div class="text-sm text-gray-600">币种</div>
-              <div class="font-medium">{{ account.currency }}</div>
+              <div class="text-xs md:text-sm text-gray-600">币种</div>
+              <div class="text-sm md:text-base font-medium">{{ account.currency }}</div>
             </div>
             <div>
-              <div class="text-sm text-gray-600">当前余额</div>
-              <div class="text-xl font-bold text-red-600">
+              <div class="text-xs md:text-sm text-gray-600">当前余额</div>
+              <div class="text-lg md:text-xl font-bold text-red-600">
                 {{ getCurrencySymbol(account.currency) }}{{ formatAmount(account.latestBalance) }}
               </div>
             </div>
@@ -62,20 +62,58 @@
       </Card>
 
       <!-- 负债记录 -->
-      <div class="space-y-4">
-        <div class="flex justify-between items-center">
-          <h2 class="text-xl font-bold">负债记录</h2>
-          <Button @click="showAddRecordDialog = true" class="bg-red-600 hover:bg-red-700">
-            <Plus class="w-4 h-4 mr-2" />
+      <div class="space-y-3 md:space-y-4">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <h2 class="text-lg md:text-xl font-bold">负债记录</h2>
+          <Button @click="showAddRecordDialog = true" class="bg-red-600 hover:bg-red-700 text-sm md:text-base">
+            <Plus class="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             添加记录
           </Button>
         </div>
 
-        <div v-if="records.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
-          <p class="text-gray-500">暂无记录数据</p>
+        <div v-if="records.length === 0" class="text-center py-8 md:py-12 bg-gray-50 rounded-lg">
+          <p class="text-sm md:text-base text-gray-500">暂无记录数据</p>
         </div>
 
-        <div v-else class="bg-white rounded-lg border">
+        <!-- 移动端：卡片样式 -->
+        <div v-if="records.length > 0" class="md:hidden space-y-3">
+          <div v-for="(record, index) in records" :key="record.id" class="bg-white rounded-lg border p-4">
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <div class="text-xs text-gray-500">日期</div>
+                <div class="text-sm font-medium">{{ record.recordDate }}</div>
+              </div>
+              <div class="flex gap-2">
+                <button @click="editRecord(record)" class="text-blue-600 hover:text-blue-800 p-1">
+                  <Pencil class="w-4 h-4" />
+                </button>
+                <button @click="deleteRecord(record)" class="text-red-600 hover:text-red-800 p-1">
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span class="text-xs text-gray-600">余额</span>
+                <span class="text-sm font-semibold">${{ formatAmount(record.balanceInBaseCurrency) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-xs text-gray-600">变化</span>
+                <span v-if="index < records.length - 1" :class="getChangeClass(record, records[index + 1])" class="text-sm font-medium">
+                  {{ formatChange(record, records[index + 1]) }}
+                </span>
+                <span v-else class="text-sm text-gray-400">-</span>
+              </div>
+              <div v-if="record.notes" class="pt-2 border-t">
+                <div class="text-xs text-gray-600">备注</div>
+                <div class="text-xs text-gray-800 mt-1">{{ record.notes }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 桌面端：表格样式 -->
+        <div v-if="records.length > 0" class="hidden md:block bg-white rounded-lg border overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gray-50 border-b">
               <tr>
@@ -125,62 +163,62 @@
     <!-- 添加/编辑记录对话框 -->
     <div
       v-if="showAddRecordDialog || showEditRecordDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="closeRecordDialog"
     >
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">
+      <div class="bg-white rounded-lg p-4 md:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">
           {{ showEditRecordDialog ? '编辑记录' : '添加记录' }}
         </h2>
-        <form @submit.prevent="submitRecordForm" class="space-y-4">
+        <form @submit.prevent="submitRecordForm" class="space-y-3 md:space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1">日期</label>
             <input
               v-model="recordForm.recordDate"
               type="date"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">余额</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1">余额</label>
             <input
               v-model.number="recordForm.balance"
               type="number"
               step="0.01"
               required
               placeholder="0.00"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">汇率</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1">汇率</label>
             <input
               v-model.number="recordForm.exchangeRate"
               type="number"
               step="0.000001"
               placeholder="1.0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1">备注</label>
             <textarea
               v-model="recordForm.notes"
               rows="3"
               placeholder="添加备注信息"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="w-full px-2 md:px-3 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             ></textarea>
           </div>
 
-          <div class="flex gap-3 pt-4">
-            <Button type="submit" class="flex-1 bg-red-600 hover:bg-red-700">
+          <div class="flex gap-2 md:gap-3 pt-3 md:pt-4">
+            <Button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-sm md:text-base py-2 md:py-2.5">
               {{ showEditRecordDialog ? '保存' : '添加' }}
             </Button>
-            <Button type="button" @click="closeRecordDialog" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700">
+            <Button type="button" @click="closeRecordDialog" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base py-2 md:py-2.5">
               取消
             </Button>
           </div>

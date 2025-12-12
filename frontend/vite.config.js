@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // Allow external access from mobile devices
     port: 3000,
     // Hot Module Replacement (HMR) configuration
     hmr: {

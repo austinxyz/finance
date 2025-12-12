@@ -1,32 +1,32 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 md:space-y-6">
     <!-- 货币选择器和日期选择器 -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">资产配置</h2>
-        <div class="flex items-center gap-4">
+    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+        <h2 class="text-md md:text-lg font-semibold text-gray-900">资产配置</h2>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">查询日期：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
             <input
               v-model="selectedDate"
               type="date"
               @change="onDateChange"
-              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             />
             <button
               v-if="selectedDate"
               @click="clearDate"
-              class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+              class="px-2 md:px-3 py-1.5 md:py-2 text-sm text-gray-600 hover:text-gray-800"
             >
               清除
             </button>
           </div>
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-gray-700">显示货币：</label>
+            <label class="text-xs md:text-sm font-medium text-gray-700">显示货币：</label>
             <select
               v-model="selectedCurrency"
               @change="onCurrencyChange"
-              class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               <option value="USD">美元 (USD)</option>
               <option value="CNY">人民币 (CNY)</option>
@@ -34,7 +34,7 @@
           </div>
         </div>
       </div>
-      <div class="text-sm text-gray-600">
+      <div class="text-xs md:text-sm text-gray-600">
         <span v-if="!selectedDate && actualDataDate" class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -69,7 +69,7 @@
         ]"
       >
         <div class="text-xs text-gray-500 mb-1">净资产 ({{ selectedCurrency }})</div>
-        <div class="text-2xl font-bold text-blue-600">
+        <div class="text-xl md:text-2xl font-bold text-blue-600">
           {{ currencySymbol }}{{ formatNumber(convertedSummary.netWorth) }}
         </div>
         <div v-if="activeTab === 'net'" class="text-xs text-blue-600 mt-1">已选中</div>
@@ -84,7 +84,7 @@
         ]"
       >
         <div class="text-xs text-gray-500 mb-1">总资产 ({{ selectedCurrency }})</div>
-        <div class="text-2xl font-bold text-green-600">
+        <div class="text-xl md:text-2xl font-bold text-green-600">
           {{ currencySymbol }}{{ formatNumber(convertedSummary.totalAssets) }}
         </div>
         <div v-if="activeTab === 'asset'" class="text-xs text-green-600 mt-1">已选中</div>
@@ -99,7 +99,7 @@
         ]"
       >
         <div class="text-xs text-gray-500 mb-1">总负债 ({{ selectedCurrency }})</div>
-        <div class="text-2xl font-bold text-red-600">
+        <div class="text-xl md:text-2xl font-bold text-red-600">
           {{ currencySymbol }}{{ formatNumber(convertedSummary.totalLiabilities) }}
         </div>
         <div v-if="activeTab === 'liability'" class="text-xs text-red-600 mt-1">已选中</div>
@@ -107,11 +107,11 @@
     </div>
 
     <!-- 内容区域 -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-3 md:p-6">
       <!-- 净资产tab: 两行布局 -->
-      <div v-if="activeTab === 'net'" class="space-y-6">
+      <div v-if="activeTab === 'net'" class="space-y-4 md:space-y-6">
         <!-- 第一行: 净资产分类饼图 + 分类列表 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <!-- 主饼图 -->
           <div class="h-80 flex items-center justify-center">
             <div v-if="loading" class="text-gray-500">加载中...</div>
@@ -126,7 +126,7 @@
             <div
               v-for="item in currentAllocation?.data || []"
               :key="item.name || item.code"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div class="flex items-center gap-3">
                 <input
@@ -140,7 +140,7 @@
               </div>
               <div class="text-right">
                 <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
-                <div class="text-sm text-gray-500">
+                <div class="text-xs md:text-sm text-gray-500">
                   {{ formatNumber(getAdjustedPercentage(item)) }}%
                 </div>
               </div>
@@ -149,11 +149,11 @@
 
           <!-- 选中类别时显示钻取饼图或表格 -->
           <div v-else class="space-y-4">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
               <h4 class="font-semibold">{{ selectedCategory.name }} - 账户分布</h4>
               <button
                 @click="selectedCategory = null; drillDownData = null"
-                class="text-sm text-gray-500 hover:text-gray-700"
+                class="text-xs md:text-sm text-gray-500 hover:text-gray-700"
               >
                 返回
               </button>
@@ -170,27 +170,27 @@
                 <!-- 资产账户表格 -->
                 <div v-if="drillDownData.assetAccounts?.length > 0">
                   <h5 class="text-sm font-semibold text-green-700 mb-2">资产账户</h5>
-                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                  <div class="border border-gray-200 rounded-lg overflow-x-auto scrollbar-hide">
                     <table class="min-w-full divide-y divide-gray-200">
                       <thead class="bg-green-50">
                         <tr>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">分类</th>
-                          <th class="px-4 py-2 text-right text-xs font-medium text-gray-700">余额</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-left text-xs font-medium text-gray-700">分类</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-right text-xs font-medium text-gray-700">余额</th>
                         </tr>
                       </thead>
                       <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="account in drillDownData.assetAccounts" :key="account.accountId" class="hover:bg-gray-50">
-                          <td class="px-4 py-2 text-sm text-gray-900">{{ account.accountName }}</td>
-                          <td class="px-4 py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
-                          <td class="px-4 py-2 text-sm text-right font-medium text-green-600">
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-900">{{ account.accountName }}</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-right font-medium text-green-600">
                             {{ currencySymbol }}{{ formatNumber(convertValue(account.balance)) }}
                           </td>
                         </tr>
                         <!-- 资产小计 -->
                         <tr class="bg-green-100 font-semibold">
-                          <td class="px-4 py-2 text-sm text-gray-900" colspan="2">资产小计</td>
-                          <td class="px-4 py-2 text-sm text-right text-green-700">
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-900" colspan="2">资产小计</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-right text-green-700">
                             {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.assetAccounts.reduce((sum, a) => sum + a.balance, 0))) }}
                           </td>
                         </tr>
@@ -202,27 +202,27 @@
                 <!-- 负债账户表格 -->
                 <div v-if="drillDownData.liabilityAccounts?.length > 0">
                   <h5 class="text-sm font-semibold text-red-700 mb-2">负债账户</h5>
-                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                  <div class="border border-gray-200 rounded-lg overflow-x-auto scrollbar-hide">
                     <table class="min-w-full divide-y divide-gray-200">
                       <thead class="bg-red-50">
                         <tr>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-700">分类</th>
-                          <th class="px-4 py-2 text-right text-xs font-medium text-gray-700">余额</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-left text-xs font-medium text-gray-700">账户名称</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-left text-xs font-medium text-gray-700">分类</th>
+                          <th class="px-3 md:px-4 py-1.5 md:py-2 text-right text-xs font-medium text-gray-700">余额</th>
                         </tr>
                       </thead>
                       <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="account in drillDownData.liabilityAccounts" :key="account.accountId" class="hover:bg-gray-50">
-                          <td class="px-4 py-2 text-sm text-gray-900">{{ account.accountName }}</td>
-                          <td class="px-4 py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
-                          <td class="px-4 py-2 text-sm text-right font-medium text-red-600">
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-900">{{ account.accountName }}</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-600">{{ account.categoryName }}</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-right font-medium text-red-600">
                             {{ currencySymbol }}{{ formatNumber(convertValue(account.balance)) }}
                           </td>
                         </tr>
                         <!-- 负债小计 -->
                         <tr class="bg-red-100 font-semibold">
-                          <td class="px-4 py-2 text-sm text-gray-900" colspan="2">负债小计</td>
-                          <td class="px-4 py-2 text-sm text-right text-red-700">
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-900" colspan="2">负债小计</td>
+                          <td class="px-3 md:px-4 py-1.5 md:py-2 text-sm text-right text-red-700">
                             {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.liabilityAccounts.reduce((sum, a) => sum + a.balance, 0))) }}
                           </td>
                         </tr>
@@ -234,7 +234,7 @@
                 <!-- 净值总计 -->
                 <div class="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div class="text-xs text-gray-600">{{ selectedCategory?.name || '该类型' }}净值</div>
-                  <div class="text-xl font-bold text-blue-700">
+                  <div class="text-lg md:text-xl font-bold text-blue-700">
                     {{ currencySymbol }}{{ formatNumber(convertValue(
                       (drillDownData.assetAccounts?.reduce((sum, a) => sum + a.balance, 0) || 0) -
                       (drillDownData.liabilityAccounts?.reduce((sum, a) => sum + a.balance, 0) || 0)
@@ -254,7 +254,7 @@
               <!-- 在饼图下方显示类型总计 -->
               <div v-if="drillDownData && drillDownData.length > 0" class="text-center p-3 bg-gray-50 rounded-lg">
                 <div class="text-xs text-gray-500">{{ selectedCategory?.name || '该类型' }}总计</div>
-                <div class="text-xl font-bold text-gray-900">
+                <div class="text-lg md:text-xl font-bold text-gray-900">
                   {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.reduce((sum, item) => sum + item.balance, 0))) }}
                 </div>
               </div>
@@ -264,7 +264,7 @@
         </div>
 
         <!-- 第二行: 税收状态饼图 + 状态列表 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <!-- 税收状态饼图 -->
           <div class="h-80 flex flex-col">
             <h4 class="font-semibold mb-4 text-center">税收状态分布</h4>
@@ -281,7 +281,7 @@
               <div
                 v-for="item in taxStatusAllocation?.data || []"
                 :key="item.taxStatus"
-                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div class="flex items-center gap-3">
                   <div class="w-4 h-4 rounded" :style="{ backgroundColor: getTaxStatusColor(item.taxStatus) }"></div>
@@ -289,7 +289,7 @@
                 </div>
                 <div class="text-right">
                   <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(item.value)) }}</div>
-                  <div class="text-sm text-gray-500">
+                  <div class="text-xs md:text-sm text-gray-500">
                   {{ formatNumber(getAdjustedPercentage(item)) }}%
                 </div>
                 </div>
@@ -299,7 +299,7 @@
         </div>
 
         <!-- 第三行: 家庭成员分布饼图 + 成员列表 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <!-- 家庭成员饼图 -->
           <div class="h-80 flex flex-col">
             <h4 class="font-semibold mb-4 text-center">家庭成员分布</h4>
@@ -316,7 +316,7 @@
               <div
                 v-for="item in memberAllocation?.data || []"
                 :key="item.userId"
-                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div class="flex items-center gap-3">
                   <div class="w-4 h-4 rounded" :style="{ backgroundColor: defaultColors[memberAllocation.data.indexOf(item) % defaultColors.length] }"></div>
@@ -330,7 +330,7 @@
                 </div>
                 <div class="text-right">
                   <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(item.value)) }}</div>
-                  <div class="text-sm text-gray-500">
+                  <div class="text-xs md:text-sm text-gray-500">
                     {{ formatNumber(item.percentage) }}%
                   </div>
                 </div>
@@ -340,7 +340,7 @@
         </div>
 
         <!-- 第四行: 货币分布饼图 + 货币列表 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <!-- 货币分布饼图 -->
           <div class="h-80 flex flex-col">
             <h4 class="font-semibold mb-4 text-center">货币分布</h4>
@@ -357,7 +357,7 @@
               <div
                 v-for="item in currencyAllocation?.data || []"
                 :key="item.currency"
-                class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div class="flex items-center gap-3">
                   <div class="w-4 h-4 rounded" :style="{ backgroundColor: getCurrencyColor(item.currency) }"></div>
@@ -371,7 +371,7 @@
                 </div>
                 <div class="text-right">
                   <div class="font-semibold">{{ getCurrencySymbol(item.currency) }}{{ formatNumber(item.value) }}</div>
-                  <div class="text-sm text-gray-500">
+                  <div class="text-xs md:text-sm text-gray-500">
                     {{ formatNumber(item.percentage) }}%
                   </div>
                 </div>
@@ -382,7 +382,7 @@
       </div>
 
       <!-- 资产和负债tab: 保持原有的两列布局 -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <!-- 主饼图 -->
         <div class="h-80 flex items-center justify-center">
           <div v-if="loading" class="text-gray-500">加载中...</div>
@@ -397,7 +397,7 @@
             <div
               v-for="item in currentAllocation?.data || []"
               :key="item.name || item.code"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div class="flex items-center gap-3">
                 <input
@@ -411,7 +411,7 @@
               </div>
               <div class="text-right">
                 <div class="font-semibold">{{ currencySymbol }}{{ formatNumber(convertValue(getItemValue(item))) }}</div>
-                <div class="text-sm text-gray-500">
+                <div class="text-xs md:text-sm text-gray-500">
                   {{ formatNumber(getAdjustedPercentage(item)) }}%
                 </div>
               </div>
@@ -420,11 +420,11 @@
 
           <!-- 选中类别时显示钻取饼图 -->
           <div v-else class="space-y-4">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
               <h4 class="font-semibold">{{ selectedCategory.name }} - 账户分布</h4>
               <button
                 @click="selectedCategory = null; drillDownData = null"
-                class="text-sm text-gray-500 hover:text-gray-700"
+                class="text-xs md:text-sm text-gray-500 hover:text-gray-700"
               >
                 返回
               </button>
@@ -439,7 +439,7 @@
               <!-- 在饼图下方显示类型总计 -->
               <div v-if="drillDownData && drillDownData.length > 0" class="text-center p-3 bg-gray-50 rounded-lg">
                 <div class="text-xs text-gray-500">{{ selectedCategory?.name || '该类型' }}总计</div>
-                <div class="text-xl font-bold text-gray-900">
+                <div class="text-lg md:text-xl font-bold text-gray-900">
                   {{ currencySymbol }}{{ formatNumber(convertValue(drillDownData.reduce((sum, item) => sum + item.balance, 0))) }}
                 </div>
               </div>

@@ -1,27 +1,27 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 md:space-y-6">
     <!-- 页头和日期选择 -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">优化建议</h2>
+    <div class="bg-white rounded-lg shadow p-3 md:p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+        <h2 class="text-md md:text-lg font-semibold text-gray-900">优化建议</h2>
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">查询日期：</label>
+          <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
           <input
             v-model="selectedDate"
             type="date"
             @change="loadRecommendations"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
           <button
             v-if="selectedDate"
             @click="clearDate"
-            class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+            class="px-2 md:px-3 py-1.5 md:py-2 text-sm text-gray-600 hover:text-gray-800"
           >
             清除
           </button>
         </div>
       </div>
-      <div class="text-sm text-gray-600" v-if="recommendations.asOfDate">
+      <div class="text-xs md:text-sm text-gray-600" v-if="recommendations.asOfDate">
         <span class="font-medium text-gray-700">数据日期:</span>
         <span class="text-blue-600 font-semibold">{{ formatDate(recommendations.asOfDate) }}</span>
       </div>
@@ -37,19 +37,19 @@
         </div>
         <div class="flex-1">
           <div class="flex items-center gap-2 mb-2">
-            <h3 class="text-lg font-semibold text-gray-900">AI Prompt 生成器</h3>
+            <h3 class="text-md md:text-lg font-semibold text-gray-900">AI Prompt 生成器</h3>
             <span class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
               ✨ 适用于任何 AI 工具
             </span>
           </div>
-          <p class="text-sm text-gray-600 mb-4">
+          <p class="text-xs md:text-sm text-gray-600 mb-4">
             自动生成包含您完整财务数据的 Prompt，可复制到 ChatGPT、Claude、Gemini 等任何 AI 工具中获取专业理财建议
           </p>
 
           <!-- 个人情况输入 -->
           <div class="space-y-3">
             <div>
-              <label class="text-sm font-medium text-gray-700 mb-1 block">添加您的个人情况（可选）:</label>
+              <label class="text-xs md:text-sm font-medium text-gray-700 mb-1 block">添加您的个人情况（可选）:</label>
               <textarea
                 v-model="personalContext"
                 placeholder="例如：&#10;- 我计划明年买房，首付需要50万元&#10;- 我的风险承受能力较低，倾向于稳健投资&#10;- 希望在5年内积累孩子的教育基金30万元&#10;- 计划3年后创业，需要准备启动资金"
@@ -81,7 +81,7 @@
 
           <!-- 生成的 Prompt 预览 -->
           <div v-if="generatedPrompt" class="mt-4 bg-white rounded-lg border border-green-200 shadow-sm">
-            <div class="px-4 py-3 bg-green-50 border-b border-green-200 flex items-center justify-between">
+            <div class="px-3 md:px-4 py-2 md:py-3 bg-green-50 border-b border-green-200 flex items-center justify-between">
               <span class="text-sm font-semibold text-gray-700">生成的 Prompt 预览</span>
               <button
                 @click="showFullPrompt = !showFullPrompt"
@@ -110,12 +110,12 @@
         </div>
         <div class="flex-1">
           <div class="flex items-center gap-2 mb-2">
-            <h3 class="text-lg font-semibold text-gray-900">AI 增强理财建议（需配置 API）</h3>
+            <h3 class="text-md md:text-lg font-semibold text-gray-900">AI 增强理财建议（需配置 API）</h3>
             <span v-if="aiEnabled" class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
               ✓ 已启用
             </span>
           </div>
-          <p class="text-sm text-gray-600 mb-4">
+          <p class="text-xs md:text-sm text-gray-600 mb-4">
             基于系统的传统分析结果，结合你的个人情况和理财目标，AI 将为你提供更加个性化和深入的专业建议
           </p>
 
@@ -141,7 +141,7 @@
               class="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm resize-none shadow-sm"
               rows="5"
             ></textarea>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
               <div class="text-xs text-gray-500 flex items-center gap-2">
                 <span v-if="!aiEnabled" class="flex items-center gap-1 text-orange-600">
                   <span>⚠️</span>
@@ -175,8 +175,8 @@
           </div>
         </div>
         <div class="flex-1">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+            <h3 class="text-md md:text-lg font-semibold text-gray-900 flex items-center gap-2">
               <span>AI 个性化建议</span>
               <span class="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
                 Claude 3.5 Sonnet
@@ -196,7 +196,7 @@
 
           <!-- 反馈按钮 -->
           <div class="mt-6 pt-4 border-t border-gray-200 flex items-center gap-3">
-            <span class="text-sm text-gray-600">这个建议对你有帮助吗？</span>
+            <span class="text-xs md:text-sm text-gray-600">这个建议对你有帮助吗？</span>
             <div class="flex gap-2">
               <button class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
                 👍 有帮助
@@ -216,11 +216,11 @@
     </div>
 
     <!-- 优化建议内容 -->
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-4 md:space-y-6">
       <!-- 综合评分卡片 -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">财务健康度评分</h3>
-        <div class="flex items-center gap-6">
+      <div class="bg-white rounded-lg shadow p-3 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">财务健康度评分</h3>
+        <div class="flex items-center gap-4 md:gap-6">
           <!-- 健康度评分 -->
           <div class="relative w-32 h-32 flex-shrink-0">
             <svg class="w-32 h-32 transform -rotate-90">
@@ -246,10 +246,10 @@
             <div class="flex items-center gap-3 mb-3">
               <span class="text-2xl">{{ getHealthLevelIcon(recommendations.healthLevel) }}</span>
               <div>
-                <div class="text-xl font-bold" :class="getHealthLevelTextColor(recommendations.healthLevel)">
+                <div class="text-lg md:text-xl font-bold" :class="getHealthLevelTextColor(recommendations.healthLevel)">
                   {{ getHealthLevelName(recommendations.healthLevel) }}
                 </div>
-                <div class="text-sm text-gray-600">{{ getHealthLevelDescription(recommendations.healthLevel) }}</div>
+                <div class="text-xs md:text-sm text-gray-600">{{ getHealthLevelDescription(recommendations.healthLevel) }}</div>
               </div>
             </div>
 
@@ -263,8 +263,8 @@
       </div>
 
       <!-- 优先行动计划 -->
-      <div v-if="recommendations.prioritizedActions?.length" class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">优先行动计划</h3>
+      <div v-if="recommendations.prioritizedActions?.length" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">优先行动计划</h3>
         <div class="space-y-3">
           <div v-for="(action, index) in recommendations.prioritizedActions" :key="index"
                class="flex items-start gap-4 p-4 rounded-lg border-l-4"
@@ -285,7 +285,7 @@
                   {{ getTimeframeName(action.timeframe) }}
                 </span>
               </div>
-              <p class="text-sm text-gray-900 font-medium mb-1">{{ action.action }}</p>
+              <p class="text-xs md:text-sm text-gray-900 font-medium mb-1">{{ action.action }}</p>
               <p class="text-xs text-gray-600">预期效果: {{ action.expectedImpact }}</p>
             </div>
           </div>
@@ -293,9 +293,9 @@
       </div>
 
       <!-- 资产配置优化 -->
-      <div v-if="recommendations.assetAllocationOptimization" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">资产配置优化</h3>
+      <div v-if="recommendations.assetAllocationOptimization" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">资产配置优化</h3>
           <span :class="getStatusBadgeClass(recommendations.assetAllocationOptimization.status)">
             {{ getStatusName(recommendations.assetAllocationOptimization.status) }}
           </span>
@@ -303,16 +303,16 @@
 
         <div class="space-y-4">
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700 mb-2">{{ recommendations.assetAllocationOptimization.summary }}</p>
+            <p class="text-xs md:text-sm text-gray-700 mb-2">{{ recommendations.assetAllocationOptimization.summary }}</p>
             <div class="text-xs text-gray-600">
               评分: <span class="font-semibold">{{ formatNumber(recommendations.assetAllocationOptimization.currentScore) }}</span>
             </div>
           </div>
 
           <!-- 当前配置 vs 建议配置对比 -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <div class="text-sm font-medium text-gray-700 mb-2">当前配置</div>
+              <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">当前配置</div>
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-600">现金:</span>
@@ -337,7 +337,7 @@
               </div>
             </div>
             <div>
-              <div class="text-sm font-medium text-gray-700 mb-2">建议配置</div>
+              <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">建议配置</div>
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-600">现金:</span>
@@ -364,7 +364,7 @@
           </div>
 
           <div v-if="recommendations.assetAllocationOptimization.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">具体建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">具体建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in recommendations.assetAllocationOptimization.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -377,9 +377,9 @@
       </div>
 
       <!-- 负债管理优化 -->
-      <div v-if="recommendations.debtManagementOptimization" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">负债管理优化</h3>
+      <div v-if="recommendations.debtManagementOptimization" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">负债管理优化</h3>
           <span :class="getStatusBadgeClass(recommendations.debtManagementOptimization.status)">
             {{ getStatusName(recommendations.debtManagementOptimization.status) }}
           </span>
@@ -387,7 +387,7 @@
 
         <div class="space-y-4">
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700 mb-2">{{ recommendations.debtManagementOptimization.summary }}</p>
+            <p class="text-xs md:text-sm text-gray-700 mb-2">{{ recommendations.debtManagementOptimization.summary }}</p>
             <div class="flex items-center gap-4 text-xs text-gray-600">
               <span>评分: <span class="font-semibold">{{ formatNumber(recommendations.debtManagementOptimization.currentScore) }}</span></span>
               <span>策略: <span class="font-semibold">{{ getStrategyName(recommendations.debtManagementOptimization.recommendedStrategy) }}</span></span>
@@ -398,7 +398,7 @@
           </div>
 
           <div v-if="recommendations.debtManagementOptimization.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">优化建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">优化建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in recommendations.debtManagementOptimization.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -411,9 +411,9 @@
       </div>
 
       <!-- 流动性优化 -->
-      <div v-if="recommendations.liquidityOptimization" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">流动性优化</h3>
+      <div v-if="recommendations.liquidityOptimization" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">流动性优化</h3>
           <span :class="getStatusBadgeClass(recommendations.liquidityOptimization.status)">
             {{ getStatusName(recommendations.liquidityOptimization.status) }}
           </span>
@@ -421,8 +421,8 @@
 
         <div class="space-y-4">
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700 mb-3">{{ recommendations.liquidityOptimization.summary }}</p>
-            <div class="grid grid-cols-3 gap-4 text-sm">
+            <p class="text-xs md:text-sm text-gray-700 mb-3">{{ recommendations.liquidityOptimization.summary }}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
               <div>
                 <div class="text-xs text-gray-500 mb-1">当前现金</div>
                 <div class="font-semibold text-blue-600">${{ formatNumber(recommendations.liquidityOptimization.currentCash) }}</div>
@@ -442,7 +442,7 @@
           </div>
 
           <div v-if="recommendations.liquidityOptimization.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">优化建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">优化建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in recommendations.liquidityOptimization.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -455,9 +455,9 @@
       </div>
 
       <!-- 风险优化 -->
-      <div v-if="recommendations.riskOptimization" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">风险优化</h3>
+      <div v-if="recommendations.riskOptimization" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">风险优化</h3>
           <span :class="getStatusBadgeClass(recommendations.riskOptimization.status)">
             {{ getStatusName(recommendations.riskOptimization.status) }}
           </span>
@@ -465,16 +465,16 @@
 
         <div class="space-y-4">
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700">{{ recommendations.riskOptimization.summary }}</p>
+            <p class="text-xs md:text-sm text-gray-700">{{ recommendations.riskOptimization.summary }}</p>
           </div>
 
           <div v-if="recommendations.riskOptimization.adjustments?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">建议调整</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">建议调整</div>
             <div class="space-y-2">
               <div v-for="(adj, index) in recommendations.riskOptimization.adjustments" :key="index"
                    class="p-3 border border-gray-200 rounded-lg">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-900">{{ adj.assetType }}</span>
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-2">
+                  <span class="text-xs md:text-sm font-medium text-gray-900">{{ adj.assetType }}</span>
                   <span class="text-xs text-gray-600">{{ adj.reason }}</span>
                 </div>
                 <div class="flex items-center gap-4 text-sm">
@@ -489,9 +489,9 @@
       </div>
 
       <!-- 税务优化 -->
-      <div v-if="recommendations.taxOptimization" class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">税务优化</h3>
+      <div v-if="recommendations.taxOptimization" class="bg-white rounded-lg shadow p-3 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
+          <h3 class="text-md md:text-lg font-semibold text-gray-900">税务优化</h3>
           <span :class="getStatusBadgeClass(recommendations.taxOptimization.status)">
             {{ getStatusName(recommendations.taxOptimization.status) }}
           </span>
@@ -499,8 +499,8 @@
 
         <div class="space-y-4">
           <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-700 mb-3">{{ recommendations.taxOptimization.summary }}</p>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <p class="text-xs md:text-sm text-gray-700 mb-3">{{ recommendations.taxOptimization.summary }}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <div class="text-xs text-gray-500 mb-1">应税资产占比</div>
                 <div class="font-semibold text-blue-600">{{ formatNumber(recommendations.taxOptimization.taxablePercentage) }}%</div>
@@ -513,7 +513,7 @@
           </div>
 
           <div v-if="recommendations.taxOptimization.suggestions?.length">
-            <div class="text-sm font-medium text-gray-700 mb-2">优化建议</div>
+            <div class="text-xs md:text-sm font-medium text-gray-700 mb-2">优化建议</div>
             <ul class="space-y-2">
               <li v-for="(suggestion, index) in recommendations.taxOptimization.suggestions" :key="index"
                   class="flex items-start gap-2 text-sm text-gray-600">
@@ -776,7 +776,7 @@ const formatAIAdvice = (advice) => {
     .replace(/^#### (.*$)/gim, '<h5 class="text-sm font-semibold text-gray-800 mt-3 mb-2">$1</h5>')
     .replace(/^### (.*$)/gim, '<h4 class="text-base font-semibold text-gray-900 mt-4 mb-2 border-l-4 border-purple-500 pl-3">$1</h4>')
     .replace(/^## (.*$)/gim, '<h3 class="text-lg font-bold text-gray-900 mt-5 mb-3 pb-2 border-b-2 border-purple-200">$1</h3>')
-    .replace(/^# (.*$)/gim, '<h2 class="text-xl font-bold text-gray-900 mt-6 mb-4 pb-2 border-b-2 border-purple-300">$1</h2>')
+    .replace(/^# (.*$)/gim, '<h2 class="text-lg md:text-xl font-bold text-gray-900 mt-6 mb-4 pb-2 border-b-2 border-purple-300">$1</h2>')
     // Bold
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900 bg-yellow-50 px-1 rounded">$1</strong>')
     // Italic

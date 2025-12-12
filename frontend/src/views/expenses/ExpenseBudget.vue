@@ -1,36 +1,40 @@
 <template>
-  <div class="p-6 space-y-4">
-    <!-- 页面头部 -->
+  <div class="p-4 md:p-6 space-y-4">
+    <!-- 页面头部 - 移动端响应式 -->
     <div class="space-y-3">
-      <!-- 第一行：基础选择器 -->
-      <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-bold text-gray-900">年度预算管理</h1>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">家庭：</label>
+      <!-- 第一行：标题 -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900 flex-shrink-0">年度预算管理</h1>
+      </div>
+
+      <!-- 第二行：家庭、年份、货币选择器 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
           <select
             v-model="selectedFamilyId"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           >
             <option v-for="family in families" :key="family.id" :value="family.id">
               {{ family.familyName }}
             </option>
           </select>
         </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">年份：</label>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份：</label>
           <input
             v-model.number="selectedYear"
             type="number"
             min="2020"
             :max="new Date().getFullYear() + 5"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary w-24"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           />
         </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700">货币：</label>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">货币：</label>
           <select
             v-model="selectedCurrency"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
           >
             <option v-for="currency in currencies" :key="currency" :value="currency">
               {{ currency }}
@@ -39,19 +43,19 @@
         </div>
       </div>
 
-      <!-- 第二行：操作按钮 -->
+      <!-- 第三行：操作按钮 -->
       <div class="flex items-center justify-end">
         <button
           @click="saveAll"
           :disabled="saving || !hasChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap w-full sm:w-auto"
         >
           {{ saving ? '保存中...' : '保存全部' }}
         </button>
       </div>
     </div>
 
-    <!-- 预算列表 -->
+    <!-- 预算列表 - 移动端横向滚动 -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
       <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
         加载中...
@@ -59,88 +63,96 @@
       <div v-else-if="budgets.length === 0" class="text-center py-8 text-gray-500 text-sm">
         暂无子分类
       </div>
-      <div v-else class="divide-y divide-gray-200">
-        <!-- 表头 -->
-        <div class="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-700">
-          <div class="col-span-4">分类</div>
-          <div class="col-span-3">预算金额</div>
-          <div class="col-span-5">备注</div>
-        </div>
+      <div v-else>
+        <!-- 横向滚动容器 -->
+        <div class="overflow-x-auto -mx-2 sm:mx-0">
+          <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+            <div class="divide-y divide-gray-200">
+              <!-- 表头 -->
+              <div class="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-700" style="min-width: 800px;">
+                <div class="col-span-4">分类</div>
+                <div class="col-span-3">预算金额</div>
+                <div class="col-span-5">备注</div>
+              </div>
 
-        <!-- 数据行 -->
-        <div
-          v-for="budget in budgets"
-          :key="budget.minorCategoryId"
-          class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
-        >
-          <!-- 分类信息 -->
-          <div class="col-span-4">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">{{ budget.majorCategoryIcon }}</span>
-              <div>
-                <div class="font-medium text-gray-900 text-sm">
-                  {{ budget.majorCategoryName }} - {{ budget.minorCategoryName }}
+              <!-- 数据行 -->
+              <div
+                v-for="budget in budgets"
+                :key="budget.minorCategoryId"
+                class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
+                style="min-width: 800px;"
+              >
+                <!-- 分类信息 -->
+                <div class="col-span-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ budget.majorCategoryIcon }}</span>
+                    <div>
+                      <div class="font-medium text-gray-900 text-sm">
+                        {{ budget.majorCategoryName }} - {{ budget.minorCategoryName }}
+                      </div>
+                      <span :class="[
+                        'inline-block px-1.5 py-0.5 text-xs rounded mt-0.5',
+                        budget.expenseType === 'FIXED_DAILY'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-orange-100 text-orange-700'
+                      ]">
+                        {{ budget.expenseType === 'FIXED_DAILY' ? '固定' : '不定期' }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span :class="[
-                  'inline-block px-1.5 py-0.5 text-xs rounded mt-0.5',
-                  budget.expenseType === 'FIXED_DAILY'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-orange-100 text-orange-700'
-                ]">
-                  {{ budget.expenseType === 'FIXED_DAILY' ? '固定' : '不定期' }}
-                </span>
+
+                <!-- 预算金额输入 -->
+                <div class="col-span-3">
+                  <input
+                    v-model.number="budgetAmounts[budget.minorCategoryId]"
+                    @input="markAsChanged(budget.minorCategoryId)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                  />
+                </div>
+
+                <!-- 备注 -->
+                <div class="col-span-5">
+                  <input
+                    v-model="budgetNotes[budget.minorCategoryId]"
+                    @input="markAsChanged(budget.minorCategoryId)"
+                    type="text"
+                    maxlength="500"
+                    placeholder="备注（可选）"
+                    class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-
-          <!-- 预算金额输入 -->
-          <div class="col-span-3">
-            <input
-              v-model.number="budgetAmounts[budget.minorCategoryId]"
-              @input="markAsChanged(budget.minorCategoryId)"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <!-- 备注 -->
-          <div class="col-span-5">
-            <input
-              v-model="budgetNotes[budget.minorCategoryId]"
-              @input="markAsChanged(budget.minorCategoryId)"
-              type="text"
-              maxlength="500"
-              placeholder="备注（可选）"
-              class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 统计信息 -->
-    <div class="grid grid-cols-3 gap-4">
+    <!-- 统计信息 - 移动端响应式 -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
         <div class="text-sm text-gray-600 mb-1">总预算</div>
-        <div class="text-2xl font-bold text-gray-900">
+        <div class="text-xl sm:text-2xl font-bold text-gray-900">
           {{ formatCurrency(totalBudget) }}
         </div>
       </div>
       <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
         <div class="text-sm text-gray-600 mb-1">固定日常预算</div>
-        <div class="text-2xl font-bold text-green-600">
+        <div class="text-xl sm:text-2xl font-bold text-green-600">
           {{ formatCurrency(fixedBudget) }}
-          <span class="text-sm text-gray-500 ml-2">({{ fixedPercentage }}%)</span>
+          <span class="text-xs sm:text-sm text-gray-500 ml-2">({{ fixedPercentage }}%)</span>
         </div>
       </div>
       <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
         <div class="text-sm text-gray-600 mb-1">大额不定期预算</div>
-        <div class="text-2xl font-bold text-orange-600">
+        <div class="text-xl sm:text-2xl font-bold text-orange-600">
           {{ formatCurrency(irregularBudget) }}
-          <span class="text-sm text-gray-500 ml-2">({{ irregularPercentage }}%)</span>
+          <span class="text-xs sm:text-sm text-gray-500 ml-2">({{ irregularPercentage }}%)</span>
         </div>
       </div>
     </div>
