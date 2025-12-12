@@ -151,6 +151,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/expense-annual-actual',
+        name: 'ExpenseAnnualActual',
+        component: () => import('../views/analysis/ExpenseAnnualActual.vue'),
+        meta: {
+          title: '年度支出（实际）',
+          description: '经资产负债调整后的实际年度支出'
+        }
+      },
+      {
         path: 'analysis/expense-budget',
         name: 'ExpenseBudgetAnalysis',
         component: () => import('../views/analysis/ExpenseBudgetAnalysis.vue'),

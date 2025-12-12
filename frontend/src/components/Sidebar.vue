@@ -171,6 +171,14 @@
             <span>年度支出</span>
           </router-link>
           <router-link
+            to="/analysis/expense-annual-actual"
+            class="nav-item"
+            :class="isActive('/analysis/expense-annual-actual')"
+          >
+            <DollarSign class="w-5 h-5" />
+            <span>年度支出（实际）</span>
+          </router-link>
+          <router-link
             to="/analysis/expense-budget"
             class="nav-item"
             :class="isActive('/analysis/expense-budget')"

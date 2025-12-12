@@ -154,11 +154,12 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { familyAPI } from '@/api/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI } from '@/api/expense'
 
-Chart.register(...registerables)
+Chart.register(...registerables, ChartDataLabels)
 
 export default {
   name: 'ExpenseAnnual',
@@ -384,6 +385,23 @@ export default {
                   return ` ${formatChartAmount(value)}`
                 }
               }
+            },
+            datalabels: {
+              color: '#fff',
+              font: {
+                weight: 'bold',
+                size: 11
+              },
+              formatter: (value, context) => {
+                const label = majorCategoryData.value[context.dataIndex].majorCategoryName
+                const percentage = ((value / totalExpense.value) * 100).toFixed(1)
+                // 只显示占比大于5%的标签
+                if (percentage >= 5) {
+                  return `${label}\n${percentage}%`
+                }
+                return ''
+              },
+              textAlign: 'center'
             }
           }
         }
@@ -423,6 +441,23 @@ export default {
                   return ` ${formatChartAmount(value)}`
                 }
               }
+            },
+            datalabels: {
+              color: '#fff',
+              font: {
+                weight: 'bold',
+                size: 10
+              },
+              formatter: (value, context) => {
+                const label = minorCategoryData.value[context.dataIndex].minorCategoryName
+                const percentage = ((value / minorCategoryTotal.value) * 100).toFixed(1)
+                // 只显示占比大于8%的标签（小类较多，阈值稍高）
+                if (percentage >= 8) {
+                  return `${label}\n${percentage}%`
+                }
+                return ''
+              },
+              textAlign: 'center'
             }
           }
         }

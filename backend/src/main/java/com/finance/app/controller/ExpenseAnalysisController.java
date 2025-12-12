@@ -1,5 +1,6 @@
 package com.finance.app.controller;
 
+import com.finance.app.dto.expense.AnnualExpenseSummaryDTO;
 import com.finance.app.dto.expense.BudgetExecutionDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMajorCategoryDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMinorCategoryDTO;
@@ -118,6 +119,32 @@ public class ExpenseAnalysisController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "查询预算执行失败: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取年度支出汇总(包含资产/负债调整)
+     * GET /expenses/analysis/annual/summary?familyId=1&year=2025&currency=CNY&includeTotals=true
+     */
+    @GetMapping("/annual/summary")
+    public ResponseEntity<Map<String, Object>> getAnnualExpenseSummary(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam(defaultValue = "CNY") String currency,
+            @RequestParam(defaultValue = "true") boolean includeTotals) {
+        try {
+            List<AnnualExpenseSummaryDTO> result = expenseAnalysisService
+                    .getAnnualExpenseSummaryWithAdjustments(familyId, year, currency, includeTotals);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "查询年度汇总失败: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
     }

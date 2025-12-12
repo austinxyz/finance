@@ -634,21 +634,8 @@ public class AnalysisService {
             dailyData.put(date, point);
         }
 
-        // 按年度聚合数据 - 每年只保留最后一天的数据
-        Map<Integer, OverallTrendDataPointDTO> yearlyData = new HashMap<>();
-        for (LocalDate date : allDates) {
-            int year = date.getYear();
-            OverallTrendDataPointDTO currentPoint = dailyData.get(date);
-
-            // 如果该年还没有数据，或者当前日期比已有的日期更晚，则更新
-            if (!yearlyData.containsKey(year) ||
-                date.isAfter(LocalDate.parse(yearlyData.get(year).getDate()))) {
-                yearlyData.put(year, currentPoint);
-            }
-        }
-
-        // 将年度数据转换为列表并按年份排序
-        List<OverallTrendDataPointDTO> result = new ArrayList<>(yearlyData.values());
+        // 将所有日期的数据转换为列表并按日期排序（不进行年度聚合）
+        List<OverallTrendDataPointDTO> result = new ArrayList<>(dailyData.values());
         result.sort(Comparator.comparing(OverallTrendDataPointDTO::getDate));
 
         return result;

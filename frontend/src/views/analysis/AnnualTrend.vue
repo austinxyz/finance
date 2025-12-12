@@ -1236,6 +1236,7 @@ const getCategoryDisplayName = (categoryType) => {
     'REAL_ESTATE_NET': '房地产净值',
     'RETIREMENT_FUND_NET': '退休基金净值',
     'LIQUID_NET': '流动资产净值',
+    'INSURANCE_NET': '保险净值',
     'INVESTMENT_NET': '投资净值',
     'OTHER_NET': '其他净值'
   }

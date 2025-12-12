@@ -1,14 +1,17 @@
 package com.finance.app.service.expense;
 
+import com.finance.app.dto.expense.AnnualExpenseSummaryDTO;
 import com.finance.app.dto.expense.BudgetExecutionDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMajorCategoryDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMinorCategoryDTO;
 import com.finance.app.dto.expense.ExpenseMonthlyTrendDTO;
+import com.finance.app.model.AnnualExpenseSummary;
 import com.finance.app.model.ExchangeRate;
 import com.finance.app.model.ExpenseBudget;
 import com.finance.app.model.ExpenseCategoryMajor;
 import com.finance.app.model.ExpenseCategoryMinor;
 import com.finance.app.model.ExpenseRecord;
+import com.finance.app.repository.AnnualExpenseSummaryRepository;
 import com.finance.app.repository.ExchangeRateRepository;
 import com.finance.app.repository.ExpenseBudgetRepository;
 import com.finance.app.repository.ExpenseCategoryMajorRepository;
@@ -41,6 +44,9 @@ public class ExpenseAnalysisService {
 
     @Autowired
     private ExchangeRateRepository exchangeRateRepository;
+
+    @Autowired
+    private AnnualExpenseSummaryRepository annualExpenseSummaryRepository;
 
     /**
      * 获取年度大类汇总
@@ -433,6 +439,67 @@ public class ExpenseAnalysisService {
             }
             return a.getMinorCategoryId().compareTo(b.getMinorCategoryId());
         });
+
+        return result;
+    }
+
+    /**
+     * 获取年度支出汇总(包含资产/负债调整)
+     * 从annual_expense_summary表查询预计算的汇总数据
+     */
+    public List<AnnualExpenseSummaryDTO> getAnnualExpenseSummaryWithAdjustments(
+            Long familyId, Integer year, String currency, boolean includeTotals) {
+
+        List<AnnualExpenseSummary> summaries = annualExpenseSummaryRepository
+                .findMajorCategorySummary(familyId, year, currency);
+
+        List<AnnualExpenseSummaryDTO> result = new ArrayList<>();
+
+        for (AnnualExpenseSummary summary : summaries) {
+            // 获取大类信息
+            ExpenseCategoryMajor major = summary.getMajorCategory();
+
+            AnnualExpenseSummaryDTO dto = new AnnualExpenseSummaryDTO();
+            dto.setSummaryYear(summary.getSummaryYear());
+            dto.setMajorCategoryId(summary.getMajorCategoryId());
+            dto.setMajorCategoryName(major != null ? major.getName() : null);
+            dto.setMajorCategoryIcon(major != null ? major.getIcon() : null);
+            dto.setMajorCategoryCode(major != null ? major.getCode() : null);
+            dto.setMinorCategoryId(null); // 大类汇总没有小类ID
+            dto.setMinorCategoryName(null);
+
+            dto.setBaseExpenseAmount(summary.getBaseExpenseAmount());
+            dto.setAssetAdjustment(summary.getAssetAdjustment());
+            dto.setLiabilityAdjustment(summary.getLiabilityAdjustment());
+            dto.setActualExpenseAmount(summary.getActualExpenseAmount());
+            dto.setCurrency(summary.getCurrency());
+            dto.setAdjustmentDetails(summary.getAdjustmentDetails());
+
+            result.add(dto);
+        }
+
+        // 如果需要总计,添加总计记录
+        if (includeTotals) {
+            AnnualExpenseSummary totalSummary = annualExpenseSummaryRepository
+                    .findTotalSummary(familyId, year, currency);
+
+            if (totalSummary != null) {
+                AnnualExpenseSummaryDTO totalDTO = new AnnualExpenseSummaryDTO();
+                totalDTO.setSummaryYear(totalSummary.getSummaryYear());
+                totalDTO.setMajorCategoryId(0L);
+                totalDTO.setMajorCategoryName("总计");
+                totalDTO.setMajorCategoryIcon(null);
+                totalDTO.setMajorCategoryCode("TOTAL");
+                totalDTO.setBaseExpenseAmount(totalSummary.getBaseExpenseAmount());
+                totalDTO.setAssetAdjustment(totalSummary.getAssetAdjustment());
+                totalDTO.setLiabilityAdjustment(totalSummary.getLiabilityAdjustment());
+                totalDTO.setActualExpenseAmount(totalSummary.getActualExpenseAmount());
+                totalDTO.setCurrency(totalSummary.getCurrency());
+                totalDTO.setAdjustmentDetails(totalSummary.getAdjustmentDetails());
+
+                result.add(totalDTO);
+            }
+        }
 
         return result;
     }

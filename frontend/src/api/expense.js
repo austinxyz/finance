@@ -88,5 +88,12 @@ export const expenseAnalysisAPI = {
     return request.get('/expenses/analysis/budget-execution', {
       params: { familyId, budgetYear, currency }
     })
+  },
+
+  // 获取年度支出汇总（实际）- 包含资产/负债调整
+  getAnnualSummary(familyId, year, currency = 'USD', includeTotals = true) {
+    return request.get('/expenses/analysis/annual/summary', {
+      params: { familyId, year, currency, includeTotals }
+    })
   }
 }
