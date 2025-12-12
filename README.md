@@ -65,7 +65,7 @@ finance/
 
 - [需求说明文档](./requirement/需求说明.md) - 完整功能规划
 - [API文档](./requirement/API文档.md) - 接口详细说明
-- **Swagger UI** - http://localhost:8080/swagger-ui.html - 交互式API文档
+- **Swagger UI** - http://localhost:8080/api/swagger-ui/index.html - 交互式API文档
 
 ## 许可证
 
