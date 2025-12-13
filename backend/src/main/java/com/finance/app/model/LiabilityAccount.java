@@ -40,7 +40,7 @@ public class LiabilityAccount {
     private String institution;
 
     @Column(length = 10)
-    private String currency = "CNY";
+    private String currency = "USD";
 
     @Column(name = "interest_rate", precision = 5, scale = 2)
     private BigDecimal interestRate;

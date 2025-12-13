@@ -35,13 +35,7 @@ public class LiabilityRecord {
     private BigDecimal outstandingBalance;
 
     @Column(length = 10)
-    private String currency = "CNY";
-
-    @Column(name = "exchange_rate", precision = 12, scale = 6)
-    private BigDecimal exchangeRate = BigDecimal.ONE;
-
-    @Column(name = "balance_in_base_currency", precision = 18, scale = 2)
-    private BigDecimal balanceInBaseCurrency;
+    private String currency = "USD";
 
     @Column(name = "payment_amount", precision = 18, scale = 2)
     private BigDecimal paymentAmount;

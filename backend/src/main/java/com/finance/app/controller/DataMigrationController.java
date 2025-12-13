@@ -49,43 +49,13 @@ public class DataMigrationController {
 
     @PostMapping("/fix-liability-exchange-rates")
     public ApiResponse<Map<String, Object>> fixLiabilityExchangeRates() {
-        List<LiabilityRecord> allRecords = liabilityRecordRepository.findAll();
-
-        int updated = 0;
-        int skipped = 0;
-
-        for (LiabilityRecord record : allRecords) {
-            String currency = record.getCurrency();
-            if (currency == null || currency.isEmpty()) {
-                currency = "USD";
-            }
-
-            BigDecimal correctRate = EXCHANGE_RATES.getOrDefault(currency, BigDecimal.ONE);
-
-            // Check if the record needs updating
-            if (record.getExchangeRate() == null ||
-                record.getExchangeRate().compareTo(correctRate) != 0 ||
-                record.getBalanceInBaseCurrency() == null ||
-                record.getBalanceInBaseCurrency().compareTo(
-                    record.getOutstandingBalance().multiply(correctRate)
-                ) != 0) {
-
-                // Update exchange rate and recalculate balance in base currency
-                record.setExchangeRate(correctRate);
-                record.setBalanceInBaseCurrency(
-                    record.getOutstandingBalance().multiply(correctRate)
-                );
-                liabilityRecordRepository.save(record);
-                updated++;
-            } else {
-                skipped++;
-            }
-        }
-
+        // This endpoint is deprecated - exchange_rate and balance_in_base_currency fields have been removed
+        // Currency conversion is now done dynamically using the exchange_rates table
         Map<String, Object> result = new HashMap<>();
-        result.put("totalRecords", allRecords.size());
-        result.put("updated", updated);
-        result.put("skipped", skipped);
+        result.put("message", "This endpoint is deprecated. Exchange rate conversion is now done dynamically.");
+        result.put("totalRecords", 0);
+        result.put("updated", 0);
+        result.put("skipped", 0);
 
         return ApiResponse.success("Exchange rates fixed successfully", result);
     }

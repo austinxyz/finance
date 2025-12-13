@@ -15,6 +15,9 @@ public interface AssetAccountRepository extends JpaRepository<AssetAccount, Long
 
     List<AssetAccount> findByUserIdAndIsActiveTrue(Long userId);
 
+    @Query("SELECT a FROM AssetAccount a JOIN User u ON a.userId = u.id WHERE u.familyId = :familyId AND a.isActive = true")
+    List<AssetAccount> findByFamilyIdAndIsActiveTrue(@Param("familyId") Long familyId);
+
     List<AssetAccount> findByUserIdInAndIsActiveTrue(List<Long> userIds);
 
     List<AssetAccount> findByUserIdAndCategoryId(Long userId, Long categoryId);

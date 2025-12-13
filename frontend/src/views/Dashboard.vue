@@ -1,15 +1,29 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- Welcome Section -->
-    <div>
-      <h1 class="text-3xl font-bold text-gray-900">财务概览</h1>
-      <p class="text-gray-600 mt-2">
-        欢迎使用个人理财管理系统
-      </p>
+    <!-- Welcome Section with Family Selector -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">财务概览</h1>
+        <p class="text-gray-600 mt-2">
+          欢迎使用个人理财管理系统
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700">选择家庭:</label>
+        <select
+          v-model="familyId"
+          @change="onFamilyChange"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
         <div class="text-sm font-medium text-gray-600 mb-2">总资产</div>
         <div class="text-2xl font-bold text-green-600">${{ formatAmount(totalAssets) }}</div>
@@ -29,18 +43,105 @@
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
+        <div class="text-sm font-medium text-gray-600 mb-2">本年度总支出</div>
+        <div class="text-2xl font-bold text-orange-600">${{ formatAmount(totalExpense) }}</div>
+        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Expense</p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
         <div class="text-sm font-medium text-gray-600 mb-2">资产负债率</div>
         <div class="text-2xl font-bold" :class="debtRatioColor">{{ debtRatio }}%</div>
         <p class="text-xs text-gray-500 mt-1">Debt Ratio</p>
       </div>
     </div>
 
-    <!-- 资产负债分布 -->
+    <!-- 净资产分布 + 本年度实际支出 (优先显示) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 资产分布 -->
+      <!-- 净资产分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">资产分布</h2>
+          <h2 class="text-lg font-semibold text-gray-900">净资产分布</h2>
+          <p class="text-xs text-gray-500 mt-1">资产类型分布情况</p>
+        </div>
+        <div class="p-6">
+          <div v-if="netAssetCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
+            暂无净资产数据
+          </div>
+          <div v-else class="h-64">
+            <canvas ref="netWorthChartCanvas"></canvas>
+          </div>
+          <div v-if="netAssetCategories.length > 0" class="mt-6 space-y-2">
+            <div v-for="category in netAssetCategories" :key="category.type" class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: category.color }"></div>
+                <span class="text-gray-700">{{ category.name }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-gray-900 font-medium" :class="{ 'text-red-600': category.isNegative }">${{ formatAmount(Math.abs(category.total)) }}</span>
+                <span class="text-gray-500">{{ category.percentage }}%</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-sm pt-2 border-t border-gray-200 font-semibold">
+              <span class="text-gray-700">净资产总计</span>
+              <span class="text-blue-600">${{ formatAmount(netWorth) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 本年度实际支出分布 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">本年度实际支出</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ currentYear }}年 · 实际支出金额</p>
+        </div>
+        <div class="p-6">
+          <div v-if="loadingExpense" class="text-sm text-gray-500 text-center py-8">
+            加载中...
+          </div>
+          <div v-else-if="expenseCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
+            暂无支出数据
+          </div>
+          <div v-else>
+            <div class="h-64">
+              <canvas ref="expenseChartCanvas"></canvas>
+            </div>
+            <div class="mt-6 space-y-2">
+              <div v-for="category in expenseCategories" :key="category.id" class="flex items-center justify-between text-sm">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: category.color }"></div>
+                  <span class="text-gray-700">{{ category.name }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-gray-900 font-medium">${{ formatAmount(category.amount) }}</span>
+                  <span class="text-gray-500">{{ category.percentage }}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="flex items-center justify-between text-sm font-semibold">
+                <span class="text-gray-700">实际总支出</span>
+                <span class="text-lg text-orange-600">${{ formatAmount(totalExpense) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 资产分布 + 负债分布 (整合账户信息) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 资产分布 + 账户概览 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">资产分布</h2>
+            <p class="text-xs text-gray-500 mt-1">{{ totalAssetAccounts }} 个账户</p>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-gray-600">活跃账户</div>
+            <div class="text-lg font-semibold text-green-600">{{ activeAssetAccounts }}</div>
+          </div>
         </div>
         <div class="p-6">
           <div v-if="assetCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
@@ -60,14 +161,25 @@
                 <span class="text-gray-500">{{ category.percentage }}%</span>
               </div>
             </div>
+            <div class="flex items-center justify-between text-sm pt-2 border-t border-gray-200 font-semibold">
+              <span class="text-gray-700">总计</span>
+              <span class="text-green-600">${{ formatAmount(totalAssets) }}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- 负债分布 -->
+      <!-- 负债分布 + 账户概览 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">负债分布</h2>
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">负债分布</h2>
+            <p class="text-xs text-gray-500 mt-1">{{ totalLiabilityAccounts }} 个账户</p>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-gray-600">活跃账户</div>
+            <div class="text-lg font-semibold text-red-600">{{ activeLiabilityAccounts }}</div>
+          </div>
         </div>
         <div class="p-6">
           <div v-if="liabilityCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
@@ -87,62 +199,19 @@
                 <span class="text-gray-500">{{ category.percentage }}%</span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 净资产分类 -->
-    <div class="bg-white rounded-lg shadow border border-gray-200">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">净资产分类</h2>
-        <p class="text-sm text-gray-500 mt-1">资产减去对应负债后的净值分布</p>
-      </div>
-      <div class="p-6">
-        <div v-if="netAssetAllocation.data.length === 0" class="text-sm text-gray-500 text-center py-8">
-          暂无净资产数据
-        </div>
-        <div v-else class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <!-- 左侧饼图 - 占3列 -->
-          <div class="lg:col-span-3 h-80 flex items-center justify-center">
-            <canvas ref="netAssetChartCanvas"></canvas>
-          </div>
-
-          <!-- 右侧详细列表 - 占2列 -->
-          <div class="lg:col-span-2 space-y-1.5">
-            <div v-for="category in netAssetAllocation.data" :key="category.code"
-                 class="flex items-center justify-between p-2 border border-gray-200 rounded hover:bg-gray-50 transition-colors text-xs">
-              <div class="flex items-center gap-2 flex-shrink-0">
-                <div class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: category.color }"></div>
-                <span class="font-semibold text-gray-900">{{ category.name }}</span>
-              </div>
-              <div class="flex items-center gap-3 text-right">
-                <div class="text-gray-500">
-                  <span class="text-green-600 font-medium">${{ formatAmount(category.assets) }}</span>
-                  <span class="mx-1">-</span>
-                  <span class="text-red-600 font-medium">${{ formatAmount(category.liabilities) }}</span>
-                </div>
-                <div class="font-bold text-gray-900 min-w-[80px]">
-                  ${{ formatAmount(category.netValue) }}
-                </div>
-                <div class="text-gray-500 min-w-[45px]">{{ category.percentage }}%</div>
-              </div>
-            </div>
-            <div class="border-t border-gray-200 pt-2 mt-3">
-              <div class="flex items-center justify-between font-semibold text-sm">
-                <span class="text-gray-700">总净资产</span>
-                <span class="text-lg text-blue-600">${{ formatAmount(netAssetAllocation.total) }}</span>
-              </div>
+            <div class="flex items-center justify-between text-sm pt-2 border-t border-gray-200 font-semibold">
+              <span class="text-gray-700">总计</span>
+              <span class="text-red-600">${{ formatAmount(totalLiabilities) }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 快捷操作 & 账户概览 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- 快捷操作 & 年度净资产趋势 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 快捷操作 -->
-      <div class="bg-white rounded-lg shadow border border-gray-200">
+      <div class="bg-white rounded-lg shadow border border-gray-200 lg:col-span-1">
         <div class="px-6 py-4 border-b border-gray-200">
           <h2 class="text-lg font-semibold text-gray-900">快捷操作</h2>
         </div>
@@ -214,45 +283,8 @@
         </div>
       </div>
 
-      <!-- 账户概览 -->
-      <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">账户概览</h2>
-        </div>
-        <div class="p-6">
-          <div class="grid grid-cols-2 gap-4">
-            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-              <div class="text-sm text-green-700 font-medium mb-1">资产账户</div>
-              <div class="text-2xl font-bold text-green-900">{{ totalAssetAccounts }}</div>
-              <div class="text-xs text-green-600 mt-1">个账户</div>
-            </div>
-            <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-              <div class="text-sm text-red-700 font-medium mb-1">负债账户</div>
-              <div class="text-2xl font-bold text-red-900">{{ totalLiabilityAccounts }}</div>
-              <div class="text-xs text-red-600 mt-1">个账户</div>
-            </div>
-          </div>
-
-          <div class="mt-6 space-y-3">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">活跃资产账户</span>
-              <span class="font-medium text-gray-900">{{ activeAssetAccounts }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">活跃负债账户</span>
-              <span class="font-medium text-gray-900">{{ activeLiabilityAccounts }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm pt-3 border-t border-gray-200">
-              <span class="text-gray-600">总账户数</span>
-              <span class="font-bold text-gray-900">{{ totalAccounts }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 年度净资产趋势图 -->
-    <div class="bg-white rounded-lg shadow border border-gray-200">
+      <!-- 年度净资产趋势 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200 lg:col-span-2">
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">年度净资产趋势</h2>
         <div class="flex gap-2">
@@ -278,33 +310,30 @@
         <div v-else-if="overallTrendData.length === 0" class="text-sm text-gray-500 text-center py-12">
           暂无趋势数据，请先添加资产或负债记录
         </div>
-        <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- 左侧图表 (2/3) -->
-          <div class="lg:col-span-2 h-96">
+        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- 左侧图表 (1/2) -->
+          <div class="h-96">
             <canvas ref="annualNetWorthChartCanvas"></canvas>
           </div>
 
-          <!-- 右侧年度汇总表格 (1/3) -->
-          <div class="lg:col-span-1">
-            <!-- 移动端横向滚动容器 -->
-            <div class="overflow-x-auto -mx-2 sm:mx-0">
-              <div class="inline-block min-w-full align-middle px-2 sm:px-0">
-                <div class="border border-gray-200 rounded-lg overflow-hidden">
-                  <table class="min-w-full divide-y divide-gray-200">
+          <!-- 右侧年度汇总表格 (1/2) -->
+          <div>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">净资产</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">同比</th>
+                    <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">年份</th>
+                    <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-500 uppercase">净资产</th>
+                    <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-500 uppercase">同比</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr v-for="(item, index) in annualSummaryData" :key="item.year" class="hover:bg-gray-50">
-                    <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ item.year }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right font-medium">
+                    <td class="px-2 py-1.5 text-sm font-medium text-gray-900">{{ item.year }}</td>
+                    <td class="px-2 py-1.5 text-sm text-gray-900 text-right font-medium whitespace-nowrap">
                       ${{ formatAmount(item.netWorth) }}
                     </td>
-                    <td class="px-3 py-2 text-sm text-right">
+                    <td class="px-2 py-1.5 text-sm text-right whitespace-nowrap">
                       <div v-if="item.yoyChange !== null">
                         <div :class="getChangeColorClass(item.yoyChangePct)" class="font-medium">
                           {{ item.yoyChange > 0 ? '+' : '' }}${{ formatAmount(Math.abs(item.yoyChange)) }}
@@ -319,11 +348,11 @@
                 </tbody>
                 <tfoot class="bg-gray-50 border-t-2 border-gray-300">
                   <tr>
-                    <td class="px-3 py-3 text-sm font-bold text-gray-900">累计</td>
-                    <td class="px-3 py-3 text-sm text-right font-bold text-blue-600">
+                    <td class="px-2 py-2 text-sm font-bold text-gray-900">累计</td>
+                    <td class="px-2 py-2 text-sm text-right font-bold text-blue-600 whitespace-nowrap">
                       ${{ formatAmount(totalNetWorth) }}
                     </td>
-                    <td class="px-3 py-3 text-sm text-right">
+                    <td class="px-2 py-2 text-sm text-right whitespace-nowrap">
                       <div v-if="totalChange !== null && annualizedGrowthRate !== null">
                         <div :class="getChangeColorClass(totalChange)" class="font-bold">
                           {{ totalChange > 0 ? '+' : '' }}${{ formatAmount(Math.abs(totalChange)) }}
@@ -336,21 +365,22 @@
                   </tr>
                 </tfoot>
               </table>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
+      </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { assetAccountAPI, liabilityAccountAPI } from '@/api'
+import { assetAccountAPI, liabilityAccountAPI, familyAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
 import { annualSummaryAPI } from '@/api/annualSummary'
+import { expenseAnalysisAPI } from '@/api/expense'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -383,20 +413,29 @@ ChartJS.register(
 )
 
 const userId = ref(1) // TODO: 从用户登录状态获取
+const families = ref([])
+const familyId = ref(1) // 默认选择Austin Family (ID=1)
 const assetAccounts = ref([])
 const liabilityAccounts = ref([])
 const netAssetAllocation = ref({ total: 0, data: [] })
+const summaryData = ref({ totalAssets: 0, totalLiabilities: 0, netWorth: 0 })
 const loading = ref(false)
 const loadingTrend = ref(false)
+const loadingExpense = ref(false)
 
 const assetChartCanvas = ref(null)
 const liabilityChartCanvas = ref(null)
-const netAssetChartCanvas = ref(null)
+const netWorthChartCanvas = ref(null)
 const annualNetWorthChartCanvas = ref(null)
+const expenseChartCanvas = ref(null)
 let assetChartInstance = null
 let liabilityChartInstance = null
-let netAssetChartInstance = null
+let netWorthChartInstance = null
 let annualNetWorthChartInstance = null
+let expenseChartInstance = null
+
+const currentYear = ref(new Date().getFullYear())
+const annualExpenseSummary = ref([])
 
 const selectedTimeRange = ref('3y')
 const timeRanges = [
@@ -410,70 +449,79 @@ const timeRanges = [
 // 趋势数据
 const overallTrendData = ref([])
 
-// 资产分类颜色映射
-const ASSET_COLORS = {
-  'CASH': '#10b981',
-  'STOCKS': '#3b82f6',
-  'RETIREMENT_FUND': '#8b5cf6',
-  'INSURANCE': '#f59e0b',
-  'REAL_ESTATE': '#ef4444',
-  'CRYPTOCURRENCY': '#6366f1',
-  'PRECIOUS_METALS': '#eab308',
-  'OTHER': '#6b7280'
+// 资产分类定义（与TrendAnalysis保持一致）
+const assetCategoryDefinitions = [
+  { type: 'CASH', name: '现金类', color: 'rgb(34, 197, 94)' },
+  { type: 'STOCKS', name: '股票投资', color: 'rgb(59, 130, 246)' },
+  { type: 'RETIREMENT_FUND', name: '退休基金', color: 'rgb(168, 85, 247)' },
+  { type: 'INSURANCE', name: '保险', color: 'rgb(251, 146, 60)' },
+  { type: 'REAL_ESTATE', name: '房地产', color: 'rgb(239, 68, 68)' },
+  { type: 'CRYPTOCURRENCY', name: '数字货币', color: 'rgb(234, 179, 8)' },
+  { type: 'PRECIOUS_METALS', name: '贵金属', color: 'rgb(20, 184, 166)' },
+  { type: 'OTHER', name: '其他', color: 'rgb(156, 163, 175)' }
+]
+
+// 负债分类定义（与TrendAnalysis保持一致）
+const liabilityCategoryDefinitions = [
+  { type: 'MORTGAGE', name: '房贷', color: 'rgb(220, 38, 38)' },
+  { type: 'AUTO_LOAN', name: '车贷', color: 'rgb(234, 88, 12)' },
+  { type: 'CREDIT_CARD', name: '信用卡', color: 'rgb(251, 146, 60)' },
+  { type: 'PERSONAL_LOAN', name: '个人借款', color: 'rgb(249, 115, 22)' },
+  { type: 'STUDENT_LOAN', name: '学生贷款', color: 'rgb(251, 191, 36)' },
+  { type: 'BUSINESS_LOAN', name: '商业贷款', color: 'rgb(253, 224, 71)' },
+  { type: 'OTHER', name: '其他', color: 'rgb(156, 163, 175)' }
+]
+
+// 创建type到定义的映射，用于快速查找
+const assetCategoryMap = assetCategoryDefinitions.reduce((map, def) => {
+  map[def.type] = def
+  return map
+}, {})
+
+const liabilityCategoryMap = liabilityCategoryDefinitions.reduce((map, def) => {
+  map[def.type] = def
+  return map
+}, {})
+
+// 支出分类颜色映射（使用大类icon对应的颜色）
+const EXPENSE_COLORS = [
+  '#fb923c', // 橙色 - 子女
+  '#ec4899', // 粉红色 - 衣
+  '#ef4444', // 红色 - 食
+  '#8b5cf6', // 紫色 - 住
+  '#3b82f6', // 蓝色 - 行
+  '#10b981', // 绿色 - 保险
+  '#f59e0b', // 琥珀色 - 人情
+  '#06b6d4', // 青色 - 娱乐
+  '#84cc16', // 黄绿色 - 经营
+  '#6b7280'  // 灰色 - 其他
+]
+
+// 资产类型颜色映射（与AssetAllocation.vue保持一致）
+const ASSET_TYPE_COLORS = {
+  '现金类': '#3b82f6',      // 蓝色
+  '股票投资': '#8b5cf6',    // 紫色
+  '退休基金': '#10b981',    // 绿色
+  '保险': '#f59e0b',        // 琥珀色
+  '房地产': '#ec4899',      // 粉红色
+  '数字货币': '#06b6d4',    // 青色
+  '贵金属': '#84cc16',      // 黄绿色
+  '其他': '#6b7280'         // 灰色
 }
 
-// 负债分类颜色映射
-const LIABILITY_COLORS = {
-  'MORTGAGE': '#dc2626',
-  'AUTO_LOAN': '#ea580c',
-  'CREDIT_CARD': '#f59e0b',
-  'PERSONAL_LOAN': '#f97316',
-  'STUDENT_LOAN': '#fb923c',
-  'BUSINESS_LOAN': '#fdba74',
-  'OTHER': '#9ca3af'
-}
-
-// 分类名称映射
-const ASSET_NAMES = {
-  'CASH': '现金类',
-  'STOCKS': '股票投资',
-  'RETIREMENT_FUND': '退休基金',
-  'INSURANCE': '保险',
-  'REAL_ESTATE': '房地产',
-  'CRYPTOCURRENCY': '数字货币',
-  'PRECIOUS_METALS': '贵金属',
-  'OTHER': '其他'
-}
-
-const LIABILITY_NAMES = {
-  'MORTGAGE': '房贷',
-  'AUTO_LOAN': '车贷',
-  'CREDIT_CARD': '信用卡',
-  'PERSONAL_LOAN': '个人借款',
-  'STUDENT_LOAN': '学生贷款',
-  'BUSINESS_LOAN': '商业贷款',
-  'OTHER': '其他'
-}
-
-// 计算总资产（基准货币）
+// 计算总资产（使用分析API的summary数据，已考虑汇率转换）
 const totalAssets = computed(() => {
-  return assetAccounts.value.reduce((sum, acc) => {
-    const amount = acc.latestAmountInBaseCurrency || 0
-    return sum + Number(amount)
-  }, 0)
+  return summaryData.value.totalAssets || 0
 })
 
-// 计算总负债（基准货币）
+// 计算总负债（使用分析API的summary数据，已考虑汇率转换）
 const totalLiabilities = computed(() => {
-  return liabilityAccounts.value.reduce((sum, acc) => {
-    const balance = acc.latestBalanceInBaseCurrency || 0
-    return sum + Number(balance)
-  }, 0)
+  return summaryData.value.totalLiabilities || 0
 })
 
-// 计算净资产
+// 计算净资产 - 使用summary数据（更准确，因为使用统一的汇率和计算逻辑）
 const netWorth = computed(() => {
-  return totalAssets.value - totalLiabilities.value
+  return summaryData.value.netWorth || (totalAssets.value - totalLiabilities.value)
 })
 
 // 计算资产负债率
@@ -497,60 +545,96 @@ const activeAssetAccounts = computed(() => assetAccounts.value.filter(acc => acc
 const activeLiabilityAccounts = computed(() => liabilityAccounts.value.filter(acc => acc.isActive).length)
 const totalAccounts = computed(() => totalAssetAccounts.value + totalLiabilityAccounts.value)
 
-// 资产分类统计
-const assetCategories = computed(() => {
-  const categoryMap = {}
+// 净资产分类数据（从API获取，资产 - 对应负债）
+const netAssetAllocationData = ref([])
 
-  assetAccounts.value.forEach(acc => {
-    const type = acc.categoryType
-    const amount = Number(acc.latestAmountInBaseCurrency || 0)
+// 资产分类数据（从API获取，按类型分类的资产）
+const assetAllocationData = ref([])
 
-    if (!categoryMap[type]) {
-      categoryMap[type] = {
-        type,
-        name: ASSET_NAMES[type] || type,
-        color: ASSET_COLORS[type] || '#6b7280',
-        total: 0
-      }
-    }
-    categoryMap[type].total += amount
-  })
+// 净资产分类统计（用于净资产分布图表）
+const netAssetCategories = computed(() => {
+  if (!netAssetAllocationData.value || netAssetAllocationData.value.length === 0) {
+    return []
+  }
 
-  const categories = Object.values(categoryMap).filter(cat => cat.total > 0)
-  const total = categories.reduce((sum, cat) => sum + cat.total, 0)
+  // 显示所有非零净资产分类（包括负值）
+  const categories = netAssetAllocationData.value.filter(cat => cat.netValue !== 0)
+
+  // 计算总净资产（用于计算百分比）
+  const totalPositive = categories
+    .filter(cat => cat.netValue > 0)
+    .reduce((sum, cat) => sum + cat.netValue, 0)
 
   return categories.map(cat => ({
-    ...cat,
-    percentage: total > 0 ? ((cat.total / total) * 100).toFixed(1) : '0.0'
+    type: cat.code,
+    name: cat.name,
+    color: cat.color,
+    total: cat.netValue,
+    percentage: totalPositive > 0 ? ((cat.netValue / totalPositive) * 100).toFixed(1) : '0.0',
+    isNegative: cat.netValue < 0
   })).sort((a, b) => b.total - a.total)
 })
 
-// 负债分类统计
-const liabilityCategories = computed(() => {
-  const categoryMap = {}
+// 资产分类统计（用于资产分布图表）
+const assetCategories = computed(() => {
+  if (!assetAllocationData.value || assetAllocationData.value.length === 0) {
+    return []
+  }
 
-  liabilityAccounts.value.forEach(acc => {
-    const type = acc.categoryType
-    const balance = Number(acc.latestBalanceInBaseCurrency || 0)
-
-    if (!categoryMap[type]) {
-      categoryMap[type] = {
-        type,
-        name: LIABILITY_NAMES[type] || type,
-        color: LIABILITY_COLORS[type] || '#9ca3af',
-        total: 0
-      }
-    }
-    categoryMap[type].total += balance
-  })
-
-  const categories = Object.values(categoryMap).filter(cat => cat.total > 0)
-  const total = categories.reduce((sum, cat) => sum + cat.total, 0)
+  // 显示所有非零资产分类
+  const categories = assetAllocationData.value.filter(cat => cat.value > 0)
 
   return categories.map(cat => ({
-    ...cat,
-    percentage: total > 0 ? ((cat.total / total) * 100).toFixed(1) : '0.0'
+    name: cat.name,
+    color: ASSET_TYPE_COLORS[cat.name] || '#6b7280', // 使用颜色映射，如果找不到则用灰色
+    total: cat.value,
+    percentage: cat.percentage.toFixed(1)
   })).sort((a, b) => b.total - a.total)
+})
+
+// 负债分类数据（从API获取，已考虑汇率转换）
+const liabilityAllocationData = ref([])
+
+// 负债分类统计（用于负债分布图表）
+const liabilityCategories = computed(() => {
+  if (!liabilityAllocationData.value || liabilityAllocationData.value.length === 0) {
+    return []
+  }
+
+  // 显示所有非零负债分类
+  const categories = liabilityAllocationData.value.filter(cat => cat.value > 0)
+
+  return categories.map(cat => ({
+    name: cat.name,
+    color: liabilityCategoryDefinitions.find(def => def.name === cat.name)?.color || '#6b7280',
+    total: cat.value,
+    percentage: cat.percentage.toFixed(1)
+  })).sort((a, b) => b.total - a.total)
+})
+
+// 支出分类统计（本年度实际支出）
+const expenseCategories = computed(() => {
+  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为0）
+  const majorCategories = annualExpenseSummary.value.filter(
+    item => !item.minorCategoryName && item.majorCategoryId !== 0
+  )
+
+  if (majorCategories.length === 0) return []
+
+  const total = majorCategories.reduce((sum, cat) => sum + Number(cat.actualExpenseAmount || 0), 0)
+
+  return majorCategories.map((cat, index) => ({
+    id: cat.majorCategoryId,
+    name: cat.majorCategoryName,
+    amount: Number(cat.actualExpenseAmount || 0),
+    color: EXPENSE_COLORS[index % EXPENSE_COLORS.length],
+    percentage: total > 0 ? ((Number(cat.actualExpenseAmount || 0) / total) * 100).toFixed(1) : '0.0'
+  })).filter(cat => cat.amount > 0).sort((a, b) => b.amount - a.amount)
+})
+
+// 总支出
+const totalExpense = computed(() => {
+  return expenseCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
 })
 
 // 获取变化百分比的颜色类
@@ -805,10 +889,14 @@ function formatAmount(amount) {
 async function loadAccounts() {
   loading.value = true
   try {
-    const [assetResponse, liabilityResponse, netAssetResponse] = await Promise.all([
-      assetAccountAPI.getAll(),
-      liabilityAccountAPI.getAll(),
-      analysisAPI.getNetAssetAllocation()
+    // 使用familyId过滤所有API调用
+    const [assetResponse, liabilityResponse, netAssetResponse, assetAllocationResponse, liabilityAllocationResponse, summaryResponse] = await Promise.all([
+      assetAccountAPI.getAllByFamily(familyId.value),
+      liabilityAccountAPI.getAllByFamily(familyId.value),
+      analysisAPI.getNetAssetAllocation(null, familyId.value, null), // userId, familyId, asOfDate - 净资产分布
+      analysisAPI.getAllocationByType(null, familyId.value, null), // userId, familyId, asOfDate - 资产分布（按类型）
+      analysisAPI.getLiabilityAllocation(null, familyId.value, null), // userId, familyId, asOfDate - 负债分布（按类型）
+      analysisAPI.getSummary(null, familyId.value, null) // userId, familyId, asOfDate
     ])
 
     if (assetResponse.success) {
@@ -819,8 +907,20 @@ async function loadAccounts() {
       liabilityAccounts.value = liabilityResponse.data
     }
 
-    if (netAssetResponse.success) {
-      netAssetAllocation.value = netAssetResponse.data
+    if (netAssetResponse.success && netAssetResponse.data && netAssetResponse.data.data) {
+      netAssetAllocationData.value = netAssetResponse.data.data
+    }
+
+    if (assetAllocationResponse.success && assetAllocationResponse.data && assetAllocationResponse.data.data) {
+      assetAllocationData.value = assetAllocationResponse.data.data
+    }
+
+    if (liabilityAllocationResponse.success && liabilityAllocationResponse.data && liabilityAllocationResponse.data.data) {
+      liabilityAllocationData.value = liabilityAllocationResponse.data.data
+    }
+
+    if (summaryResponse.success && summaryResponse.data) {
+      summaryData.value = summaryResponse.data
     }
 
     await nextTick()
@@ -838,7 +938,7 @@ async function loadOverallTrend() {
   try {
     // 使用AnnualSummary API代替OverallTrend API以确保数据一致性
     const { years } = getYearRange()
-    const response = await annualSummaryAPI.getRecent(1, years) // familyId=1
+    const response = await annualSummaryAPI.getRecent(familyId.value, years) // 使用当前选择的familyId
     if (response.success) {
       // 转换AnnualSummary数据格式为OverallTrend格式
       overallTrendData.value = response.data
@@ -866,9 +966,61 @@ function selectTimeRange(range) {
 
 // 更新图表
 function updateCharts() {
+  updateNetWorthChart()
   updateAssetChart()
   updateLiabilityChart()
-  updateNetAssetChart()
+}
+
+// 更新净资产分布图表
+function updateNetWorthChart() {
+  if (!netWorthChartCanvas.value || netAssetCategories.value.length === 0) {
+    if (netWorthChartInstance) {
+      netWorthChartInstance.destroy()
+      netWorthChartInstance = null
+    }
+    return
+  }
+
+  if (netWorthChartInstance) {
+    netWorthChartInstance.destroy()
+  }
+
+  const ctx = netWorthChartCanvas.value.getContext('2d')
+  netWorthChartInstance = new ChartJS(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: netAssetCategories.value.map(c => c.name),
+      datasets: [{
+        // 使用绝对值显示饼图（负值无法正常渲染）
+        data: netAssetCategories.value.map(c => Math.abs(c.total)),
+        backgroundColor: netAssetCategories.value.map(c => c.color),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || ''
+              const category = netAssetCategories.value[context.dataIndex]
+              // 显示实际值（包括负值）
+              const absValue = formatAmount(Math.abs(category.total))
+              const sign = category.isNegative ? '-' : ''
+              const percentage = category.percentage
+              return `${label}: ${sign}$${absValue} (${percentage}%)`
+            }
+          }
+        }
+      }
+    }
+  })
 }
 
 // 更新资产分布图表
@@ -967,28 +1119,28 @@ function updateLiabilityChart() {
   })
 }
 
-// 更新净资产分布图表
-function updateNetAssetChart() {
-  if (!netAssetChartCanvas.value || netAssetAllocation.value.data.length === 0) {
-    if (netAssetChartInstance) {
-      netAssetChartInstance.destroy()
-      netAssetChartInstance = null
+// 更新支出分布图表
+function updateExpenseChart() {
+  if (!expenseChartCanvas.value || expenseCategories.value.length === 0) {
+    if (expenseChartInstance) {
+      expenseChartInstance.destroy()
+      expenseChartInstance = null
     }
     return
   }
 
-  if (netAssetChartInstance) {
-    netAssetChartInstance.destroy()
+  if (expenseChartInstance) {
+    expenseChartInstance.destroy()
   }
 
-  const ctx = netAssetChartCanvas.value.getContext('2d')
-  netAssetChartInstance = new ChartJS(ctx, {
+  const ctx = expenseChartCanvas.value.getContext('2d')
+  expenseChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
-      labels: netAssetAllocation.value.data.map(c => c.name),
+      labels: expenseCategories.value.map(c => c.name),
       datasets: [{
-        data: netAssetAllocation.value.data.map(c => c.netValue),
-        backgroundColor: netAssetAllocation.value.data.map(c => c.color),
+        data: expenseCategories.value.map(c => c.amount),
+        backgroundColor: expenseCategories.value.map(c => c.color),
         borderWidth: 2,
         borderColor: '#fff'
       }]
@@ -1005,8 +1157,7 @@ function updateNetAssetChart() {
             label: function(context) {
               const label = context.label || ''
               const value = formatAmount(context.parsed)
-              const category = netAssetAllocation.value.data[context.dataIndex]
-              const percentage = category.percentage
+              const percentage = expenseCategories.value[context.dataIndex].percentage
               return `${label}: $${value} (${percentage}%)`
             }
           }
@@ -1014,6 +1165,34 @@ function updateNetAssetChart() {
       }
     }
   })
+}
+
+// 加载年度支出汇总数据
+async function loadAnnualExpenseSummary() {
+  loadingExpense.value = true
+  try {
+    const response = await expenseAnalysisAPI.getAnnualSummary(
+      familyId.value,
+      currentYear.value,
+      'USD',
+      true
+    )
+
+    if (response.success) {
+      annualExpenseSummary.value = response.data || []
+      // 使用setTimeout确保DOM完全渲染后再更新图表
+      setTimeout(() => {
+        if (expenseChartCanvas.value && expenseCategories.value.length > 0) {
+          updateExpenseChart()
+        }
+      }, 200)
+    }
+  } catch (error) {
+    console.error('加载年度支出汇总失败:', error)
+    annualExpenseSummary.value = []
+  } finally {
+    loadingExpense.value = false
+  }
 }
 
 // 监听趋势数据变化，自动更新图表
@@ -1028,8 +1207,42 @@ watch(overallTrendData, async () => {
   }
 }, { deep: true })
 
-onMounted(() => {
+// 加载家庭列表
+async function loadFamilies() {
+  try {
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+      // 如果当前familyId不在列表中，默认选择第一个
+      if (!families.value.find(f => f.id === familyId.value) && families.value.length > 0) {
+        familyId.value = families.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 家庭切换事件处理
+function onFamilyChange() {
+  // 重新加载所有数据
   loadAccounts()
   loadOverallTrend()
+  loadAnnualExpenseSummary()
+}
+
+// 监听支出数据变化，自动更新图表
+watch(expenseCategories, async () => {
+  if (expenseCategories.value.length > 0) {
+    await nextTick()
+    updateExpenseChart()
+  }
+}, { deep: true })
+
+onMounted(() => {
+  loadFamilies()
+  loadAccounts()
+  loadOverallTrend()
+  loadAnnualExpenseSummary()
 })
 </script>

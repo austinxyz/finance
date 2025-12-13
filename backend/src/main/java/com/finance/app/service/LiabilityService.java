@@ -57,14 +57,17 @@ public class LiabilityService {
 
     // ========== Account Operations ==========
 
-    public List<LiabilityAccountDTO> getAllAccounts(Long userId) {
+    public List<LiabilityAccountDTO> getAllAccounts(Long userId, Long familyId) {
         List<LiabilityAccount> accounts;
-        if (userId == null) {
+        // 优先级：familyId > userId > 所有账户
+        if (familyId != null) {
+            accounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else if (userId != null) {
+            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
             accounts = accountRepository.findAll().stream()
                     .filter(LiabilityAccount::getIsActive)
                     .collect(Collectors.toList());
-        } else {
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
         }
         return accounts.stream().map(this::convertAccountToDTO).collect(Collectors.toList());
     }
@@ -132,13 +135,6 @@ public class LiabilityService {
         LiabilityAccount account = getAccountById(record.getAccountId());
         record.setUserId(account.getUserId());
 
-        // 如果没有设置基准货币余额，自动计算
-        if (record.getBalanceInBaseCurrency() == null && record.getExchangeRate() != null) {
-            record.setBalanceInBaseCurrency(
-                record.getOutstandingBalance().multiply(record.getExchangeRate())
-            );
-        }
-
         return recordRepository.save(record);
     }
 
@@ -151,18 +147,10 @@ public class LiabilityService {
         record.setRecordDate(recordDetails.getRecordDate());
         record.setOutstandingBalance(recordDetails.getOutstandingBalance());
         record.setCurrency(recordDetails.getCurrency());
-        record.setExchangeRate(recordDetails.getExchangeRate());
         record.setPaymentAmount(recordDetails.getPaymentAmount());
         record.setPrincipalPayment(recordDetails.getPrincipalPayment());
         record.setInterestPayment(recordDetails.getInterestPayment());
         record.setNotes(recordDetails.getNotes());
-
-        // 重新计算基准货币余额
-        if (record.getExchangeRate() != null && record.getOutstandingBalance() != null) {
-            record.setBalanceInBaseCurrency(
-                record.getOutstandingBalance().multiply(record.getExchangeRate())
-            );
-        }
 
         return recordRepository.save(record);
     }
@@ -198,7 +186,6 @@ public class LiabilityService {
                 result.put("amount", r.getOutstandingBalance());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
-                result.put("exchangeRate", r.getExchangeRate());
             });
         } else {
             // 查找该日期之前最近的记录
@@ -207,7 +194,6 @@ public class LiabilityService {
                 result.put("amount", r.getOutstandingBalance());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
-                result.put("exchangeRate", r.getExchangeRate());
             });
         }
 
@@ -260,19 +246,9 @@ public class LiabilityService {
             // 更新记录数据 - 对于负债，使用amount字段作为余额
             record.setOutstandingBalance(accountUpdate.getAmount());
 
-            // 设置币种和汇率
+            // 设置币种
             String currency = accountUpdate.getCurrency() != null ? accountUpdate.getCurrency() : account.getCurrency();
             record.setCurrency(currency);
-
-            BigDecimal exchangeRate = accountUpdate.getExchangeRate();
-            if (exchangeRate == null) {
-                exchangeRate = BigDecimal.ONE; // 默认汇率为1
-            }
-            record.setExchangeRate(exchangeRate);
-
-            // 计算基准货币余额
-            BigDecimal balanceInBaseCurrency = accountUpdate.getAmount().multiply(exchangeRate);
-            record.setBalanceInBaseCurrency(balanceInBaseCurrency);
 
             // 保存记录
             LiabilityRecord saved = recordRepository.save(record);
@@ -320,7 +296,6 @@ public class LiabilityService {
         recordRepository.findLatestByAccountId(account.getId())
                 .ifPresent(record -> {
                     dto.setLatestBalance(record.getOutstandingBalance());  // 原币种余额
-                    dto.setLatestBalanceInBaseCurrency(record.getBalanceInBaseCurrency());  // 基准货币余额
                     dto.setLatestRecordDate(record.getRecordDate());
                 });
 
@@ -334,8 +309,6 @@ public class LiabilityService {
         dto.setRecordDate(record.getRecordDate());
         dto.setOutstandingBalance(record.getOutstandingBalance());
         dto.setCurrency(record.getCurrency());
-        dto.setExchangeRate(record.getExchangeRate());
-        dto.setBalanceInBaseCurrency(record.getBalanceInBaseCurrency());
         dto.setPaymentAmount(record.getPaymentAmount());
         dto.setPrincipalPayment(record.getPrincipalPayment());
         dto.setInterestPayment(record.getInterestPayment());

@@ -78,8 +78,7 @@ class ExpenseControllerTest {
         recordDTO.setMinorCategoryId(1L);
         recordDTO.setMinorCategoryName("外出就餐");
         recordDTO.setAmount(new BigDecimal("1500.00"));
-        recordDTO.setCurrency("CNY");
-        recordDTO.setAmountInBaseCurrency(new BigDecimal("1500.00"));
+        recordDTO.setCurrency("USD");
         recordDTO.setExpenseType("FIXED_DAILY");
     }
 

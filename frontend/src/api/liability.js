@@ -26,6 +26,11 @@ export const liabilityAccountAPI = {
     return request.get('/liabilities/accounts', { params })
   },
 
+  // 按家庭获取所有账户
+  getAllByFamily(familyId) {
+    return request.get('/liabilities/accounts', { params: { familyId } })
+  },
+
   // 获取所有活跃账户（带最新余额）
   getActiveAccounts(userId = null) {
     const params = userId ? { userId } : {}

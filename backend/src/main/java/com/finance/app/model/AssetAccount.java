@@ -38,7 +38,7 @@ public class AssetAccount {
     private String institution;
 
     @Column(length = 10)
-    private String currency = "CNY";
+    private String currency = "USD";
 
     @Column(columnDefinition = "TEXT")
     private String notes;

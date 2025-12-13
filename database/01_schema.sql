@@ -76,7 +76,7 @@ CREATE TABLE `asset_accounts` (
   `account_name` varchar(100) NOT NULL COMMENT '账户名称',
   `account_number` varchar(100) DEFAULT NULL COMMENT '账号/编号',
   `institution` varchar(100) DEFAULT NULL COMMENT '机构名称 (银行/券商等)',
-  `currency` varchar(10) DEFAULT 'CNY' COMMENT '货币类型',
+  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币类型',
   `notes` text COMMENT '备注',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否活跃',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -151,9 +151,7 @@ CREATE TABLE `asset_records` (
   `amount` decimal(18,2) NOT NULL COMMENT '金额',
   `quantity` decimal(18,6) DEFAULT NULL COMMENT '数量（股票/基金份额等）',
   `unit_price` decimal(18,6) DEFAULT NULL COMMENT '单价',
-  `currency` varchar(10) DEFAULT 'CNY' COMMENT '货币',
-  `exchange_rate` decimal(12,6) DEFAULT '1.000000' COMMENT '汇率（转换为基准货币）',
-  `amount_in_base_currency` decimal(18,2) DEFAULT NULL COMMENT '基准货币金额',
+  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币',
   `notes` text COMMENT '备注',
   `attachment_url` varchar(500) DEFAULT NULL COMMENT '附件URL（账单截图等）',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -285,8 +283,7 @@ CREATE TABLE `expense_records` (
   `major_category_id` bigint NOT NULL COMMENT '大类ID',
   `minor_category_id` bigint NOT NULL COMMENT '子分类ID',
   `amount` decimal(18,2) NOT NULL COMMENT '支出金额',
-  `currency` varchar(10) NOT NULL DEFAULT 'CNY' COMMENT '货币代码',
-  `amount_in_base_currency` decimal(18,2) DEFAULT NULL COMMENT '基准货币金额（后端计算）',
+  `currency` varchar(10) NOT NULL DEFAULT 'USD' COMMENT '货币代码',
   `expense_type` varchar(20) NOT NULL COMMENT '支出类型（FIXED_DAILY/LARGE_IRREGULAR）',
   `description` text COMMENT '说明',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -393,7 +390,7 @@ CREATE TABLE `liability_accounts` (
   `account_name` varchar(100) NOT NULL COMMENT '账户名称',
   `account_number` varchar(100) DEFAULT NULL COMMENT '账号',
   `institution` varchar(100) DEFAULT NULL COMMENT '机构名称',
-  `currency` varchar(10) DEFAULT 'CNY' COMMENT '货币类型',
+  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币类型',
   `interest_rate` decimal(5,2) DEFAULT NULL COMMENT '利率(%)',
   `original_amount` decimal(18,2) DEFAULT NULL COMMENT '原始借款金额',
   `start_date` date DEFAULT NULL COMMENT '开始日期',
@@ -451,9 +448,7 @@ CREATE TABLE `liability_records` (
   `account_id` bigint NOT NULL COMMENT '账户ID',
   `record_date` date NOT NULL COMMENT '记录日期',
   `outstanding_balance` decimal(18,2) NOT NULL COMMENT '未偿余额',
-  `currency` varchar(10) DEFAULT 'CNY' COMMENT '货币',
-  `exchange_rate` decimal(12,6) DEFAULT '1.000000' COMMENT '汇率',
-  `balance_in_base_currency` decimal(18,2) DEFAULT NULL COMMENT '基准货币余额',
+  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币',
   `payment_amount` decimal(18,2) DEFAULT NULL COMMENT '本期还款金额',
   `principal_payment` decimal(18,2) DEFAULT NULL COMMENT '本金还款',
   `interest_payment` decimal(18,2) DEFAULT NULL COMMENT '利息还款',
@@ -694,68 +689,6 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `v_latest_asset_values`
---
-
-DROP TABLE IF EXISTS `v_latest_asset_values`;
-/*!50001 DROP VIEW IF EXISTS `v_latest_asset_values`*/;
-SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `v_latest_asset_values` AS SELECT 
- 1 AS `account_id`,
- 1 AS `user_id`,
- 1 AS `category_id`,
- 1 AS `category_name`,
- 1 AS `category_type`,
- 1 AS `account_name`,
- 1 AS `institution`,
- 1 AS `latest_date`,
- 1 AS `amount`,
- 1 AS `amount_in_base_currency`,
- 1 AS `currency`*/;
-SET character_set_client = @saved_cs_client;
-
---
--- Temporary view structure for view `v_latest_liability_values`
---
-
-DROP TABLE IF EXISTS `v_latest_liability_values`;
-/*!50001 DROP VIEW IF EXISTS `v_latest_liability_values`*/;
-SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `v_latest_liability_values` AS SELECT 
- 1 AS `account_id`,
- 1 AS `user_id`,
- 1 AS `category_id`,
- 1 AS `category_name`,
- 1 AS `category_type`,
- 1 AS `account_name`,
- 1 AS `institution`,
- 1 AS `interest_rate`,
- 1 AS `latest_date`,
- 1 AS `outstanding_balance`,
- 1 AS `balance_in_base_currency`,
- 1 AS `currency`*/;
-SET character_set_client = @saved_cs_client;
-
---
--- Temporary view structure for view `v_user_net_worth`
---
-
-DROP TABLE IF EXISTS `v_user_net_worth`;
-/*!50001 DROP VIEW IF EXISTS `v_user_net_worth`*/;
-SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `v_user_net_worth` AS SELECT 
- 1 AS `user_id`,
- 1 AS `username`,
- 1 AS `total_assets`,
- 1 AS `total_liabilities`,
- 1 AS `net_worth`,
- 1 AS `base_currency`*/;
-SET character_set_client = @saved_cs_client;
-
---
 -- Final view structure for view `v_annual_financial_trend`
 --
 
@@ -773,59 +706,6 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
---
--- Final view structure for view `v_latest_asset_values`
---
-
-/*!50001 DROP VIEW IF EXISTS `v_latest_asset_values`*/;
-/*!50001 SET @saved_cs_client          = @@character_set_client */;
-/*!50001 SET @saved_cs_results         = @@character_set_results */;
-/*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
-/*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`austinxu`@`%` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_latest_asset_values` AS select `a`.`id` AS `account_id`,`a`.`user_id` AS `user_id`,`a`.`category_id` AS `category_id`,`c`.`name` AS `category_name`,`c`.`type` AS `category_type`,`a`.`account_name` AS `account_name`,`a`.`institution` AS `institution`,`r`.`record_date` AS `latest_date`,`r`.`amount` AS `amount`,`r`.`amount_in_base_currency` AS `amount_in_base_currency`,`r`.`currency` AS `currency` from ((`asset_accounts` `a` join `asset_categories` `c` on((`a`.`category_id` = `c`.`id`))) left join `asset_records` `r` on((`a`.`id` = `r`.`account_id`))) where ((`r`.`record_date` = (select max(`asset_records`.`record_date`) from `asset_records` where (`asset_records`.`account_id` = `a`.`id`))) and (`a`.`is_active` = true)) */;
-/*!50001 SET character_set_client      = @saved_cs_client */;
-/*!50001 SET character_set_results     = @saved_cs_results */;
-/*!50001 SET collation_connection      = @saved_col_connection */;
-
---
--- Final view structure for view `v_latest_liability_values`
---
-
-/*!50001 DROP VIEW IF EXISTS `v_latest_liability_values`*/;
-/*!50001 SET @saved_cs_client          = @@character_set_client */;
-/*!50001 SET @saved_cs_results         = @@character_set_results */;
-/*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
-/*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`austinxu`@`%` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_latest_liability_values` AS select `l`.`id` AS `account_id`,`l`.`user_id` AS `user_id`,`l`.`category_id` AS `category_id`,`c`.`name` AS `category_name`,`c`.`type` AS `category_type`,`l`.`account_name` AS `account_name`,`l`.`institution` AS `institution`,`l`.`interest_rate` AS `interest_rate`,`r`.`record_date` AS `latest_date`,`r`.`outstanding_balance` AS `outstanding_balance`,`r`.`balance_in_base_currency` AS `balance_in_base_currency`,`r`.`currency` AS `currency` from ((`liability_accounts` `l` join `liability_categories` `c` on((`l`.`category_id` = `c`.`id`))) left join `liability_records` `r` on((`l`.`id` = `r`.`account_id`))) where ((`r`.`record_date` = (select max(`liability_records`.`record_date`) from `liability_records` where (`liability_records`.`account_id` = `l`.`id`))) and (`l`.`is_active` = true)) */;
-/*!50001 SET character_set_client      = @saved_cs_client */;
-/*!50001 SET character_set_results     = @saved_cs_results */;
-/*!50001 SET collation_connection      = @saved_col_connection */;
-
---
--- Final view structure for view `v_user_net_worth`
---
-
-/*!50001 DROP VIEW IF EXISTS `v_user_net_worth`*/;
-/*!50001 SET @saved_cs_client          = @@character_set_client */;
-/*!50001 SET @saved_cs_results         = @@character_set_results */;
-/*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
-/*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`austinxu`@`%` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_user_net_worth` AS select `u`.`id` AS `user_id`,`u`.`username` AS `username`,coalesce(sum(`a`.`amount_in_base_currency`),0) AS `total_assets`,coalesce(sum(`l`.`balance_in_base_currency`),0) AS `total_liabilities`,(coalesce(sum(`a`.`amount_in_base_currency`),0) - coalesce(sum(`l`.`balance_in_base_currency`),0)) AS `net_worth`,`up`.`base_currency` AS `base_currency` from (((`users` `u` left join `v_latest_asset_values` `a` on((`u`.`id` = `a`.`user_id`))) left join `v_latest_liability_values` `l` on((`u`.`id` = `l`.`user_id`))) left join `user_preferences` `up` on((`u`.`id` = `up`.`user_id`))) where (`u`.`is_active` = true) group by `u`.`id`,`u`.`username`,`up`.`base_currency` */;
-/*!50001 SET character_set_client      = @saved_cs_client */;
-/*!50001 SET character_set_results     = @saved_cs_results */;
-/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

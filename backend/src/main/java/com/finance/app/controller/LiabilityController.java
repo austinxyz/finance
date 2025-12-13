@@ -47,8 +47,10 @@ public class LiabilityController {
     // ========== Account Endpoints ==========
 
     @GetMapping("/accounts")
-    public ApiResponse<List<LiabilityAccountDTO>> getAccounts(@RequestParam(required = false) Long userId) {
-        List<LiabilityAccountDTO> accounts = liabilityService.getAllAccounts(userId);
+    public ApiResponse<List<LiabilityAccountDTO>> getAccounts(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId) {
+        List<LiabilityAccountDTO> accounts = liabilityService.getAllAccounts(userId, familyId);
         return ApiResponse.success(accounts);
     }
 

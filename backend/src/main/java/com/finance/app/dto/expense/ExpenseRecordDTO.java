@@ -74,11 +74,6 @@ public class ExpenseRecordDTO {
     private String currency;
 
     /**
-     * 基准货币金额
-     */
-    private BigDecimal amountInBaseCurrency;
-
-    /**
      * 支出类型：FIXED_DAILY / LARGE_IRREGULAR
      */
     private String expenseType;

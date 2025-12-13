@@ -48,8 +48,10 @@ public class AssetController {
     // ========== Account Endpoints ==========
 
     @GetMapping("/accounts")
-    public ApiResponse<List<AssetAccountDTO>> getAccounts(@RequestParam(required = false) Long userId) {
-        List<AssetAccountDTO> accounts = assetService.getAllAccounts(userId);
+    public ApiResponse<List<AssetAccountDTO>> getAccounts(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId) {
+        List<AssetAccountDTO> accounts = assetService.getAllAccounts(userId, familyId);
         return ApiResponse.success(accounts);
     }
 

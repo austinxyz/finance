@@ -206,14 +206,6 @@ public class ExpenseService {
         record.setExpenseType(request.getExpenseType());
         record.setDescription(request.getDescription());
 
-        // 重新计算基准货币金额
-        BigDecimal baseAmount = calculateBaseAmount(
-            request.getAmount(),
-            request.getCurrency(),
-            record.getExpensePeriod()
-        );
-        record.setAmountInBaseCurrency(baseAmount);
-
         ExpenseRecord saved = expenseRecordRepository.save(record);
         return toDTO(saved);
     }
@@ -265,14 +257,6 @@ public class ExpenseService {
                 record.setExpenseYear(Integer.parseInt(parts[0]));
                 record.setExpenseMonth(Integer.parseInt(parts[1]));
             }
-
-            // 计算基准货币金额
-            BigDecimal baseAmount = calculateBaseAmount(
-                item.getAmount(),
-                item.getCurrency(),
-                request.getExpensePeriod()
-            );
-            record.setAmountInBaseCurrency(baseAmount);
 
             savedRecords.add(expenseRecordRepository.save(record));
         }
@@ -337,14 +321,6 @@ public class ExpenseService {
         record.setExpenseYear(Integer.parseInt(parts[0]));
         record.setExpenseMonth(Integer.parseInt(parts[1]));
 
-        // 计算基准货币金额
-        BigDecimal baseAmount = calculateBaseAmount(
-            request.getAmount(),
-            request.getCurrency(),
-            request.getExpensePeriod()
-        );
-        record.setAmountInBaseCurrency(baseAmount);
-
         return record;
     }
 
@@ -408,7 +384,6 @@ public class ExpenseService {
             .minorCategoryName(minor != null ? minor.getName() : null)
             .amount(record.getAmount())
             .currency(record.getCurrency())
-            .amountInBaseCurrency(record.getAmountInBaseCurrency())
             .expenseType(record.getExpenseType())
             .description(record.getDescription())
             .createdAt(record.getCreatedAt())

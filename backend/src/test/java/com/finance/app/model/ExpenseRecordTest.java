@@ -51,8 +51,7 @@ class ExpenseRecordTest {
         expenseRecord.setMajorCategory(majorCategory);
         expenseRecord.setMinorCategory(minorCategory);
         expenseRecord.setAmount(new BigDecimal("1500.00"));
-        expenseRecord.setCurrency("CNY");
-        expenseRecord.setAmountInBaseCurrency(new BigDecimal("1500.00"));
+        expenseRecord.setCurrency("USD");
         expenseRecord.setExpenseType("FIXED_DAILY");
 
         // Then
@@ -63,7 +62,7 @@ class ExpenseRecordTest {
         assertEquals(majorCategory, expenseRecord.getMajorCategory());
         assertEquals(minorCategory, expenseRecord.getMinorCategory());
         assertEquals(new BigDecimal("1500.00"), expenseRecord.getAmount());
-        assertEquals("CNY", expenseRecord.getCurrency());
+        assertEquals("USD", expenseRecord.getCurrency());
         assertEquals("FIXED_DAILY", expenseRecord.getExpenseType());
     }
 
@@ -125,11 +124,9 @@ class ExpenseRecordTest {
 
         // When
         expenseRecord.setAmount(preciseAmount);
-        expenseRecord.setAmountInBaseCurrency(preciseAmount);
 
         // Then
         assertEquals(0, preciseAmount.compareTo(expenseRecord.getAmount()));
-        assertEquals(0, preciseAmount.compareTo(expenseRecord.getAmountInBaseCurrency()));
     }
 
     @Test

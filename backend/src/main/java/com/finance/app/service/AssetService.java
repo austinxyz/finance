@@ -57,12 +57,15 @@ public class AssetService {
 
     // ========== Account Operations ==========
 
-    public List<AssetAccountDTO> getAllAccounts(Long userId) {
+    public List<AssetAccountDTO> getAllAccounts(Long userId, Long familyId) {
         List<AssetAccount> accounts;
-        if (userId == null) {
-            accounts = accountRepository.findByIsActiveTrue();
-        } else {
+        // 优先级：familyId > userId > 所有账户
+        if (familyId != null) {
+            accounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else if (userId != null) {
             accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            accounts = accountRepository.findByIsActiveTrue();
         }
         return accounts.stream().map(this::convertAccountToDTO).collect(Collectors.toList());
     }
@@ -126,13 +129,6 @@ public class AssetService {
         AssetAccount account = getAccountById(record.getAccountId());
         record.setUserId(account.getUserId());
 
-        // 如果没有设置基准货币金额，自动计算
-        if (record.getAmountInBaseCurrency() == null && record.getExchangeRate() != null) {
-            record.setAmountInBaseCurrency(
-                record.getAmount().multiply(record.getExchangeRate())
-            );
-        }
-
         AssetRecord savedRecord = recordRepository.save(record);
         return convertToRecordDTO(savedRecord);
     }
@@ -146,13 +142,6 @@ public class AssetService {
         record.setQuantity(recordDetails.getQuantity());
         record.setUnitPrice(recordDetails.getUnitPrice());
         record.setNotes(recordDetails.getNotes());
-
-        // 重新计算基准货币金额
-        if (record.getExchangeRate() != null) {
-            record.setAmountInBaseCurrency(
-                record.getAmount().multiply(record.getExchangeRate())
-            );
-        }
 
         AssetRecord updatedRecord = recordRepository.save(record);
         return convertToRecordDTO(updatedRecord);
@@ -189,7 +178,6 @@ public class AssetService {
                 result.put("amount", r.getAmount());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
-                result.put("exchangeRate", r.getExchangeRate());
             });
         } else {
             // 查找该日期之前最近的记录
@@ -198,7 +186,6 @@ public class AssetService {
                 result.put("amount", r.getAmount());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
-                result.put("exchangeRate", r.getExchangeRate());
             });
         }
 
@@ -250,19 +237,9 @@ public class AssetService {
             record.setQuantity(accountUpdate.getQuantity());
             record.setUnitPrice(accountUpdate.getUnitPrice());
 
-            // 设置币种和汇率
+            // 设置币种 (默认USD)
             String currency = accountUpdate.getCurrency() != null ? accountUpdate.getCurrency() : account.getCurrency();
             record.setCurrency(currency);
-
-            BigDecimal exchangeRate = accountUpdate.getExchangeRate();
-            if (exchangeRate == null) {
-                exchangeRate = BigDecimal.ONE; // 默认汇率为1
-            }
-            record.setExchangeRate(exchangeRate);
-
-            // 计算基准货币金额
-            BigDecimal amountInBaseCurrency = accountUpdate.getAmount().multiply(exchangeRate);
-            record.setAmountInBaseCurrency(amountInBaseCurrency);
 
             // 保存记录
             AssetRecord saved = recordRepository.save(record);
@@ -303,7 +280,6 @@ public class AssetService {
         recordRepository.findLatestByAccountId(account.getId())
                 .ifPresent(record -> {
                     dto.setLatestAmount(record.getAmount());  // 原币种金额
-                    dto.setLatestAmountInBaseCurrency(record.getAmountInBaseCurrency());  // 基准货币金额
                     dto.setLatestRecordDate(record.getRecordDate());
                 });
 
@@ -319,8 +295,6 @@ public class AssetService {
         dto.setQuantity(record.getQuantity());
         dto.setUnitPrice(record.getUnitPrice());
         dto.setCurrency(record.getCurrency());
-        dto.setExchangeRate(record.getExchangeRate());
-        dto.setAmountInBaseCurrency(record.getAmountInBaseCurrency());
         dto.setNotes(record.getNotes());
         dto.setAttachmentUrl(record.getAttachmentUrl());
 

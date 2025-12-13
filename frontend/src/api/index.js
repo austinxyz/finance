@@ -2,6 +2,7 @@ import { assetCategoryAPI, assetAccountAPI, assetRecordAPI } from './asset'
 import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from './liability'
 import { analysisAPI } from './analysis'
 import { userAPI } from './user'
+import { familyAPI } from './family'
 
 export {
   assetCategoryAPI,
@@ -11,5 +12,6 @@ export {
   liabilityAccountAPI,
   liabilityRecordAPI,
   analysisAPI,
-  userAPI
+  userAPI,
+  familyAPI
 }

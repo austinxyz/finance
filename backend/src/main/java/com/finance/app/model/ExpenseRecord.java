@@ -85,13 +85,7 @@ public class ExpenseRecord {
      * 货币代码
      */
     @Column(nullable = false, length = 10)
-    private String currency = "CNY";
-
-    /**
-     * 基准货币金额（后端自动计算）
-     */
-    @Column(name = "amount_in_base_currency", precision = 18, scale = 2)
-    private BigDecimal amountInBaseCurrency;
+    private String currency = "USD";
 
     // ============ 类型与说明 ============
 

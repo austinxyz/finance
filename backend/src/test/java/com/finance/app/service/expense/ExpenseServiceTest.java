@@ -92,8 +92,7 @@ class ExpenseServiceTest {
         expenseRecord.setMajorCategory(majorCategory);
         expenseRecord.setMinorCategory(minorCategory);
         expenseRecord.setAmount(new BigDecimal("1500.00"));
-        expenseRecord.setCurrency("CNY");
-        expenseRecord.setAmountInBaseCurrency(new BigDecimal("1500.00"));
+        expenseRecord.setCurrency("USD");
         expenseRecord.setExpenseType("FIXED_DAILY");
     }
 
@@ -262,7 +261,6 @@ class ExpenseServiceTest {
         usdRecord.setId(2L);
         usdRecord.setAmount(new BigDecimal("200.00"));
         usdRecord.setCurrency("USD");
-        usdRecord.setAmountInBaseCurrency(new BigDecimal("1400.00")); // 200 * 1 * 7 (simplified)
         usdRecord.setMajorCategory(majorCategory);
         usdRecord.setMinorCategory(minorCategory);
 

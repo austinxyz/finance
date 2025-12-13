@@ -1,11 +1,24 @@
 <template>
   <div class="space-y-4 md:space-y-6">
-    <!-- 页头和日期选择 -->
+    <!-- 页头、家庭选择和日期选择 -->
     <div class="bg-white rounded-lg shadow p-3 md:p-4">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
         <h2 class="text-md md:text-lg font-semibold text-gray-900">优化建议</h2>
-        <div class="flex items-center gap-2">
-          <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-xs md:text-sm font-medium text-gray-700">选择家庭：</label>
+            <select
+              v-model="selectedFamilyId"
+              @change="onFamilyChange"
+              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            >
+              <option v-for="family in families" :key="family.id" :value="family.id">
+                {{ family.familyName }}
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
           <input
             v-model="selectedDate"
             type="date"
@@ -19,6 +32,7 @@
           >
             清除
           </button>
+          </div>
         </div>
       </div>
       <div class="text-xs md:text-sm text-gray-600" v-if="recommendations.asOfDate">
@@ -531,9 +545,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { analysisAPI } from '@/api/analysis'
+import { familyAPI } from '@/api/family'
 
 const loading = ref(false)
 const selectedDate = ref('')
+const families = ref([])
+const selectedFamilyId = ref(1)
 const recommendations = ref({
   asOfDate: '',
   overallScore: 0,
@@ -727,7 +744,7 @@ const getStrategyName = (strategy) => {
 const loadRecommendations = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getOptimizationRecommendations(null, selectedDate.value || null)
+    const response = await analysisAPI.getOptimizationRecommendations(null, selectedFamilyId.value, selectedDate.value || null)
     if (response.success) {
       recommendations.value = response.data
     }
@@ -736,6 +753,24 @@ const loadRecommendations = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const loadFamilies = async () => {
+  try {
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+      if (!families.value.find(f => f.id === selectedFamilyId.value) && families.value.length > 0) {
+        selectedFamilyId.value = families.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+const onFamilyChange = () => {
+  loadRecommendations()
 }
 
 const clearDate = () => {
@@ -937,6 +972,7 @@ const copyPrompt = async () => {
 }
 
 onMounted(() => {
+  loadFamilies()
   loadRecommendations()
 })
 </script>

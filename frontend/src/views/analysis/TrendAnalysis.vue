@@ -1653,7 +1653,7 @@ const netAssetCategoryRatioChartData = computed(() => {
       fill: false,
       spanGaps: true
     }
-  }).filter(dataset => dataset.data.length > 0 && dataset.data.some(v => v.y > 0))
+  }).filter(dataset => dataset.data.length > 0) // 显示所有有数据的分类(包括0和负值)
 
   return { datasets }
 })
@@ -1899,7 +1899,7 @@ const netAssetCategoriesChartData = computed(() => {
       fill: false,
       spanGaps: true // 连接空值
     }
-  }).filter(dataset => dataset.data.some(v => v !== null && v > 0)) // 只显示有数据的分类
+  }).filter(dataset => dataset.data.some(v => v !== null)) // 显示所有有数据的分类(包括0和负值)
 
   return { labels, datasets }
 })

@@ -1,10 +1,22 @@
 <template>
   <div class="space-y-4 md:space-y-6">
-    <!-- 货币选择器和日期选择器 -->
+    <!-- 家庭选择器、货币选择器和日期选择器 -->
     <div class="bg-white rounded-lg shadow p-3 md:p-4">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
         <h2 class="text-md md:text-lg font-semibold text-gray-900">资产配置</h2>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-xs md:text-sm font-medium text-gray-700">选择家庭：</label>
+            <select
+              v-model="selectedFamilyId"
+              @change="onFamilyChange"
+              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            >
+              <option v-for="family in families" :key="family.id" :value="family.id">
+                {{ family.familyName }}
+              </option>
+            </select>
+          </div>
           <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
             <input
@@ -464,6 +476,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { analysisAPI } from '@/api/analysis'
 import { assetAccountAPI } from '@/api/asset'
 import { liabilityAccountAPI } from '@/api/liability'
+import { familyAPI } from '@/api/family'
 
 // 注册 Chart.js 组件
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels)
@@ -487,6 +500,10 @@ const excludedCategories = ref(new Set())
 // 货币选择
 const selectedCurrency = ref('USD')
 const exchangeRate = ref(7.2) // USD to CNY 默认汇率
+
+// 家庭选择
+const families = ref([])
+const selectedFamilyId = ref(1) // 默认选择 Austin Family
 
 // 日期选择
 const selectedDate = ref('')
@@ -1075,7 +1092,7 @@ const formatDate = (dateString) => {
 // 加载资产总览
 const loadSummary = async () => {
   try {
-    const response = await analysisAPI.getSummary(null, selectedDate.value || null)
+    const response = await analysisAPI.getSummary(null, selectedFamilyId.value, selectedDate.value || null)
     if (response.success) {
       summary.value = response.data
       // 设置实际数据日期
@@ -1092,7 +1109,7 @@ const loadSummary = async () => {
 const loadNetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getNetAssetAllocation(null, selectedDate.value || null)
+    const response = await analysisAPI.getNetAssetAllocation(null, selectedFamilyId.value, selectedDate.value || null)
     if (response.success) {
       netAllocation.value = response.data
     }
@@ -1107,7 +1124,8 @@ const loadNetAllocation = async () => {
 const loadAssetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getAllocationByType(null, selectedDate.value || null)
+    const response = await analysisAPI.getAllocationByType(null, selectedFamilyId.value, selectedDate.value || null)
+    console.log('Asset allocation response:', response)
     if (response.success) {
       assetAllocation.value = response.data
     }
@@ -1122,7 +1140,8 @@ const loadAssetAllocation = async () => {
 const loadLiabilityAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getLiabilityAllocation(null, selectedDate.value || null)
+    const response = await analysisAPI.getLiabilityAllocation(null, selectedFamilyId.value, selectedDate.value || null)
+    console.log('Liability allocation response:', response)
     if (response.success) {
       liabilityAllocation.value = response.data
     }
@@ -1137,7 +1156,8 @@ const loadLiabilityAllocation = async () => {
 const loadTaxStatusAllocation = async () => {
   loadingTaxStatus.value = true
   try {
-    const response = await analysisAPI.getNetWorthByTaxStatus(null, selectedDate.value || null)
+    const response = await analysisAPI.getNetWorthByTaxStatus(null, selectedFamilyId.value, selectedDate.value || null)
+    console.log('Tax status allocation response:', response)
     if (response.success) {
       taxStatusAllocation.value = response.data
     }
@@ -1152,7 +1172,8 @@ const loadTaxStatusAllocation = async () => {
 const loadMemberAllocation = async () => {
   loadingMember.value = true
   try {
-    const response = await analysisAPI.getNetWorthByMember(null, selectedDate.value || null)
+    const response = await analysisAPI.getNetWorthByMember(null, selectedFamilyId.value, selectedDate.value || null)
+    console.log('Member allocation response:', response)
     if (response.success) {
       memberAllocation.value = response.data
     }
@@ -1222,11 +1243,14 @@ const selectCategory = async (item) => {
   try {
     if (activeTab.value === 'net') {
       // 对于净资产，获取该净资产类别下的所有资产账户和负债账户
+      console.log('Loading net asset category accounts for:', item.code, 'familyId:', selectedFamilyId.value)
       const response = await analysisAPI.getNetAssetCategoryAccounts(
         item.code,
         null,
+        selectedFamilyId.value,
         selectedDate.value || null
       )
+      console.log('Net asset category accounts response:', response)
       if (response.success) {
         drillDownData.value = response.data
       }
@@ -1245,11 +1269,14 @@ const selectCategory = async (item) => {
 
       const categoryType = typeMap[item.name]
       if (categoryType) {
+        console.log('Loading asset accounts for:', categoryType, 'familyId:', selectedFamilyId.value)
         const response = await analysisAPI.getAssetAccountsWithBalances(
           categoryType,
           null,
+          selectedFamilyId.value,
           selectedDate.value || null
         )
+        console.log('Asset accounts response:', response)
         if (response.success) {
           drillDownData.value = response.data
         }
@@ -1268,11 +1295,14 @@ const selectCategory = async (item) => {
 
       const categoryType = typeMap[item.name]
       if (categoryType) {
+        console.log('Loading liability accounts for:', categoryType, 'familyId:', selectedFamilyId.value)
         const response = await analysisAPI.getLiabilityAccountsWithBalances(
           categoryType,
           null,
+          selectedFamilyId.value,
           selectedDate.value || null
         )
+        console.log('Liability accounts response:', response)
         if (response.success) {
           drillDownData.value = response.data
         }
@@ -1360,7 +1390,8 @@ const getCurrencySymbol = (currency) => {
 const loadCurrencyAllocation = async () => {
   loadingCurrency.value = true
   try {
-    const response = await analysisAPI.getNetWorthByCurrency(null, selectedDate.value || null)
+    const response = await analysisAPI.getNetWorthByCurrency(null, selectedFamilyId.value, selectedDate.value || null)
+    console.log('Currency allocation response:', response)
     if (response.success) {
       currencyAllocation.value = response.data
     }
@@ -1371,7 +1402,41 @@ const loadCurrencyAllocation = async () => {
   }
 }
 
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+      // 如果当前familyId不在列表中，默认选择第一个
+      if (!families.value.find(f => f.id === selectedFamilyId.value) && families.value.length > 0) {
+        selectedFamilyId.value = families.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 家庭切换事件处理
+const onFamilyChange = () => {
+  // 重新加载所有数据
+  loadSummary()
+  // 重新加载当前激活的 tab 数据
+  if (activeTab.value === 'net') {
+    loadNetAllocation()
+    loadTaxStatusAllocation()
+    loadMemberAllocation()
+    loadCurrencyAllocation()
+  } else if (activeTab.value === 'asset') {
+    loadAssetAllocation()
+  } else if (activeTab.value === 'liability') {
+    loadLiabilityAllocation()
+  }
+}
+
 onMounted(() => {
+  loadFamilies()
   loadSummary()
   loadNetAllocation()  // 默认加载净资产配置
   loadTaxStatusAllocation()  // 默认加载税收状态配置

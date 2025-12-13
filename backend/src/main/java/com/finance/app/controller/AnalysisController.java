@@ -36,8 +36,9 @@ public class AnalysisController {
     @GetMapping("/summary")
     public ApiResponse<AssetSummaryDTO> getAssetSummary(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        AssetSummaryDTO summary = analysisService.getAssetSummary(userId, asOfDate);
+        AssetSummaryDTO summary = analysisService.getAssetSummary(userId, familyId, asOfDate);
         return ApiResponse.success(summary);
     }
 
@@ -69,8 +70,9 @@ public class AnalysisController {
     @GetMapping("/allocation/type")
     public ApiResponse<Map<String, Object>> getAssetAllocationByType(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId, asOfDate);
+        Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -78,8 +80,9 @@ public class AnalysisController {
     @GetMapping("/allocation/net")
     public ApiResponse<Map<String, Object>> getNetAssetAllocation(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -87,8 +90,9 @@ public class AnalysisController {
     @GetMapping("/allocation/liability")
     public ApiResponse<Map<String, Object>> getLiabilityAllocationByType(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId, asOfDate);
+        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -140,8 +144,9 @@ public class AnalysisController {
     public ApiResponse<List<Map<String, Object>>> getAssetAccountsWithBalances(
             @PathVariable String categoryType,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        List<Map<String, Object>> accounts = analysisService.getAssetAccountsWithBalancesByType(categoryType, userId, asOfDate);
+        List<Map<String, Object>> accounts = analysisService.getAssetAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -150,8 +155,9 @@ public class AnalysisController {
     public ApiResponse<List<Map<String, Object>>> getLiabilityAccountsWithBalances(
             @PathVariable String categoryType,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        List<Map<String, Object>> accounts = analysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, asOfDate);
+        List<Map<String, Object>> accounts = analysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -186,8 +192,9 @@ public class AnalysisController {
     public ApiResponse<Map<String, Object>> getNetAssetCategoryAccounts(
             @PathVariable String categoryCode,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, asOfDate);
+        Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, familyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -195,17 +202,19 @@ public class AnalysisController {
     @GetMapping("/allocation/net-worth-by-tax-status")
     public ApiResponse<Map<String, Object>> getNetWorthByTaxStatus(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
     // 获取按家庭成员的净资产配置
     @GetMapping("/allocation/net-worth-by-member")
     public ApiResponse<Map<String, Object>> getNetWorthByMember(
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getNetWorthByMember(familyId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByMember(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -213,8 +222,9 @@ public class AnalysisController {
     @GetMapping("/allocation/net-worth-by-currency")
     public ApiResponse<Map<String, Object>> getNetWorthByCurrency(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getNetWorthByCurrency(userId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByCurrency(userId, familyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -222,8 +232,9 @@ public class AnalysisController {
     @GetMapping("/financial-metrics")
     public ApiResponse<FinancialMetricsDTO> getFinancialMetrics(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, asOfDate);
+        FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, familyId, asOfDate);
         return ApiResponse.success(metrics);
     }
 
@@ -231,8 +242,9 @@ public class AnalysisController {
     @GetMapping("/risk-assessment")
     public ApiResponse<RiskAssessmentDTO> getRiskAssessment(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        RiskAssessmentDTO assessment = analysisService.getRiskAssessment(userId, asOfDate);
+        RiskAssessmentDTO assessment = analysisService.getRiskAssessment(userId, familyId, asOfDate);
         return ApiResponse.success(assessment);
     }
 
@@ -240,8 +252,9 @@ public class AnalysisController {
     @GetMapping("/optimization-recommendations")
     public ApiResponse<OptimizationRecommendationDTO> getOptimizationRecommendations(
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        OptimizationRecommendationDTO recommendations = analysisService.getOptimizationRecommendations(userId, asOfDate);
+        OptimizationRecommendationDTO recommendations = analysisService.getOptimizationRecommendations(userId, familyId, asOfDate);
         return ApiResponse.success(recommendations);
     }
 

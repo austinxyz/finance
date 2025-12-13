@@ -2,10 +2,11 @@ import request from './request'
 
 // 分析相关API
 export const analysisAPI = {
-  // 获取资产总览 (不传userId则获取所有用户的资产)
-  getSummary(userId = null, asOfDate = null) {
+  // 获取资产总览 (支持familyId和userId，优先级：familyId > userId > 所有用户)
+  getSummary(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/summary', { params })
   },
@@ -31,25 +32,28 @@ export const analysisAPI = {
   },
 
   // 获取按类型的资产配置 (不传userId则获取所有用户的资产)
-  getAllocationByType(userId = null, asOfDate = null) {
+  getAllocationByType(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/type', { params })
   },
 
   // 获取净资产配置（资产减去对应负债）
-  getNetAssetAllocation(userId = null, asOfDate = null) {
+  getNetAssetAllocation(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/net', { params })
   },
 
   // 获取按类型的负债配置
-  getLiabilityAllocation(userId = null, asOfDate = null) {
+  getLiabilityAllocation(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/liability', { params })
   },
@@ -83,17 +87,19 @@ export const analysisAPI = {
   },
 
   // 获取指定类型和日期的资产账户及其余额
-  getAssetAccountsWithBalances(categoryType, userId = null, asOfDate = null) {
+  getAssetAccountsWithBalances(categoryType, userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get(`/analysis/allocation/asset-accounts/${categoryType}`, { params })
   },
 
   // 获取指定类型和日期的负债账户及其余额
-  getLiabilityAccountsWithBalances(categoryType, userId = null, asOfDate = null) {
+  getLiabilityAccountsWithBalances(categoryType, userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get(`/analysis/allocation/liability-accounts/${categoryType}`, { params })
   },
@@ -113,57 +119,64 @@ export const analysisAPI = {
   },
 
   // 获取净资产类别下的所有账户详情（包含资产账户和负债账户）
-  getNetAssetCategoryAccounts(categoryCode, userId = null, asOfDate = null) {
+  getNetAssetCategoryAccounts(categoryCode, userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get(`/analysis/allocation/net-asset-accounts/${categoryCode}`, { params })
   },
 
   // 获取按税收状态的净资产配置
-  getNetWorthByTaxStatus(userId = null, asOfDate = null) {
+  getNetWorthByTaxStatus(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/net-worth-by-tax-status', { params })
   },
 
   // 获取按家庭成员的净资产配置
-  getNetWorthByMember(familyId = null, asOfDate = null) {
+  getNetWorthByMember(userId = null, familyId = null, asOfDate = null) {
     const params = {}
+    if (userId) params.userId = userId
     if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/net-worth-by-member', { params })
   },
 
   // 获取按货币的净资产配置
-  getNetWorthByCurrency(userId = null, asOfDate = null) {
+  getNetWorthByCurrency(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/allocation/net-worth-by-currency', { params })
   },
 
   // 获取财务指标
-  getFinancialMetrics(userId = null, asOfDate = null) {
+  getFinancialMetrics(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/financial-metrics', { params })
   },
 
   // 获取风险评估
-  getRiskAssessment(userId = null, asOfDate = null) {
+  getRiskAssessment(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/risk-assessment', { params })
   },
 
   // 获取优化建议
-  getOptimizationRecommendations(userId = null, asOfDate = null) {
+  getOptimizationRecommendations(userId = null, familyId = null, asOfDate = null) {
     const params = {}
     if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
     if (asOfDate) params.asOfDate = asOfDate
     return request.get('/analysis/optimization-recommendations', { params })
   },

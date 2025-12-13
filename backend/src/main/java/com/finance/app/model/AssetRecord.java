@@ -41,13 +41,7 @@ public class AssetRecord {
     private BigDecimal unitPrice;
 
     @Column(length = 10)
-    private String currency = "CNY";
-
-    @Column(name = "exchange_rate", precision = 12, scale = 6)
-    private BigDecimal exchangeRate = BigDecimal.ONE;
-
-    @Column(name = "amount_in_base_currency", precision = 18, scale = 2)
-    private BigDecimal amountInBaseCurrency;
+    private String currency = "USD";
 
     @Column(columnDefinition = "TEXT")
     private String notes;
