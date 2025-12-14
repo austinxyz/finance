@@ -268,15 +268,20 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">金额</label>
-            <input
-              v-model.number="transactionForm.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="0.00"
-              required
-            />
+            <div class="flex gap-2">
+              <input
+                v-model.number="transactionForm.amount"
+                type="number"
+                step="0.01"
+                min="0"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                placeholder="0.00"
+                required
+              />
+              <div class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium min-w-[80px] flex items-center justify-center">
+                {{ selectedAccount?.currency || 'USD' }}
+              </div>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">说明（可选）</label>
