@@ -45,14 +45,29 @@
     <div v-if="activeTab === 'by-month'" class="space-y-2">
       <!-- 选择器和保存按钮 -->
       <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between">
-        <div class="flex items-center gap-2">
-          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">月份:</label>
-          <input
-            v-model="transactionPeriod"
-            type="month"
-            @change="loadMonthData"
-            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+        <div class="flex flex-col sm:flex-row gap-2">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">月份:</label>
+            <input
+              v-model="transactionPeriod"
+              type="month"
+              @change="loadMonthData"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">分类:</label>
+            <select
+              v-model="selectedMonthCategory"
+              @change="filterMonthAccounts"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">全部</option>
+              <option v-for="category in investmentCategories" :key="category.categoryId" :value="category.categoryId">
+                {{ category.categoryIcon }} {{ category.categoryName }}
+              </option>
+            </select>
+          </div>
         </div>
 
         <button
@@ -67,81 +82,78 @@
       <!-- 按月份的账户列表 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div v-if="loadingMonth" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
-        <div v-else-if="monthAccounts.length === 0" class="text-center py-6 text-gray-500 text-xs">暂无投资账户</div>
+        <div v-else-if="filteredMonthAccounts.length === 0" class="text-center py-6 text-gray-500 text-xs">暂无投资账户</div>
         <div v-else>
           <div class="overflow-x-auto">
-            <div class="inline-block min-w-full align-middle">
-              <div class="divide-y divide-gray-200">
-                <!-- 表头 -->
-                <div class="grid grid-cols-12 gap-2 px-2 py-1.5 bg-gray-50 text-xs font-medium text-gray-700" style="min-width: 800px;">
-                  <div class="col-span-3">账户</div>
-                  <div class="col-span-2 text-right">{{ previousMonth3 }}</div>
-                  <div class="col-span-2 text-right">{{ previousMonth2 }}</div>
-                  <div class="col-span-2 text-right">{{ previousMonth1 }}</div>
-                  <div class="col-span-3 text-center">{{ currentMonth }}</div>
-                </div>
-
-                <!-- 数据行 -->
-                <div
-                  v-for="account in monthAccounts"
-                  :key="account.accountId"
-                  class="grid grid-cols-12 gap-2 px-2 py-1.5 hover:bg-gray-50 items-center"
-                  style="min-width: 800px;"
-                >
+            <table class="w-full">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">账户</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">{{ previousMonth3 }}</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">{{ previousMonth2 }}</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">{{ previousMonth1 }}</th>
+                  <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700">投入</th>
+                  <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700">取出</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr v-for="account in filteredMonthAccounts" :key="account.accountId" class="hover:bg-gray-50">
                   <!-- 账户信息 -->
-                  <div class="col-span-3">
+                  <td class="px-2 py-1.5">
                     <div class="flex items-center gap-1.5">
                       <span class="text-base">{{ account.categoryIcon }}</span>
-                      <div>
-                        <div class="font-medium text-gray-900 text-xs">{{ account.accountName }}</div>
-                        <div class="text-xs text-gray-500">{{ account.categoryName }} | {{ account.userName }}</div>
+                      <div class="min-w-0">
+                        <div class="font-medium text-gray-900 text-xs truncate">{{ account.accountName }}</div>
+                        <div class="text-xs text-gray-500 truncate">{{ account.userName }}</div>
                       </div>
                     </div>
-                  </div>
+                  </td>
 
                   <!-- 历史数据 -->
-                  <div class="col-span-2 text-right text-xs text-gray-600">
+                  <td class="px-2 py-1.5 text-right text-xs text-gray-600 whitespace-nowrap">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month3 || 0) }}
-                  </div>
-                  <div class="col-span-2 text-right text-xs text-gray-600">
+                  </td>
+                  <td class="px-2 py-1.5 text-right text-xs text-gray-600 whitespace-nowrap">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month2 || 0) }}
-                  </div>
-                  <div class="col-span-2 text-right text-xs text-gray-700 font-medium">
+                  </td>
+                  <td class="px-2 py-1.5 text-right text-xs text-gray-700 font-medium whitespace-nowrap">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month1 || 0) }}
-                  </div>
+                  </td>
 
-                  <!-- 本月输入 -->
-                  <div class="col-span-3 grid grid-cols-2 gap-1.5">
+                  <!-- 本月输入 - 投入 -->
+                  <td class="px-2 py-1.5">
                     <div class="relative">
-                      <label class="block text-xs text-gray-600 mb-0.5">投入</label>
-                      <span class="absolute left-1.5 top-[20px] text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
+                      <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
                       <input
                         v-model="monthAmounts[account.accountId].deposits"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                        class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
                         @input="markMonthChanged(account.accountId)"
                       />
                     </div>
+                  </td>
+
+                  <!-- 本月输入 - 取出 -->
+                  <td class="px-2 py-1.5">
                     <div class="relative">
-                      <label class="block text-xs text-gray-600 mb-0.5">取出</label>
-                      <span class="absolute left-1.5 top-[20px] text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
+                      <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
                       <input
                         v-model="monthAmounts[account.accountId].withdrawals"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                        class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
                         @input="markMonthChanged(account.accountId)"
                       />
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <!-- 统计 -->
@@ -300,6 +312,8 @@ export default {
     // 按月份模式的数据
     const selectedFamilyId = ref(null)
     const transactionPeriod = ref('')
+    const selectedMonthCategory = ref('')
+    const investmentCategories = ref([])
     const monthAccounts = ref([])
     const monthAmounts = ref({})
     const monthHistoryData = ref({})
@@ -325,11 +339,20 @@ export default {
     // 计算属性 - 按月份模式
     const hasMonthChanges = computed(() => changedMonthAccounts.value.size > 0)
 
+    const filteredMonthAccounts = computed(() => {
+      if (!selectedMonthCategory.value) {
+        return monthAccounts.value
+      }
+      return monthAccounts.value.filter(account =>
+        account.categoryId === selectedMonthCategory.value
+      )
+    })
+
     const monthSummary = computed(() => {
       let totalDeposits = 0
       let totalWithdrawals = 0
 
-      monthAccounts.value.forEach(account => {
+      filteredMonthAccounts.value.forEach(account => {
         const amounts = monthAmounts.value[account.accountId]
         if (amounts) {
           totalDeposits += parseFloat(amounts.deposits) || 0
@@ -453,6 +476,23 @@ export default {
       } catch (error) {
         console.error('加载家庭列表失败:', error)
       }
+    }
+
+    // 加载投资分类
+    const loadInvestmentCategories = async () => {
+      try {
+        const response = await investmentAccountAPI.getCategories()
+        if (response.success) {
+          investmentCategories.value = response.data
+        }
+      } catch (error) {
+        console.error('加载投资分类失败:', error)
+      }
+    }
+
+    // 过滤账户（分类选择变化时）
+    const filterMonthAccounts = () => {
+      // 过滤通过computed属性filteredMonthAccounts实现，这里不需要额外操作
     }
 
     // 处理家庭选择变化
@@ -678,6 +718,7 @@ export default {
     // 初始化
     onMounted(() => {
       loadFamilies()
+      loadInvestmentCategories()
       const now = new Date()
       transactionPeriod.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     })
@@ -727,7 +768,10 @@ export default {
       // 按月份
       selectedFamilyId,
       transactionPeriod,
+      selectedMonthCategory,
+      investmentCategories,
       monthAccounts,
+      filteredMonthAccounts,
       monthAmounts,
       monthHistoryData,
       loadingMonth,
@@ -741,6 +785,7 @@ export default {
       markMonthChanged,
       loadMonthData,
       saveMonthData,
+      filterMonthAccounts,
 
       // 按账户
       selectedFamilyIdYear,
