@@ -20,8 +20,6 @@ public interface AssetAccountRepository extends JpaRepository<AssetAccount, Long
 
     List<AssetAccount> findByUserIdInAndIsActiveTrue(List<Long> userIds);
 
-    List<AssetAccount> findByUserIdAndCategoryId(Long userId, Long categoryId);
-
     @Query("SELECT a FROM AssetAccount a WHERE a.userId = :userId AND a.isActive = true ORDER BY a.createdAt DESC")
     List<AssetAccount> findActiveAccountsByUserId(@Param("userId") Long userId);
 }

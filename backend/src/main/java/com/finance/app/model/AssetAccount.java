@@ -25,8 +25,8 @@ public class AssetAccount {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    @Column(name = "asset_type_id", nullable = false)
+    private Long assetTypeId;
 
     @Column(name = "account_name", nullable = false, length = 100)
     private String accountName;
@@ -63,6 +63,6 @@ public class AssetAccount {
 
     // 关联关系（可选，用于级联查询）
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", insertable = false, updatable = false)
-    private AssetCategory category;
+    @JoinColumn(name = "asset_type_id", insertable = false, updatable = false)
+    private AssetType assetType;
 }

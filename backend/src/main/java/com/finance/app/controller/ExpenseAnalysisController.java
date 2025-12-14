@@ -148,4 +148,27 @@ public class ExpenseAnalysisController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * 计算年度支出汇总（运行存储过程）
+     * POST /expenses/analysis/annual/summary/calculate?familyId=1&year=2025
+     */
+    @PostMapping("/annual/summary/calculate")
+    public ResponseEntity<Map<String, Object>> calculateAnnualExpenseSummary(
+            @RequestParam Long familyId,
+            @RequestParam Integer year) {
+        try {
+            expenseAnalysisService.calculateAnnualExpenseSummary(familyId, year);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "年度支出汇总计算完成");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "计算年度汇总失败: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

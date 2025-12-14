@@ -24,4 +24,9 @@ public class AIAdviceRequestDTO {
      * Optional user ID to filter data
      */
     private Long userId;
+
+    /**
+     * Optional family ID to filter data
+     */
+    private Long familyId;
 }

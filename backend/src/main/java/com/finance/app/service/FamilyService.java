@@ -92,12 +92,50 @@ public class FamilyService {
     }
 
     /**
+     * 获取默认家庭
+     */
+    @Transactional(readOnly = true)
+    public FamilyDTO getDefaultFamily() {
+        Family family = familyRepository.findByIsDefaultTrue()
+                .orElseGet(() -> {
+                    // 如果没有设置默认家庭，返回第一个家庭
+                    List<Family> families = familyRepository.findAll();
+                    if (families.isEmpty()) {
+                        throw new RuntimeException("系统中没有任何家庭");
+                    }
+                    return families.get(0);
+                });
+
+        return convertToDTO(family);
+    }
+
+    /**
+     * 设置默认家庭
+     */
+    @Transactional
+    public void setDefaultFamily(Long familyId) {
+        // 验证家庭存在
+        Family family = familyRepository.findById(familyId)
+                .orElseThrow(() -> new RuntimeException("家庭不存在"));
+
+        // 取消所有家庭的默认设置
+        List<Family> allFamilies = familyRepository.findAll();
+        allFamilies.forEach(f -> f.setIsDefault(false));
+        familyRepository.saveAll(allFamilies);
+
+        // 设置新的默认家庭
+        family.setIsDefault(true);
+        familyRepository.save(family);
+    }
+
+    /**
      * 将Entity转换为DTO
      */
     private FamilyDTO convertToDTO(Family family) {
         FamilyDTO dto = new FamilyDTO();
         dto.setId(family.getId());
         dto.setFamilyName(family.getFamilyName());
+        dto.setIsDefault(family.getIsDefault());
         dto.setAnnualExpenses(family.getAnnualExpenses());
         dto.setExpensesCurrency(family.getExpensesCurrency());
         dto.setEmergencyFundMonths(family.getEmergencyFundMonths());

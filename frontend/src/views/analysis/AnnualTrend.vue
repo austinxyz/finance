@@ -536,9 +536,21 @@ const fetchFamilies = async () => {
     const response = await familyAPI.getAll()
     families.value = response.data
 
-    // 如果还没有选择家庭，默认选择第一个
-    if (!familyId.value && families.value.length > 0) {
-      familyId.value = families.value[0].id
+    // 如果familyId还未设置，获取默认家庭
+    if (!familyId.value) {
+      try {
+        const defaultResponse = await familyAPI.getDefault()
+        if (defaultResponse.success && defaultResponse.data) {
+          familyId.value = defaultResponse.data.id
+        } else if (families.value.length > 0) {
+          familyId.value = families.value[0].id
+        }
+      } catch (err) {
+        console.error('获取默认家庭失败:', err)
+        if (families.value.length > 0) {
+          familyId.value = families.value[0].id
+        }
+      }
     }
   } catch (error) {
     console.error('获取家庭列表失败:', error)

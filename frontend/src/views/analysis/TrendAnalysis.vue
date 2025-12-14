@@ -2989,12 +2989,21 @@ const loadAllFamilies = async () => {
     if (response.success && response.data) {
       allFamilies.value = response.data
 
-      // 默认选择第一个家庭，如果有"Austin Family"则优先选择
-      const austinFamily = allFamilies.value.find(f => f.familyName === 'Austin Family')
-      if (austinFamily) {
-        selectedFamilyId.value = austinFamily.id
-      } else if (allFamilies.value.length > 0) {
-        selectedFamilyId.value = allFamilies.value[0].id
+      // 如果selectedFamilyId还未设置，获取默认家庭
+      if (!selectedFamilyId.value) {
+        try {
+          const defaultResponse = await request.get('/family/default')
+          if (defaultResponse.success && defaultResponse.data) {
+            selectedFamilyId.value = defaultResponse.data.id
+          } else if (allFamilies.value.length > 0) {
+            selectedFamilyId.value = allFamilies.value[0].id
+          }
+        } catch (err) {
+          console.error('获取默认家庭失败:', err)
+          if (allFamilies.value.length > 0) {
+            selectedFamilyId.value = allFamilies.value[0].id
+          }
+        }
       }
     }
   } catch (error) {

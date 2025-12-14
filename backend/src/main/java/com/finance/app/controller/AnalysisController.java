@@ -264,7 +264,7 @@ public class AnalysisController {
         try {
             // Get current optimization recommendations
             OptimizationRecommendationDTO recommendations =
-                analysisService.getOptimizationRecommendations(request.getUserId(), null);
+                analysisService.getOptimizationRecommendations(request.getUserId(), request.getFamilyId(), LocalDate.now());
 
             // Convert to Map for Claude API
             Map<String, Object> financialData = objectMapper.convertValue(recommendations, Map.class);

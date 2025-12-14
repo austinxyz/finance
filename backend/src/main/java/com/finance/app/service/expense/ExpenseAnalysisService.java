@@ -17,6 +17,9 @@ import com.finance.app.repository.ExpenseBudgetRepository;
 import com.finance.app.repository.ExpenseCategoryMajorRepository;
 import com.finance.app.repository.ExpenseCategoryMinorRepository;
 import com.finance.app.repository.ExpenseRecordRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +50,9 @@ public class ExpenseAnalysisService {
 
     @Autowired
     private AnnualExpenseSummaryRepository annualExpenseSummaryRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * 获取年度大类汇总
@@ -502,5 +508,25 @@ public class ExpenseAnalysisService {
         }
 
         return result;
+    }
+
+    /**
+     * 计算年度支出汇总（运行存储过程）
+     */
+    @Transactional
+    public void calculateAnnualExpenseSummary(Long familyId, Integer year) {
+        try {
+            // 调用存储过程 calculate_annual_expense_summary_v2
+            entityManager.createNativeQuery("CALL calculate_annual_expense_summary_v2(:familyId, :year)")
+                    .setParameter("familyId", familyId)
+                    .setParameter("year", year)
+                    .executeUpdate();
+
+            // 刷新实体管理器
+            entityManager.flush();
+            entityManager.clear();
+        } catch (Exception e) {
+            throw new RuntimeException("计算年度支出汇总失败: " + e.getMessage(), e);
+        }
     }
 }

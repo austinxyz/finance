@@ -20,4 +20,7 @@ public interface AssetCategoryRepository extends JpaRepository<AssetCategory, Lo
 
     // Find user's custom categories
     List<AssetCategory> findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(Long userId);
+
+    // Find investment categories (is_investment = TRUE)
+    List<AssetCategory> findByIsInvestmentTrueOrderByDisplayOrderAsc();
 }

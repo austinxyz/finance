@@ -1,20 +1,10 @@
 import request from './request'
 
-// 资产分类相关API
-export const assetCategoryAPI = {
-  // 获取所有大分类类型
-  getTypes(userId) {
-    return request.get('/assets/categories/types', { params: { userId } })
-  },
-
-  // 获取所有分类
-  getAll(userId) {
-    return request.get('/assets/categories', { params: { userId } })
-  },
-
-  // 创建分类
-  create(data) {
-    return request.post('/assets/categories', data)
+// 资产类型相关API (8个大类)
+export const assetTypeAPI = {
+  // 获取所有资产类型
+  getAll() {
+    return request.get('/assets/types')
   }
 }
 

@@ -1,9 +1,23 @@
 <template>
   <div class="p-3 md:p-6 space-y-4 md:space-y-6">
-    <!-- 页面标题 -->
-    <div>
-      <h1 class="text-xl md:text-2xl font-bold text-gray-900">支出分类与记录</h1>
-      <p class="text-xs md:text-sm text-gray-600 mt-1">管理支出分类，按大类查看历史记录和趋势分析</p>
+    <!-- 页面标题和家庭选择器 -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900">支出分类与记录</h1>
+        <p class="text-xs md:text-sm text-gray-600 mt-1">管理支出分类，按大类查看历史记录和趋势分析</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
+        <select
+          v-model="selectedFamilyId"
+          @change="onFamilyChange"
+          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- 大类 Tab -->
@@ -432,6 +446,7 @@ const minorCategories = ref([])
 const selectedMinorCategory = ref(null)
 const records = ref([])
 const families = ref([])
+const selectedFamilyId = ref(null)
 const currencies = ref([])
 
 // 时间范围
@@ -502,9 +517,25 @@ async function loadFamilies() {
     }
 
     families.value = familyList
-    // 默认选择第一个家庭
-    if (families.value.length > 0 && !recordForm.value.familyId) {
-      recordForm.value.familyId = families.value[0].id
+
+    // 如果selectedFamilyId还未设置，获取默认家庭
+    if (!selectedFamilyId.value) {
+      try {
+        const defaultResponse = await familyAPI.getDefault()
+        if (defaultResponse.success && defaultResponse.data) {
+          selectedFamilyId.value = defaultResponse.data.id
+          recordForm.value.familyId = defaultResponse.data.id
+        } else if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+          recordForm.value.familyId = families.value[0].id
+        }
+      } catch (err) {
+        console.error('获取默认家庭失败:', err)
+        if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+          recordForm.value.familyId = families.value[0].id
+        }
+      }
     }
   } catch (error) {
     console.error('加载家庭列表失败:', error)
@@ -598,11 +629,11 @@ async function selectMinorCategory(category) {
 
 // 加载记录
 async function loadRecords() {
-  if (!selectedMinorCategory.value) return
+  if (!selectedMinorCategory.value || !selectedFamilyId.value) return
 
   loadingRecords.value = true
   try {
-    const familyId = 1 // TODO: 从用户信息获取
+    const familyId = selectedFamilyId.value
 
     // 根据时间范围计算起止期间
     const end = new Date()
@@ -907,6 +938,25 @@ async function deleteRecord(record) {
     alert('删除失败，请重试')
   }
 }
+
+// 家庭切换事件处理
+function onFamilyChange() {
+  // 清空当前选中的子分类和记录
+  selectedMinorCategory.value = null
+  records.value = []
+  // 更新记录表单的家庭ID
+  recordForm.value.familyId = selectedFamilyId.value
+  // 重新加载子分类
+  loadMinorCategories()
+}
+
+// 监听selectedFamilyId变化
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    recordForm.value.familyId = newId
+    loadMinorCategories()
+  }
+})
 
 // 监听大类变化
 watch(selectedMajorCategory, () => {

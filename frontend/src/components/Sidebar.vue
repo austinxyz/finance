@@ -90,6 +90,27 @@
           </router-link>
         </div>
 
+        <!-- 投资管理 -->
+        <div class="space-y-1">
+          <div class="nav-section-title">投资管理</div>
+          <router-link
+            to="/investments/records"
+            class="nav-item"
+            :class="isActive('/investments/records')"
+          >
+            <TrendingUp class="w-5 h-5" />
+            <span>分类与记录</span>
+          </router-link>
+          <router-link
+            to="/investments/batch-entry"
+            class="nav-item"
+            :class="isActive('/investments/batch-entry')"
+          >
+            <PenSquare class="w-5 h-5" />
+            <span>批量录入</span>
+          </router-link>
+        </div>
+
         <!-- 支出管理 -->
         <div class="space-y-1">
           <div class="nav-section-title">支出管理</div>

@@ -1,19 +1,19 @@
 <template>
   <div class="p-6 space-y-6">
     <!-- Welcome Section with Family Selector -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">财务概览</h1>
-        <p class="text-gray-600 mt-2">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">财务概览</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
           欢迎使用个人理财管理系统
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700">选择家庭:</label>
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
         <select
           v-model="familyId"
           @change="onFamilyChange"
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
         >
           <option v-for="family in families" :key="family.id" :value="family.id">
             {{ family.familyName }}
@@ -414,7 +414,7 @@ ChartJS.register(
 
 const userId = ref(1) // TODO: 从用户登录状态获取
 const families = ref([])
-const familyId = ref(1) // 默认选择Austin Family (ID=1)
+const familyId = ref(null) // 将从默认家庭API获取
 const assetAccounts = ref([])
 const liabilityAccounts = ref([])
 const netAssetAllocation = ref({ total: 0, data: [] })
@@ -1198,12 +1198,25 @@ async function loadAnnualExpenseSummary() {
 // 监听趋势数据变化，自动更新图表
 watch(overallTrendData, async () => {
   if (overallTrendData.value.length > 0) {
-    // 使用setTimeout确保DOM完全渲染
-    setTimeout(() => {
+    // 使用 nextTick 确保 DOM 完全渲染，并增加重试机制
+    await nextTick()
+
+    // 如果 canvas 还没准备好，等待最多 500ms
+    let retries = 0
+    const maxRetries = 5
+
+    const tryUpdateChart = () => {
       if (annualNetWorthChartCanvas.value) {
         updateAnnualNetWorthChart()
+      } else if (retries < maxRetries) {
+        retries++
+        setTimeout(tryUpdateChart, 100)
+      } else {
+        console.warn('年度净资产图表 canvas 元素未找到')
       }
-    }, 100)
+    }
+
+    tryUpdateChart()
   }
 }, { deep: true })
 
@@ -1213,9 +1226,24 @@ async function loadFamilies() {
     const response = await familyAPI.getAll()
     if (response.success) {
       families.value = response.data
-      // 如果当前familyId不在列表中，默认选择第一个
-      if (!families.value.find(f => f.id === familyId.value) && families.value.length > 0) {
-        familyId.value = families.value[0].id
+
+      // 如果familyId还未设置，获取默认家庭
+      if (!familyId.value) {
+        try {
+          const defaultResponse = await familyAPI.getDefault()
+          if (defaultResponse.success && defaultResponse.data) {
+            familyId.value = defaultResponse.data.id
+          } else if (families.value.length > 0) {
+            // 如果没有默认家庭，选择第一个
+            familyId.value = families.value[0].id
+          }
+        } catch (err) {
+          console.error('获取默认家庭失败:', err)
+          // 获取默认家庭失败时，选择第一个
+          if (families.value.length > 0) {
+            familyId.value = families.value[0].id
+          }
+        }
       }
     }
   } catch (error) {
@@ -1239,10 +1267,17 @@ watch(expenseCategories, async () => {
   }
 }, { deep: true })
 
-onMounted(() => {
-  loadFamilies()
-  loadAccounts()
-  loadOverallTrend()
-  loadAnnualExpenseSummary()
+// 监听familyId变化，自动加载数据
+watch(familyId, (newId) => {
+  if (newId) {
+    loadAccounts()
+    loadOverallTrend()
+    loadAnnualExpenseSummary()
+  }
+})
+
+onMounted(async () => {
+  await loadFamilies()
+  // loadFamilies会设置familyId，然后watcher会自动加载数据
 })
 </script>

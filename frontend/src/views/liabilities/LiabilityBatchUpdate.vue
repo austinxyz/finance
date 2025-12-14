@@ -2,10 +2,20 @@
   <div class="p-4 md:p-6 space-y-4">
     <!-- 页面头部 - 移动端响应式 -->
     <div class="space-y-3">
-      <!-- 第一行：标题和分类选择器 -->
+      <!-- 第一行：标题、家庭选择器和分类选择器 -->
       <div class="flex flex-col sm:flex-row sm:items-center gap-3">
         <h1 class="text-xl md:text-2xl font-bold text-gray-900 flex-shrink-0">批量更新负债</h1>
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
+          <select
+            v-model="selectedFamilyId"
+            @change="onFamilyChange"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
+          >
+            <option v-for="family in families" :key="family.id" :value="family.id">
+              {{ family.familyName }}
+            </option>
+          </select>
           <label class="text-sm font-medium text-gray-700 whitespace-nowrap">分类：</label>
           <select
             v-model="selectedCategoryType"
@@ -112,6 +122,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
+import { familyAPI } from '@/api/family'
 import { getExchangeRate } from '@/utils/exchangeRate'
 import { getTodayDate } from '@/lib/utils'
 
@@ -123,6 +134,10 @@ const accountBalances = ref({})
 const accountPreviousValues = ref({}) // 存储每个账户在选择日期的之前值
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
+
+// 家庭相关
+const families = ref([])
+const selectedFamilyId = ref(null)
 
 // 记录日期，默认为今天（使用洛杉矶时区）
 const today = getTodayDate()
@@ -263,11 +278,52 @@ const getDifferenceClass = (accountId, currentBalance) => {
   return diff < 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
 }
 
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+    }
+
+    // 如果selectedFamilyId还未设置，获取默认家庭
+    if (!selectedFamilyId.value) {
+      try {
+        const defaultResponse = await familyAPI.getDefault()
+        if (defaultResponse.success && defaultResponse.data) {
+          selectedFamilyId.value = defaultResponse.data.id
+        } else if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      } catch (err) {
+        console.error('获取默认家庭失败:', err)
+        if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 家庭切换事件处理
+const onFamilyChange = () => {
+  // 清空当前数据
+  accountBalances.value = {}
+  accountPreviousValues.value = {}
+  changedAccounts.value.clear()
+  // 重新加载账户列表
+  loadAccounts()
+}
+
 // 加载账户列表
 const loadAccounts = async () => {
+  if (!selectedFamilyId.value) return
+
   loading.value = true
   try {
-    const response = await liabilityAccountAPI.getAll()
+    const response = await liabilityAccountAPI.getAllByFamily(selectedFamilyId.value)
     console.log('Response:', response)
 
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
@@ -486,7 +542,15 @@ const saveAll = async (overwriteExisting = false) => {
   }
 }
 
-onMounted(() => {
-  loadAccounts()
+// 监听selectedFamilyId变化，自动加载账户数据
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    loadAccounts()
+  }
+})
+
+onMounted(async () => {
+  await loadFamilies()
+  // loadAccounts 将通过 watcher 自动调用
 })
 </script>

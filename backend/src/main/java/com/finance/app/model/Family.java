@@ -24,6 +24,9 @@ public class Family {
     @Column(name = "family_name", nullable = false, length = 100)
     private String familyName;
 
+    @Column(name = "is_default")
+    private Boolean isDefault = false;
+
     @Column(name = "annual_expenses", precision = 15, scale = 2)
     private BigDecimal annualExpenses;
 

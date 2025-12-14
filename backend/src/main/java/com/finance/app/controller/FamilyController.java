@@ -116,4 +116,34 @@ public class FamilyController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * 获取默认家庭
+     */
+    @GetMapping("/default")
+    public ResponseEntity<Map<String, Object>> getDefaultFamily() {
+        FamilyDTO family = familyService.getDefaultFamily();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", family);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 设置默认家庭
+     */
+    @PostMapping("/{familyId}/set-default")
+    public ResponseEntity<Map<String, Object>> setDefaultFamily(
+            @PathVariable Long familyId) {
+
+        familyService.setDefaultFamily(familyId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "默认家庭设置成功");
+
+        return ResponseEntity.ok(response);
+    }
 }

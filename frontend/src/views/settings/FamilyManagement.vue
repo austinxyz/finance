@@ -148,28 +148,49 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-4 border-t border-gray-200">
+              <!-- 设置默认家庭按钮 -->
               <button
+                v-if="!familyForm.isDefault"
                 type="button"
-                @click="resetFamilyForm"
-                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                @click="setAsDefault"
+                :disabled="settingDefault"
+                class="px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-md text-sm font-medium hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                重置
+                <span v-if="!settingDefault">设为默认家庭</span>
+                <span v-else>设置中...</span>
               </button>
-              <button
-                type="submit"
-                :disabled="saving"
-                class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span v-if="!saving">保存配置</span>
-                <span v-else class="flex items-center">
-                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  保存中...
-                </span>
-              </button>
+              <div v-else class="flex items-center text-sm text-blue-600 font-medium">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                当前默认家庭
+              </div>
+
+              <!-- 保存和重置按钮 -->
+              <div class="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  @click="resetFamilyForm"
+                  class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  重置
+                </button>
+                <button
+                  type="submit"
+                  :disabled="saving"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="!saving">保存配置</span>
+                  <span v-else class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    保存中...
+                  </span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -485,6 +506,7 @@ const loading = ref(false)
 const saving = ref(false)
 const savingMember = ref(false)
 const creatingFamily = ref(false)
+const settingDefault = ref(false)
 const error = ref(null)
 const showSuccess = ref(false)
 const successMessage = ref('')
@@ -508,7 +530,8 @@ const familyForm = ref({
   annualExpenses: 0,
   expensesCurrency: 'USD',
   emergencyFundMonths: 6,
-  financialGoals: ''
+  financialGoals: '',
+  isDefault: false
 })
 
 const originalFamilyForm = ref(null)
@@ -581,7 +604,8 @@ const loadFamilyDetails = async (familyId) => {
       annualExpenses: 0,
       expensesCurrency: 'USD',
       emergencyFundMonths: 6,
-      financialGoals: ''
+      financialGoals: '',
+      isDefault: false
     }
     members.value = []
     selectedMember.value = null
@@ -599,7 +623,8 @@ const loadFamilyDetails = async (familyId) => {
         annualExpenses: family.annualExpenses || 0,
         expensesCurrency: family.expensesCurrency || 'USD',
         emergencyFundMonths: family.emergencyFundMonths || 6,
-        financialGoals: family.financialGoals || ''
+        financialGoals: family.financialGoals || '',
+        isDefault: family.isDefault || false
       }
       originalFamilyForm.value = JSON.parse(JSON.stringify(familyForm.value))
 
@@ -821,6 +846,31 @@ const showSuccessMessage = (message) => {
   setTimeout(() => {
     showSuccess.value = false
   }, 3000)
+}
+
+// 设置为默认家庭
+const setAsDefault = async () => {
+  if (!selectedFamilyId.value) return
+
+  settingDefault.value = true
+  error.value = null
+
+  try {
+    const response = await request.post(`/family/${selectedFamilyId.value}/set-default`)
+
+    if (response.success) {
+      showSuccessMessage('默认家庭设置成功')
+      // 重新加载所有家庭列表以更新isDefault状态
+      await loadAllFamilies()
+      // 重新加载当前家庭详情
+      await loadFamilyDetails(selectedFamilyId.value)
+    }
+  } catch (err) {
+    console.error('设置默认家庭失败:', err)
+    error.value = err.response?.data?.message || '设置默认家庭失败，请稍后重试'
+  } finally {
+    settingDefault.value = false
+  }
 }
 
 onMounted(() => {

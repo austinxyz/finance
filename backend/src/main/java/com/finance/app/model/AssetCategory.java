@@ -44,6 +44,9 @@ public class AssetCategory {
     @Column(name = "is_system")
     private Boolean isSystem = false;
 
+    @Column(name = "is_investment")
+    private Boolean isInvestment = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

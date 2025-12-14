@@ -1,9 +1,23 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- 页面标题 -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">资产账户与记录</h1>
-      <p class="text-sm text-gray-600 mt-1">管理账户，按资产类型查看历史记录和趋势分析</p>
+    <!-- 页面标题和家庭选择器 -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">资产账户与记录</h1>
+        <p class="text-sm text-gray-600 mt-1">管理账户，按资产类型查看历史记录和趋势分析</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
+        <select
+          v-model="selectedFamilyId"
+          @change="onFamilyChange"
+          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- 资产分类 Tab -->
@@ -495,8 +509,10 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { assetCategoryAPI, assetAccountAPI, assetRecordAPI } from '@/api/asset'
+import { assetTypeAPI, assetAccountAPI, assetRecordAPI } from '@/api/asset'
 import { userAPI } from '@/api/user'
+import { familyAPI } from '@/api/family'
+import { getTodayDate } from '@/lib/utils'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 
@@ -513,6 +529,10 @@ const CATEGORY_TYPE_NAMES = {
   'PRECIOUS_METALS': '贵金属',
   'OTHER': '其他'
 }
+
+// 家庭相关
+const families = ref([])
+const selectedFamilyId = ref(null)
 
 const categories = ref([])
 const allCategories = ref([])  // 存储完整的分类信息（包含ID）
@@ -539,7 +559,7 @@ const timeRanges = [
 ]
 
 const formData = ref({
-  recordDate: new Date().toISOString().split('T')[0],
+  recordDate: getTodayDate(),
   amount: '',
   currency: 'CNY',
   notes: ''
@@ -557,7 +577,7 @@ const accountFormData = ref({
 
 // 当前分类下的账户
 const currentCategoryAccounts = computed(() => {
-  return accounts.value.filter(account => account.categoryType === selectedCategoryType.value)
+  return accounts.value.filter(account => account.assetTypeCode === selectedCategoryType.value)
 })
 
 // 当前分类的总和（基准货币）
@@ -645,13 +665,16 @@ const getUserName = (userId) => {
 // 加载资产分类
 const loadCategories = async () => {
   try {
-    // 加载分类类型
-    const typesResponse = await assetCategoryAPI.getTypes(1) // 使用默认用户ID 1
-    if (typesResponse.success && typesResponse.data) {
-      // 将类型转换为分类对象
-      categories.value = typesResponse.data.map(type => ({
-        type: type,
-        name: CATEGORY_TYPE_NAMES[type] || type
+    // 加载资产类型（8个大类）
+    const response = await assetTypeAPI.getAll()
+    if (response.success && response.data) {
+      // 存储完整的资产类型信息（包含ID）
+      allCategories.value = response.data
+
+      // 转换为Tab显示用的分类对象
+      categories.value = response.data.map(assetType => ({
+        type: assetType.categoryType,
+        name: assetType.categoryName
       }))
 
       // 如果有分类，默认选中第一个
@@ -659,21 +682,46 @@ const loadCategories = async () => {
         selectedCategoryType.value = categories.value[0].type
       }
     }
-
-    // 加载完整分类信息（包含ID）
-    const allResponse = await assetCategoryAPI.getAll(1)
-    if (allResponse.success && allResponse.data) {
-      allCategories.value = allResponse.data
-    }
   } catch (error) {
-    console.error('加载分类失败:', error)
+    console.error('加载资产类型失败:', error)
   }
 }
 
-// 加载用户列表
-const loadUsers = async () => {
+// 加载家庭列表
+const loadFamilies = async () => {
   try {
-    const response = await userAPI.getAll()
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+    }
+
+    // 如果selectedFamilyId还未设置，获取默认家庭
+    if (!selectedFamilyId.value) {
+      try {
+        const defaultResponse = await familyAPI.getDefault()
+        if (defaultResponse.success && defaultResponse.data) {
+          selectedFamilyId.value = defaultResponse.data.id
+        } else if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      } catch (err) {
+        console.error('获取默认家庭失败:', err)
+        if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 加载用户列表（只加载当前家庭的成员）
+const loadUsers = async () => {
+  if (!selectedFamilyId.value) return
+
+  try {
+    const response = await familyAPI.getMembers(selectedFamilyId.value)
     if (response.success) {
       users.value = response.data
     }
@@ -682,11 +730,27 @@ const loadUsers = async () => {
   }
 }
 
+// 家庭切换事件处理
+const onFamilyChange = () => {
+  // 重新加载用户列表和账户列表
+  loadUsers()
+  loadAccounts()
+  // 清空当前选中的账户和记录
+  selectedAccount.value = null
+  records.value = []
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
+}
+
 // 加载账户列表
 const loadAccounts = async () => {
+  if (!selectedFamilyId.value) return
+
   loadingAccounts.value = true
   try {
-    const response = await assetAccountAPI.getAll()
+    const response = await assetAccountAPI.getAllByFamily(selectedFamilyId.value)
     if (response.success) {
       accounts.value = response.data
     }
@@ -833,7 +897,7 @@ watch(selectedCategoryType, () => {
 const openCreateDialog = () => {
   editingRecord.value = null
   formData.value = {
-    recordDate: new Date().toISOString().split('T')[0],
+    recordDate: getTodayDate(),
     amount: '',
     currency: selectedAccount.value?.currency || 'CNY',
     notes: ''
@@ -938,7 +1002,7 @@ const openAccountDialog = (account = null) => {
       taxStatus: account.taxStatus || 'TAXABLE',
       notes: account.notes || '',
       userId: account.userId,
-      categoryId: account.categoryId  // 保存 categoryId 用于更新
+      assetTypeId: account.assetTypeId  // 保存 assetTypeId 用于更新
     }
   } else {
     accountFormData.value = {
@@ -966,22 +1030,22 @@ const submitAccountForm = async () => {
     let data
 
     if (editingAccount.value) {
-      // 编辑：使用已保存的 categoryId
+      // 编辑：使用已保存的 assetTypeId
       data = {
         ...accountFormData.value,
         isActive: true
       }
     } else {
-      // 创建：根据 categoryType 查找 categoryId
-      const category = allCategories.value.find(cat => cat.type === selectedCategoryType.value)
-      if (!category) {
-        alert('未找到对应的分类，请刷新页面重试')
+      // 创建：根据 categoryType 查找 assetTypeId
+      const assetType = allCategories.value.find(cat => cat.categoryType === selectedCategoryType.value)
+      if (!assetType) {
+        alert('未找到对应的资产类型，请刷新页面重试')
         return
       }
 
       data = {
         ...accountFormData.value,
-        categoryId: category.id,
+        assetTypeId: assetType.categoryId,  // categoryId 就是 assetType 的 ID
         isActive: true
       }
     }
@@ -1048,9 +1112,17 @@ const getTaxStatusClass = (taxStatus) => {
   return classes[taxStatus] || 'bg-gray-100 text-gray-700 text-xs'
 }
 
+// 监听selectedFamilyId变化，自动加载用户和账户数据
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    loadUsers()
+    loadAccounts()
+  }
+})
+
 onMounted(async () => {
-  await loadUsers()
+  await loadFamilies()
   await loadCategories()
-  await loadAccounts()
+  // loadUsers 和 loadAccounts 将通过 watcher 自动调用
 })
 </script>

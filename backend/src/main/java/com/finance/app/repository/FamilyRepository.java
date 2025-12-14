@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface FamilyRepository extends JpaRepository<Family, Long> {
 
     Optional<Family> findByFamilyName(String familyName);
+
+    Optional<Family> findByIsDefaultTrue();
 }

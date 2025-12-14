@@ -227,8 +227,21 @@ export default {
           families.value = data.data
         }
 
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
+        // 如果selectedFamilyId还未设置，获取默认家庭
+        if (!selectedFamilyId.value) {
+          try {
+            const defaultResponse = await familyAPI.getDefault()
+            if (defaultResponse.success && defaultResponse.data) {
+              selectedFamilyId.value = defaultResponse.data.id
+            } else if (families.value.length > 0) {
+              selectedFamilyId.value = families.value[0].id
+            }
+          } catch (err) {
+            console.error('获取默认家庭失败:', err)
+            if (families.value.length > 0) {
+              selectedFamilyId.value = families.value[0].id
+            }
+          }
         }
       } catch (error) {
         console.error('加载家庭列表失败:', error)

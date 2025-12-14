@@ -6,8 +6,8 @@ import com.finance.app.dto.AssetRecordDTO;
 import com.finance.app.dto.BatchRecordUpdateDTO;
 import com.finance.app.dto.BatchRecordCheckDTO;
 import com.finance.app.model.AssetAccount;
-import com.finance.app.model.AssetCategory;
 import com.finance.app.model.AssetRecord;
+import com.finance.app.model.AssetType;
 import com.finance.app.service.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/assets")
@@ -25,24 +26,26 @@ public class AssetController {
 
     private final AssetService assetService;
 
-    // ========== Category Endpoints ==========
+    // ========== Asset Type Endpoints ==========
 
-    @GetMapping("/categories/types")
-    public ApiResponse<List<String>> getCategoryTypes(@RequestParam Long userId) {
-        List<String> types = assetService.getAllCategoryTypes(userId);
-        return ApiResponse.success(types);
-    }
+    @GetMapping("/types")
+    public ApiResponse<List<Map<String, Object>>> getAssetTypes() {
+        List<AssetType> assetTypes = assetService.getAllAssetTypes();
 
-    @GetMapping("/categories")
-    public ApiResponse<List<AssetCategory>> getCategories(@RequestParam Long userId) {
-        List<AssetCategory> categories = assetService.getAllCategories(userId);
-        return ApiResponse.success(categories);
-    }
+        List<Map<String, Object>> typeData = assetTypes.stream()
+            .map(assetType -> {
+                Map<String, Object> typeMap = new HashMap<>();
+                typeMap.put("categoryId", assetType.getId());
+                typeMap.put("categoryName", assetType.getChineseName());
+                typeMap.put("categoryType", assetType.getType());
+                typeMap.put("categoryIcon", assetType.getIcon());
+                typeMap.put("displayOrder", assetType.getDisplayOrder());
+                typeMap.put("color", assetType.getColor());
+                return typeMap;
+            })
+            .collect(Collectors.toList());
 
-    @PostMapping("/categories")
-    public ApiResponse<AssetCategory> createCategory(@RequestBody AssetCategory category) {
-        AssetCategory created = assetService.createCategory(category);
-        return ApiResponse.success("Category created successfully", created);
+        return ApiResponse.success(typeData);
     }
 
     // ========== Account Endpoints ==========

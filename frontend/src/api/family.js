@@ -42,6 +42,21 @@ export const familyAPI = {
    */
   getMembers(familyId) {
     return request.get(`/family/${familyId}/members`)
+  },
+
+  /**
+   * 获取默认家庭
+   */
+  getDefault() {
+    return request.get('/family/default')
+  },
+
+  /**
+   * 设置默认家庭
+   * @param {Number} familyId - 家庭ID
+   */
+  setDefault(familyId) {
+    return request.post(`/family/${familyId}/set-default`)
   }
 }
 

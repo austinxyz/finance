@@ -4,11 +4,10 @@ import com.finance.app.dto.AssetAccountDTO;
 import com.finance.app.dto.AssetRecordDTO;
 import com.finance.app.dto.BatchRecordUpdateDTO;
 import com.finance.app.model.AssetAccount;
-import com.finance.app.model.AssetCategory;
 import com.finance.app.model.AssetRecord;
 import com.finance.app.repository.AssetAccountRepository;
-import com.finance.app.repository.AssetCategoryRepository;
 import com.finance.app.repository.AssetRecordRepository;
+import com.finance.app.repository.AssetTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,35 +23,14 @@ import java.util.stream.Collectors;
 public class AssetService {
 
     private final AssetAccountRepository accountRepository;
-    private final AssetCategoryRepository categoryRepository;
+    private final AssetTypeRepository assetTypeRepository;
     private final AssetRecordRepository recordRepository;
     private final com.finance.app.repository.UserRepository userRepository;
 
-    // ========== Category Operations ==========
+    // ========== Asset Type Operations ==========
 
-    public List<String> getAllCategoryTypes(Long userId) {
-        List<AssetCategory> categories = categoryRepository.findByUserIdOrderByDisplayOrderAsc(userId);
-        return categories.stream()
-                .map(AssetCategory::getType)
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    public List<AssetCategory> getAllCategories(Long userId) {
-        // Return system categories (shared) + user's custom categories
-        List<AssetCategory> systemCategories = categoryRepository.findByIsSystemTrueOrderByDisplayOrderAsc();
-        List<AssetCategory> userCategories = categoryRepository.findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(userId);
-
-        // Combine both lists
-        List<AssetCategory> allCategories = new ArrayList<>();
-        allCategories.addAll(systemCategories);
-        allCategories.addAll(userCategories);
-
-        return allCategories;
-    }
-
-    public AssetCategory createCategory(AssetCategory category) {
-        return categoryRepository.save(category);
+    public List<com.finance.app.model.AssetType> getAllAssetTypes() {
+        return assetTypeRepository.findAllByOrderByDisplayOrderAsc();
     }
 
     // ========== Account Operations ==========
@@ -84,7 +62,7 @@ public class AssetService {
     public AssetAccount updateAccount(Long accountId, AssetAccount accountDetails) {
         AssetAccount account = getAccountById(accountId);
         account.setUserId(accountDetails.getUserId());
-        account.setCategoryId(accountDetails.getCategoryId());
+        account.setAssetTypeId(accountDetails.getAssetTypeId());
         account.setAccountName(accountDetails.getAccountName());
         account.setAccountNumber(accountDetails.getAccountNumber());
         account.setInstitution(accountDetails.getInstitution());
@@ -138,6 +116,7 @@ public class AssetService {
         AssetRecord record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
 
+        record.setRecordDate(recordDetails.getRecordDate());
         record.setAmount(recordDetails.getAmount());
         record.setQuantity(recordDetails.getQuantity());
         record.setUnitPrice(recordDetails.getUnitPrice());
@@ -255,7 +234,7 @@ public class AssetService {
         AssetAccountDTO dto = new AssetAccountDTO();
         dto.setId(account.getId());
         dto.setUserId(account.getUserId());
-        dto.setCategoryId(account.getCategoryId());
+        dto.setAssetTypeId(account.getAssetTypeId());
         dto.setAccountName(account.getAccountName());
         dto.setAccountNumber(account.getAccountNumber());
         dto.setInstitution(account.getInstitution());
@@ -270,10 +249,11 @@ public class AssetService {
         userRepository.findById(account.getUserId())
                 .ifPresent(user -> dto.setUserName(user.getFullName() != null ? user.getFullName() : user.getUsername()));
 
-        // 获取类别信息
-        if (account.getCategory() != null) {
-            dto.setCategoryName(account.getCategory().getName());
-            dto.setCategoryType(account.getCategory().getType());
+        // 获取资产类型信息
+        if (account.getAssetType() != null) {
+            dto.setAssetTypeName(account.getAssetType().getChineseName());
+            dto.setAssetTypeCode(account.getAssetType().getType());
+            dto.setAssetTypeIcon(account.getAssetType().getIcon());
         }
 
         // 获取最新金额和记录日期

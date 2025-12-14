@@ -76,6 +76,25 @@ const routes = [
           description: '管理账户和查看历史记录'
         }
       },
+      // 投资管理
+      {
+        path: 'investments/records',
+        name: 'InvestmentRecords',
+        component: () => import('../views/investments/InvestmentRecords.vue'),
+        meta: {
+          title: '分类与记录',
+          description: '管理投资账户，按大类查看投资趋势和交易记录'
+        }
+      },
+      {
+        path: 'investments/batch-entry',
+        name: 'InvestmentBatchEntry',
+        component: () => import('../views/investments/InvestmentBatchEntry.vue'),
+        meta: {
+          title: '批量录入',
+          description: '按月批量录入投资交易'
+        }
+      },
       // 支出管理
       {
         path: 'expenses/categories',

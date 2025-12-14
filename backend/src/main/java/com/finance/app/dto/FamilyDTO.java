@@ -13,6 +13,7 @@ public class FamilyDTO {
 
     private Long id;
     private String familyName;
+    private Boolean isDefault;
     private BigDecimal annualExpenses;
     private String expensesCurrency;
     private Integer emergencyFundMonths;

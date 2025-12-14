@@ -464,7 +464,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Pie } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -503,7 +503,7 @@ const exchangeRate = ref(7.2) // USD to CNY 默认汇率
 
 // 家庭选择
 const families = ref([])
-const selectedFamilyId = ref(1) // 默认选择 Austin Family
+const selectedFamilyId = ref(null) // 将从默认家庭API获取
 
 // 日期选择
 const selectedDate = ref('')
@@ -1408,9 +1408,22 @@ const loadFamilies = async () => {
     const response = await familyAPI.getAll()
     if (response.success) {
       families.value = response.data
-      // 如果当前familyId不在列表中，默认选择第一个
-      if (!families.value.find(f => f.id === selectedFamilyId.value) && families.value.length > 0) {
-        selectedFamilyId.value = families.value[0].id
+
+      // 如果selectedFamilyId还未设置，获取默认家庭
+      if (!selectedFamilyId.value) {
+        try {
+          const defaultResponse = await familyAPI.getDefault()
+          if (defaultResponse.success && defaultResponse.data) {
+            selectedFamilyId.value = defaultResponse.data.id
+          } else if (families.value.length > 0) {
+            selectedFamilyId.value = families.value[0].id
+          }
+        } catch (err) {
+          console.error('获取默认家庭失败:', err)
+          if (families.value.length > 0) {
+            selectedFamilyId.value = families.value[0].id
+          }
+        }
       }
     }
   } catch (error) {
@@ -1435,12 +1448,19 @@ const onFamilyChange = () => {
   }
 }
 
-onMounted(() => {
-  loadFamilies()
-  loadSummary()
-  loadNetAllocation()  // 默认加载净资产配置
-  loadTaxStatusAllocation()  // 默认加载税收状态配置
-  loadMemberAllocation()  // 默认加载家庭成员配置
-  loadCurrencyAllocation()  // 默认加载货币分布配置
+// 监听selectedFamilyId变化，自动加载数据
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    loadSummary()
+    loadNetAllocation()
+    loadTaxStatusAllocation()
+    loadMemberAllocation()
+    loadCurrencyAllocation()
+  }
+})
+
+onMounted(async () => {
+  await loadFamilies()
+  // loadFamilies会设置selectedFamilyId，然后watcher会自动加载数据
 })
 </script>

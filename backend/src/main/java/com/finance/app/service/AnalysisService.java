@@ -114,13 +114,13 @@ public class AnalysisService {
                 }
 
                 // 按分类汇总
-                String categoryName = account.getCategory() != null ?
-                    account.getCategory().getName() : "未分类";
+                String categoryName = account.getAssetType() != null ?
+                    account.getAssetType().getChineseName() : "未分类";
                 assetsByCategory.merge(categoryName, amount, BigDecimal::add);
 
                 // 按类型汇总
-                String typeName = account.getCategory() != null ?
-                    account.getCategory().getType() : "OTHER";
+                String typeName = account.getAssetType() != null ?
+                    account.getAssetType().getType() : "OTHER";
                 assetsByType.merge(typeName, amount, BigDecimal::add);
             }
         }
@@ -301,8 +301,8 @@ public class AnalysisService {
                 dto.setAmount(amount);
                 if (account != null) {
                     dto.setAccountName(account.getAccountName());
-                    if (account.getCategory() != null) {
-                        dto.setCategoryName(account.getCategory().getName());
+                    if (account.getAssetType() != null) {
+                        dto.setCategoryName(account.getAssetType().getChineseName());
                     }
                 }
                 return dto;
@@ -702,7 +702,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
             .collect(Collectors.toList());
 
         // 获取日期范围内的记录并按日期汇总
@@ -825,7 +825,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的资产账户
         List<AssetAccount> filteredAssetAccounts = assetAccounts.stream()
-            .filter(acc -> acc.getCategory() != null && assetTypes.contains(acc.getCategory().getType()))
+            .filter(acc -> acc.getAssetType() != null && assetTypes.contains(acc.getAssetType().getType()))
             .collect(Collectors.toList());
 
         // 获取所有负债账户
@@ -914,7 +914,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
             .collect(Collectors.toList());
 
         // 获取每个账户在指定日期的余额
@@ -1000,7 +1000,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
             .collect(Collectors.toList());
 
         // 为每个账户获取趋势数据
@@ -1135,7 +1135,7 @@ public class AnalysisService {
         // 过滤出匹配类型的资产账户并获取余额
         List<Map<String, Object>> assetAccountsData = new ArrayList<>();
         for (AssetAccount account : assetAccounts) {
-            if (account.getCategory() != null && assetTypes.contains(account.getCategory().getType())) {
+            if (account.getAssetType() != null && assetTypes.contains(account.getAssetType().getType())) {
                 Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
                 if (record.isPresent()) {
                     AssetRecord assetRecord = record.get();
@@ -1147,8 +1147,8 @@ public class AnalysisService {
                     Map<String, Object> accountData = new HashMap<>();
                     accountData.put("accountId", account.getId());
                     accountData.put("accountName", account.getAccountName());
-                    accountData.put("categoryType", account.getCategory().getType());
-                    accountData.put("categoryName", account.getCategory().getName());
+                    accountData.put("categoryType", account.getAssetType().getType());
+                    accountData.put("categoryName", account.getAssetType().getChineseName());
                     accountData.put("balance", balance);
                     assetAccountsData.add(accountData);
                 }

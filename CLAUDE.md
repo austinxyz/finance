@@ -127,7 +127,7 @@ $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
 ```
 
 **Database Category Tables:**
-- `asset_categories` - Asset category definitions (type: CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER)
+- `asset_type` - Asset type definitions (type: CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER)
 - `liability_categories` - Liability category definitions (type: MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, OTHER)
 - `net_asset_categories` - Net asset category definitions (code: REAL_ESTATE_NET, RETIREMENT_FUND_NET, LIQUID_NET, INVESTMENT_NET, OTHER_NET)
 

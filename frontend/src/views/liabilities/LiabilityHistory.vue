@@ -1,9 +1,23 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- 页面标题 -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">负债账户与记录</h1>
-      <p class="text-sm text-gray-600 mt-1">管理账户，按负债类型查看历史记录和趋势分析</p>
+    <!-- 页面标题和家庭选择器 -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">负债账户与记录</h1>
+        <p class="text-sm text-gray-600 mt-1">管理账户，按负债类型查看历史记录和趋势分析</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
+        <select
+          v-model="selectedFamilyId"
+          @change="onFamilyChange"
+          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- 负债分类 Tab -->
@@ -473,7 +487,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
-import { userAPI } from '@/api/user'
+import { familyAPI } from '@/api/family'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 
@@ -489,6 +503,10 @@ const CATEGORY_TYPE_NAMES = {
   'BUSINESS_LOAN': '商业贷款',
   'OTHER': '其他'
 }
+
+// 家庭相关
+const families = ref([])
+const selectedFamilyId = ref(null)
 
 const categories = ref([])
 const allCategories = ref([])  // 存储完整的分类信息（包含ID）
@@ -643,10 +661,41 @@ const loadCategories = async () => {
   }
 }
 
-// 加载用户列表
-const loadUsers = async () => {
+// 加载家庭列表
+const loadFamilies = async () => {
   try {
-    const response = await userAPI.getAll()
+    const response = await familyAPI.getAll()
+    if (response.success) {
+      families.value = response.data
+    }
+
+    // 如果selectedFamilyId还未设置，获取默认家庭
+    if (!selectedFamilyId.value) {
+      try {
+        const defaultResponse = await familyAPI.getDefault()
+        if (defaultResponse.success && defaultResponse.data) {
+          selectedFamilyId.value = defaultResponse.data.id
+        } else if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      } catch (err) {
+        console.error('获取默认家庭失败:', err)
+        if (families.value.length > 0) {
+          selectedFamilyId.value = families.value[0].id
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error)
+  }
+}
+
+// 加载用户列表（只加载当前家庭的成员）
+const loadUsers = async () => {
+  if (!selectedFamilyId.value) return
+
+  try {
+    const response = await familyAPI.getMembers(selectedFamilyId.value)
     if (response.success) {
       users.value = response.data
     }
@@ -657,9 +706,11 @@ const loadUsers = async () => {
 
 // 加载账户列表
 const loadAccounts = async () => {
+  if (!selectedFamilyId.value) return
+
   loadingAccounts.value = true
   try {
-    const response = await liabilityAccountAPI.getAll()
+    const response = await liabilityAccountAPI.getAllByFamily(selectedFamilyId.value)
     if (response.success) {
       accounts.value = response.data
     }
@@ -986,9 +1037,31 @@ const disableAccount = async (account) => {
   }
 }
 
+// 家庭切换事件处理
+const onFamilyChange = () => {
+  // 重新加载用户列表和账户列表
+  loadUsers()
+  loadAccounts()
+  // 清空当前选中的账户和记录
+  selectedAccount.value = null
+  records.value = []
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
+}
+
+// 监听selectedFamilyId变化，自动加载用户和账户数据
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    loadUsers()
+    loadAccounts()
+  }
+})
+
 onMounted(async () => {
-  await loadUsers()
+  await loadFamilies()
   await loadCategories()
-  await loadAccounts()
+  // loadUsers 和 loadAccounts 将通过 watcher 自动调用
 })
 </script>

@@ -16,9 +16,10 @@ public class AssetAccountDTO {
     private Long id;
     private Long userId;
     private String userName;  // 用户名称
-    private Long categoryId;
-    private String categoryName;
-    private String categoryType;
+    private Long assetTypeId;
+    private String assetTypeName;
+    private String assetTypeCode;
+    private String assetTypeIcon;
     private String accountName;
     private String accountNumber;
     private String institution;

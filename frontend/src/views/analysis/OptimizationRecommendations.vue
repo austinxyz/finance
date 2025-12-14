@@ -543,14 +543,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { analysisAPI } from '@/api/analysis'
 import { familyAPI } from '@/api/family'
 
 const loading = ref(false)
 const selectedDate = ref('')
 const families = ref([])
-const selectedFamilyId = ref(1)
+const selectedFamilyId = ref(null) // 将从默认家庭API获取
 const recommendations = ref({
   asOfDate: '',
   overallScore: 0,
@@ -760,8 +760,22 @@ const loadFamilies = async () => {
     const response = await familyAPI.getAll()
     if (response.success) {
       families.value = response.data
-      if (!families.value.find(f => f.id === selectedFamilyId.value) && families.value.length > 0) {
-        selectedFamilyId.value = families.value[0].id
+
+      // 如果selectedFamilyId还未设置，获取默认家庭
+      if (!selectedFamilyId.value) {
+        try {
+          const defaultResponse = await familyAPI.getDefault()
+          if (defaultResponse.success && defaultResponse.data) {
+            selectedFamilyId.value = defaultResponse.data.id
+          } else if (families.value.length > 0) {
+            selectedFamilyId.value = families.value[0].id
+          }
+        } catch (err) {
+          console.error('获取默认家庭失败:', err)
+          if (families.value.length > 0) {
+            selectedFamilyId.value = families.value[0].id
+          }
+        }
       }
     }
   } catch (error) {
@@ -971,8 +985,15 @@ const copyPrompt = async () => {
   }
 }
 
-onMounted(() => {
-  loadFamilies()
-  loadRecommendations()
+// 监听selectedFamilyId变化，自动加载数据
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    loadRecommendations()
+  }
+})
+
+onMounted(async () => {
+  await loadFamilies()
+  // loadFamilies会设置selectedFamilyId，然后watcher会自动加载数据
 })
 </script>
