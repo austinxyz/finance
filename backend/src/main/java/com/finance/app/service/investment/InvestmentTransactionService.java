@@ -73,12 +73,14 @@ public class InvestmentTransactionService {
                 latestRecordDate = latest.getRecordDate().toString();
 
                 // 转换为USD基准货币
-                BigDecimal amountInUSD = exchangeRateService.convertToUSD(
-                    latest.getAmount(),
-                    latest.getCurrency(),
-                    latest.getRecordDate()
-                );
-                latestValueInUSD = amountInUSD != null ? amountInUSD.doubleValue() : null;
+                if (latest.getAmount() != null && latest.getCurrency() != null) {
+                    BigDecimal rate = exchangeRateService.getExchangeRate(
+                        latest.getCurrency(),
+                        latest.getRecordDate()
+                    );
+                    BigDecimal amountInUSD = latest.getAmount().multiply(rate);
+                    latestValueInUSD = amountInUSD.doubleValue();
+                }
             }
 
             return InvestmentAccountDTO.builder()

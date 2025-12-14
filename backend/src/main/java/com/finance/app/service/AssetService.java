@@ -264,12 +264,14 @@ public class AssetService {
                     dto.setLatestRecordDate(record.getRecordDate());
 
                     // 计算基准货币金额（USD）
-                    BigDecimal amountInUSD = exchangeRateService.convertToUSD(
-                        record.getAmount(),
-                        record.getCurrency(),
-                        record.getRecordDate()
-                    );
-                    dto.setLatestAmountInBaseCurrency(amountInUSD);
+                    if (record.getAmount() != null && record.getCurrency() != null) {
+                        BigDecimal rate = exchangeRateService.getExchangeRate(
+                            record.getCurrency(),
+                            record.getRecordDate()
+                        );
+                        BigDecimal amountInUSD = record.getAmount().multiply(rate);
+                        dto.setLatestAmountInBaseCurrency(amountInUSD);
+                    }
                 });
 
         return dto;
