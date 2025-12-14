@@ -218,6 +218,53 @@
         </button>
       </div>
 
+      <!-- 快速填充 -->
+      <div v-if="selectedAccountId" class="bg-blue-50 border border-blue-200 rounded p-2">
+        <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+          <span class="text-xs font-medium text-blue-900">快速填充（定投）:</span>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+              <input
+                v-model.number="quickFillDeposit"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="投入金额"
+                class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+              />
+            </div>
+            <button
+              @click="fillAllDeposits"
+              :disabled="!quickFillDeposit"
+              class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              填充投入
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+              <input
+                v-model.number="quickFillWithdrawal"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="取出金额"
+                class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+              />
+            </div>
+            <button
+              @click="fillAllWithdrawals"
+              :disabled="!quickFillWithdrawal"
+              class="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              填充取出
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 12个月的录入表格 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div v-if="loadingYear" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
@@ -330,6 +377,8 @@ export default {
     const changedYearMonths = ref(new Set())
     const loadingYear = ref(false)
     const savingYear = ref(false)
+    const quickFillDeposit = ref(null)
+    const quickFillWithdrawal = ref(null)
 
     // 初始化12个月的数据结构
     for (let i = 1; i <= 12; i++) {
@@ -726,6 +775,25 @@ export default {
       }
     }
 
+    // 快速填充方法
+    const fillAllDeposits = () => {
+      if (!quickFillDeposit.value) return
+
+      for (let month = 1; month <= 12; month++) {
+        yearMonthAmounts.value[month].deposits = quickFillDeposit.value
+        markYearChanged(month)
+      }
+    }
+
+    const fillAllWithdrawals = () => {
+      if (!quickFillWithdrawal.value) return
+
+      for (let month = 1; month <= 12; month++) {
+        yearMonthAmounts.value[month].withdrawals = quickFillWithdrawal.value
+        markYearChanged(month)
+      }
+    }
+
     // 初始化
     onMounted(() => {
       loadFamilies()
@@ -815,7 +883,11 @@ export default {
       markYearChanged,
       loadYearAccounts,
       loadYearData,
-      saveYearData
+      saveYearData,
+      quickFillDeposit,
+      quickFillWithdrawal,
+      fillAllDeposits,
+      fillAllWithdrawals
     }
   }
 }
