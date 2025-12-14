@@ -220,8 +220,8 @@ Automatically configures Java 17 environment and loads database credentials from
 ### `/mysql-exec`
 Execute MySQL commands with automatic credential loading. Supports SQL files, inline queries, and interactive shell.
 
-### `/git-push`
-Reference guide for Git operations including commit conventions and branch management.
+### `/git-commit-push`
+Stage all changes (including new files), commit with descriptive message, and push to GitHub.
 
 ### `/docker-build-push`
 Build and push multi-architecture Docker images (amd64/arm64) to xuaustin's Docker Hub.
