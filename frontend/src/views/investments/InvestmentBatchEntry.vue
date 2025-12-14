@@ -340,12 +340,23 @@ export default {
     const hasMonthChanges = computed(() => changedMonthAccounts.value.size > 0)
 
     const filteredMonthAccounts = computed(() => {
-      if (!selectedMonthCategory.value) {
-        return monthAccounts.value
+      let accounts = monthAccounts.value
+
+      // 按分类过滤
+      if (selectedMonthCategory.value) {
+        accounts = accounts.filter(account =>
+          account.categoryId === selectedMonthCategory.value
+        )
       }
-      return monthAccounts.value.filter(account =>
-        account.categoryId === selectedMonthCategory.value
-      )
+
+      // 按分类ID排序
+      return accounts.sort((a, b) => {
+        if (a.categoryId === b.categoryId) {
+          // 同一分类内按账户名排序
+          return a.accountName.localeCompare(b.accountName)
+        }
+        return (a.categoryId || 0) - (b.categoryId || 0)
+      })
     })
 
     const monthSummary = computed(() => {
