@@ -69,7 +69,7 @@
                 <div class="col-span-3">
                   <div class="font-medium text-gray-900 text-sm">{{ account.accountName }}</div>
                   <div class="text-xs text-gray-500 mt-0.5">
-                    {{ getTypeLabel(account.categoryType) }} › {{ account.categoryName }}
+                    {{ account.liabilityTypeName }}
                   </div>
                 </div>
 
@@ -159,7 +159,7 @@ const filteredAccounts = computed(() => {
   if (selectedCategoryType.value === null) {
     return accounts.value
   }
-  return accounts.value.filter(a => a.categoryType === selectedCategoryType.value)
+  return accounts.value.filter(a => a.liabilityTypeCode === selectedCategoryType.value)
 })
 
 // 是否有修改
@@ -216,20 +216,6 @@ const formatFullDate = (dateString) => {
     day: 'numeric',
     year: 'numeric'
   })
-}
-
-// 获取大类别标签
-const getTypeLabel = (type) => {
-  const typeMap = {
-    'MORTGAGE': '房贷',
-    'AUTO_LOAN': '车贷',
-    'CREDIT_CARD': '信用卡',
-    'PERSONAL_LOAN': '个人借款',
-    'STUDENT_LOAN': '学生贷款',
-    'BUSINESS_LOAN': '商业贷款',
-    'OTHER': '其他'
-  }
-  return typeMap[type] || type
 }
 
 // 获取货币符号
@@ -341,8 +327,8 @@ const loadAccounts = async () => {
           'OTHER': 7
         }
 
-        const orderA = categoryOrder[a.categoryType] || 999
-        const orderB = categoryOrder[b.categoryType] || 999
+        const orderA = categoryOrder[a.liabilityTypeCode] || 999
+        const orderB = categoryOrder[b.liabilityTypeCode] || 999
 
         // 首先按大类别排序
         if (orderA !== orderB) {

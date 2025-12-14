@@ -1,5 +1,13 @@
 import request from './request'
 
+// 负债类型相关API
+export const liabilityTypeAPI = {
+  // 获取所有负债类型
+  getAll() {
+    return request.get('/liabilities/types')
+  }
+}
+
 // 负债分类相关API
 export const liabilityCategoryAPI = {
   // 获取所有大分类类型

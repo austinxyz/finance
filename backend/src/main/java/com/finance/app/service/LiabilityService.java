@@ -6,9 +6,11 @@ import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityCategory;
 import com.finance.app.model.LiabilityRecord;
+import com.finance.app.model.LiabilityType;
 import com.finance.app.repository.LiabilityAccountRepository;
 import com.finance.app.repository.LiabilityCategoryRepository;
 import com.finance.app.repository.LiabilityRecordRepository;
+import com.finance.app.repository.LiabilityTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +28,14 @@ public class LiabilityService {
     private final LiabilityAccountRepository accountRepository;
     private final LiabilityCategoryRepository categoryRepository;
     private final LiabilityRecordRepository recordRepository;
+    private final LiabilityTypeRepository liabilityTypeRepository;
     private final com.finance.app.repository.UserRepository userRepository;
+
+    // ========== Liability Type Operations ==========
+
+    public List<LiabilityType> getAllLiabilityTypes() {
+        return liabilityTypeRepository.findAllByOrderByDisplayOrderAsc();
+    }
 
     // ========== Category Operations ==========
 
@@ -86,7 +95,7 @@ public class LiabilityService {
     public LiabilityAccount updateAccount(Long accountId, LiabilityAccount accountDetails) {
         LiabilityAccount account = getAccountById(accountId);
         account.setUserId(accountDetails.getUserId());
-        account.setCategoryId(accountDetails.getCategoryId());
+        account.setLiabilityTypeId(accountDetails.getLiabilityTypeId());
         account.setAccountName(accountDetails.getAccountName());
         account.setAccountNumber(accountDetails.getAccountNumber());
         account.setInstitution(accountDetails.getInstitution());
@@ -267,7 +276,7 @@ public class LiabilityService {
         LiabilityAccountDTO dto = new LiabilityAccountDTO();
         dto.setId(account.getId());
         dto.setUserId(account.getUserId());
-        dto.setCategoryId(account.getCategoryId());
+        dto.setLiabilityTypeId(account.getLiabilityTypeId());
         dto.setAccountName(account.getAccountName());
         dto.setAccountNumber(account.getAccountNumber());
         dto.setInstitution(account.getInstitution());
@@ -286,10 +295,11 @@ public class LiabilityService {
         userRepository.findById(account.getUserId())
                 .ifPresent(user -> dto.setUserName(user.getFullName() != null ? user.getFullName() : user.getUsername()));
 
-        // 获取类别信息
-        if (account.getCategory() != null) {
-            dto.setCategoryName(account.getCategory().getName());
-            dto.setCategoryType(account.getCategory().getType());
+        // 获取负债类型信息
+        if (account.getLiabilityType() != null) {
+            dto.setLiabilityTypeName(account.getLiabilityType().getChineseName());
+            dto.setLiabilityTypeCode(account.getLiabilityType().getType());
+            dto.setLiabilityTypeIcon(account.getLiabilityType().getIcon());
         }
 
         // 获取最新余额和记录日期

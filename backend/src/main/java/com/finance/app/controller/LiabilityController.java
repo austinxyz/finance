@@ -8,6 +8,7 @@ import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityCategory;
 import com.finance.app.model.LiabilityRecord;
+import com.finance.app.model.LiabilityType;
 import com.finance.app.service.LiabilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,28 @@ import java.util.Map;
 public class LiabilityController {
 
     private final LiabilityService liabilityService;
+
+    // ========== Liability Type Endpoints ==========
+
+    @GetMapping("/types")
+    public ApiResponse<List<Map<String, Object>>> getLiabilityTypes() {
+        List<LiabilityType> liabilityTypes = liabilityService.getAllLiabilityTypes();
+
+        List<Map<String, Object>> typeData = liabilityTypes.stream()
+            .map(liabilityType -> {
+                Map<String, Object> typeMap = new java.util.HashMap<>();
+                typeMap.put("categoryId", liabilityType.getId());
+                typeMap.put("categoryName", liabilityType.getChineseName());
+                typeMap.put("categoryType", liabilityType.getType());
+                typeMap.put("categoryIcon", liabilityType.getIcon());
+                typeMap.put("displayOrder", liabilityType.getDisplayOrder());
+                typeMap.put("color", liabilityType.getColor());
+                return typeMap;
+            })
+            .collect(java.util.stream.Collectors.toList());
+
+        return ApiResponse.success(typeData);
+    }
 
     // ========== Category Endpoints ==========
 

@@ -1,14 +1,14 @@
-import { assetCategoryAPI, assetAccountAPI, assetRecordAPI } from './asset'
-import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from './liability'
+import { assetTypeAPI, assetAccountAPI, assetRecordAPI } from './asset'
+import { liabilityTypeAPI, liabilityAccountAPI, liabilityRecordAPI } from './liability'
 import { analysisAPI } from './analysis'
 import { userAPI } from './user'
 import { familyAPI } from './family'
 
 export {
-  assetCategoryAPI,
+  assetTypeAPI,
   assetAccountAPI,
   assetRecordAPI,
-  liabilityCategoryAPI,
+  liabilityTypeAPI,
   liabilityAccountAPI,
   liabilityRecordAPI,
   analysisAPI,

@@ -27,8 +27,8 @@ public class LiabilityAccount {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    @Column(name = "liability_type_id")
+    private Long liabilityTypeId;
 
     @Column(name = "account_name", nullable = false, length = 100)
     private String accountName;
@@ -72,6 +72,6 @@ public class LiabilityAccount {
     private LocalDateTime updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", insertable = false, updatable = false)
-    private LiabilityCategory category;
+    @JoinColumn(name = "liability_type_id", insertable = false, updatable = false)
+    private LiabilityType liabilityType;
 }

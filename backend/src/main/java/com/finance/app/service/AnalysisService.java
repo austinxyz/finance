@@ -588,8 +588,8 @@ public class AnalysisService {
                     asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
                 );
 
-                String typeName = account.getCategory() != null ?
-                    account.getCategory().getType() : "OTHER";
+                String typeName = account.getLiabilityType() != null ?
+                    account.getLiabilityType().getType() : "OTHER";
                 liabilitiesByType.merge(typeName, balance, BigDecimal::add);
             }
         }
@@ -754,7 +754,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
             .collect(Collectors.toList());
 
         // 获取日期范围内的记录并按日期汇总
@@ -841,7 +841,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的负债账户
         List<LiabilityAccount> filteredLiabilityAccounts = liabilityAccounts.stream()
-            .filter(acc -> acc.getCategory() != null && liabilityTypes.contains(acc.getCategory().getType()))
+            .filter(acc -> acc.getLiabilityType() != null && liabilityTypes.contains(acc.getLiabilityType().getType()))
             .collect(Collectors.toList());
 
         // 获取日期范围内的资产记录并按日期汇总
@@ -952,7 +952,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
             .collect(Collectors.toList());
 
         // 获取每个账户在指定日期的余额
@@ -1061,7 +1061,7 @@ public class AnalysisService {
 
         // 过滤出匹配类型的账户
         List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getCategory() != null && categoryType.equals(acc.getCategory().getType()))
+            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
             .collect(Collectors.toList());
 
         // 为每个账户获取趋势数据
@@ -1168,7 +1168,7 @@ public class AnalysisService {
         // 过滤出匹配类型的负债账户并获取余额
         List<Map<String, Object>> liabilityAccountsData = new ArrayList<>();
         for (LiabilityAccount account : liabilityAccounts) {
-            if (account.getCategory() != null && liabilityTypes.contains(account.getCategory().getType())) {
+            if (account.getLiabilityType() != null && liabilityTypes.contains(account.getLiabilityType().getType())) {
                 Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
                 if (record.isPresent()) {
                     LiabilityRecord liabilityRecord = record.get();
@@ -1180,8 +1180,8 @@ public class AnalysisService {
                     Map<String, Object> accountData = new HashMap<>();
                     accountData.put("accountId", account.getId());
                     accountData.put("accountName", account.getAccountName());
-                    accountData.put("categoryType", account.getCategory().getType());
-                    accountData.put("categoryName", account.getCategory().getName());
+                    accountData.put("categoryType", account.getLiabilityType().getType());
+                    accountData.put("categoryName", account.getLiabilityType().getChineseName());
                     accountData.put("balance", balance);
                     liabilityAccountsData.add(accountData);
                 }

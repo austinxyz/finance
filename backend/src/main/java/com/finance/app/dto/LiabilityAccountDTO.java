@@ -18,6 +18,10 @@ public class LiabilityAccountDTO {
     private Long categoryId;
     private String categoryName;
     private String categoryType;
+    private Long liabilityTypeId;
+    private String liabilityTypeName;  // 负债类型名称
+    private String liabilityTypeCode;  // 负债类型代码
+    private String liabilityTypeIcon;  // 负债类型图标
     private String accountName;
     private String accountNumber;
     private String institution;

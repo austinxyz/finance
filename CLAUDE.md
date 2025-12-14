@@ -126,10 +126,12 @@ $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
 /opt/homebrew/opt/mysql-client/bin/mysql -h 10.0.0.7 -P 37719 -u austinxu -phelloworld finance -e "SHOW TABLES;"
 ```
 
-**Database Category Tables:**
+**Database Type Tables:**
 - `asset_type` - Asset type definitions (type: CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER)
-- `liability_categories` - Liability category definitions (type: MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, OTHER)
+- `liability_type` - Liability type definitions (type: MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, BUSINESS_LOAN, OTHER)
 - `net_asset_categories` - Net asset category definitions (code: REAL_ESTATE_NET, RETIREMENT_FUND_NET, LIQUID_NET, INVESTMENT_NET, OTHER_NET)
+- `expense_categories_major` - Expense major category definitions (CHILDREN, CLOTHING, FOOD, HOUSING, etc.)
+- `expense_categories_minor` - Expense minor category definitions (subcategories under each major category)
 
 ## Architecture
 

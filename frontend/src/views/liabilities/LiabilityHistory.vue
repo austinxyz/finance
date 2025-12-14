@@ -153,7 +153,7 @@
             <div>
               <h2 class="text-lg font-semibold text-gray-900">{{ selectedAccount.accountName }}</h2>
               <p class="text-sm text-gray-600 mt-1">
-                {{ selectedAccount.categoryName }} • {{ selectedAccount.currency }}
+                {{ selectedAccount.liabilityTypeName }} • {{ selectedAccount.currency }}
                 <span v-if="selectedAccount.institution" class="ml-2">• {{ selectedAccount.institution }}</span>
               </p>
             </div>
@@ -486,7 +486,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { liabilityCategoryAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
+import { liabilityTypeAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { familyAPI } from '@/api/family'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
@@ -532,8 +532,14 @@ const timeRanges = [
   { value: 'all', label: '全部' }
 ]
 
+const getLocalDateString = () => {
+  const today = new Date()
+  const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+  return localDate.toISOString().split('T')[0]
+}
+
 const formData = ref({
-  recordDate: new Date().toISOString().split('T')[0],
+  recordDate: getLocalDateString(),
   balance: '',
   currency: 'CNY',
   notes: ''
@@ -550,7 +556,7 @@ const accountFormData = ref({
 
 // 当前分类下的账户
 const currentCategoryAccounts = computed(() => {
-  return accounts.value.filter(account => account.categoryType === selectedCategoryType.value)
+  return accounts.value.filter(account => account.liabilityTypeCode === selectedCategoryType.value)
 })
 
 // 当前分类的总和（基准货币）
@@ -638,26 +644,25 @@ const getUserName = (userId) => {
 // 加载负债分类
 const loadCategories = async () => {
   try {
-    // 加载分类类型
-    const typesResponse = await liabilityCategoryAPI.getTypes(1)
-    if (typesResponse.success && typesResponse.data) {
-      categories.value = typesResponse.data.map(type => ({
-        type: type,
-        name: CATEGORY_TYPE_NAMES[type] || type
+    // 加载负债类型（7个大类）
+    const response = await liabilityTypeAPI.getAll()
+    if (response.success && response.data) {
+      // 存储完整的负债类型信息（包含ID）
+      allCategories.value = response.data
+
+      // 转换为Tab显示用的分类对象
+      categories.value = response.data.map(liabilityType => ({
+        type: liabilityType.categoryType,
+        name: liabilityType.categoryName
       }))
 
+      // 如果有分类，默认选中第一个
       if (categories.value.length > 0) {
         selectedCategoryType.value = categories.value[0].type
       }
     }
-
-    // 加载完整分类信息（包含ID）
-    const allResponse = await liabilityCategoryAPI.getAll(1)
-    if (allResponse.success && allResponse.data) {
-      allCategories.value = allResponse.data
-    }
   } catch (error) {
-    console.error('加载分类失败:', error)
+    console.error('加载负债类型失败:', error)
   }
 }
 
@@ -854,7 +859,7 @@ watch(selectedCategoryType, () => {
 const openCreateDialog = () => {
   editingRecord.value = null
   formData.value = {
-    recordDate: new Date().toISOString().split('T')[0],
+    recordDate: getLocalDateString(),
     balance: '',
     currency: selectedAccount.value?.currency || 'CNY',
     notes: ''
@@ -948,7 +953,7 @@ const openAccountDialog = (account = null) => {
       accountNumber: account.accountNumber || '',
       notes: account.notes || '',
       userId: account.userId,
-      categoryId: account.categoryId  // 保存 categoryId 用于更新
+      liabilityTypeId: account.liabilityTypeId  // 保存 liabilityTypeId 用于更新
     }
   } else {
     accountFormData.value = {
@@ -975,22 +980,22 @@ const submitAccountForm = async () => {
     let data
 
     if (editingAccount.value) {
-      // 编辑：使用已保存的 categoryId
+      // 编辑：使用已保存的 liabilityTypeId
       data = {
         ...accountFormData.value,
         isActive: true
       }
     } else {
-      // 创建：根据 categoryType 查找 categoryId
-      const category = allCategories.value.find(cat => cat.type === selectedCategoryType.value)
-      if (!category) {
-        alert('未找到对应的分类，请刷新页面重试')
+      // 创建：根据 categoryType 查找 liabilityTypeId
+      const liabilityType = allCategories.value.find(cat => cat.categoryType === selectedCategoryType.value)
+      if (!liabilityType) {
+        alert('未找到对应的负债类型，请刷新页面重试')
         return
       }
 
       data = {
         ...accountFormData.value,
-        categoryId: category.id,
+        liabilityTypeId: liabilityType.categoryId,  // categoryId 就是 liabilityType 的 ID
         isActive: true
       }
     }

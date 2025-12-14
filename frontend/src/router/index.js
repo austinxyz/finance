@@ -41,15 +41,6 @@ const routes = [
       },
       // 负债管理
       {
-        path: 'liabilities/accounts',
-        name: 'LiabilityAccounts',
-        component: () => import('../views/liabilities/LiabilityList.vue'),
-        meta: {
-          title: '负债账户',
-          description: '管理您的负债账户'
-        }
-      },
-      {
         path: 'liabilities/accounts/:id',
         name: 'LiabilityAccountDetail',
         component: () => import('../views/liabilities/LiabilityDetail.vue'),

@@ -14,7 +14,6 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-mysqldump: Error: 'Access denied; you need (at least one of) the PROCESS privilege(s) for this operation' when trying to dump tablespaces
 
 --
 -- Dumping routines for database 'finance'
@@ -136,7 +135,7 @@ BEGIN
         FROM asset_records ar
         INNER JOIN users u ON ar.user_id = u.id
         INNER JOIN asset_accounts aa ON ar.account_id = aa.id
-        INNER JOIN asset_categories ac ON aa.category_id = ac.id
+        INNER JOIN asset_type ac ON aa.asset_type_id = ac.id
         WHERE u.family_id = p_family_id
             AND ar.record_date = (
                 SELECT MAX(ar2.record_date)
@@ -192,7 +191,7 @@ BEGIN
     FROM asset_records ar
     INNER JOIN users u ON ar.user_id = u.id
     INNER JOIN asset_accounts aa ON ar.account_id = aa.id
-    INNER JOIN asset_categories ac ON aa.category_id = ac.id
+    INNER JOIN asset_type ac ON aa.asset_type_id = ac.id
     WHERE u.family_id = p_family_id
         AND ac.type = 'REAL_ESTATE'
         AND ar.record_date = (
@@ -256,7 +255,7 @@ BEGIN
         FROM liability_records lr
         INNER JOIN users u ON lr.user_id = u.id
         INNER JOIN liability_accounts la ON lr.account_id = la.id
-        INNER JOIN liability_categories lc ON la.category_id = lc.id
+        INNER JOIN liability_type lc ON la.liability_type_id = lc.id
         WHERE u.family_id = p_family_id
             AND lr.record_date = (
                 SELECT MAX(lr2.record_date)

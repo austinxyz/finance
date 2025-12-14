@@ -1,3 +1,4 @@
+mysqldump: [Warning] Using a password on the command line interface can be insecure.
 -- MySQL dump 10.13  Distrib 9.5.0, for macos15.4 (arm64)
 --
 -- Host: 10.0.0.7    Database: finance
@@ -17,10 +18,43 @@
 mysqldump: Error: 'Access denied; you need (at least one of) the PROCESS privilege(s) for this operation' when trying to dump tablespaces
 
 --
+-- Table structure for table `annual_expense_summary`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `annual_expense_summary` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `summary_year` int NOT NULL COMMENT '汇总年份',
+  `major_category_id` bigint NOT NULL COMMENT '大类ID (0表示总计)',
+  `minor_category_id` bigint DEFAULT NULL COMMENT '小类ID (NULL表示大类汇总)',
+  `base_expense_amount` decimal(18,2) NOT NULL DEFAULT '0.00' COMMENT '基础支出(expense_records汇总)',
+  `asset_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '资产调整额 (资产增加为正, 减少为负)',
+  `liability_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '负债调整额 (负债减少为正, 增加为负)',
+  `adjustment_details` json DEFAULT NULL COMMENT '调整详情 [{type, code, amount, direction}]',
+  `actual_expense_amount` decimal(18,2) NOT NULL COMMENT '实际年度支出',
+  `currency` varchar(10) DEFAULT 'CNY',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_summary` (`family_id`,`summary_year`,`major_category_id`,`minor_category_id`),
+  UNIQUE KEY `uk_year_category` (`family_id`,`summary_year`,`major_category_id`,`minor_category_id`),
+  KEY `idx_family_year` (`family_id`,`summary_year`),
+  KEY `idx_major_category` (`major_category_id`),
+  KEY `FKa90vvqugnalabpwnnm7lxeyhv` (`minor_category_id`),
+  KEY `FKpcpx3osphoy7ddoix5gr1w2wx` (`user_id`),
+  CONSTRAINT `FKa90vvqugnalabpwnnm7lxeyhv` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`),
+  CONSTRAINT `FKpcpx3osphoy7ddoix5gr1w2wx` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKq9pso6cftpfcu93817e5lmbt` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=297 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度支出汇总表 (通用可配置版本)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `annual_financial_summary`
 --
 
-DROP TABLE IF EXISTS `annual_financial_summary`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `annual_financial_summary` (
@@ -59,24 +93,23 @@ CREATE TABLE `annual_financial_summary` (
   KEY `idx_family_year` (`family_id`,`year` DESC),
   KEY `idx_summary_date` (`summary_date`),
   CONSTRAINT `annual_financial_summary_ibfk_1` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=514 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度财务摘要表';
+) ENGINE=InnoDB AUTO_INCREMENT=598 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度财务摘要表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `asset_accounts`
 --
 
-DROP TABLE IF EXISTS `asset_accounts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `asset_accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
-  `category_id` bigint NOT NULL COMMENT '类别ID',
+  `asset_type_id` bigint DEFAULT NULL COMMENT '资产大类ID，引用asset_type表',
   `account_name` varchar(100) NOT NULL COMMENT '账户名称',
   `account_number` varchar(100) DEFAULT NULL COMMENT '账号/编号',
   `institution` varchar(100) DEFAULT NULL COMMENT '机构名称 (银行/券商等)',
-  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币类型',
+  `currency` varchar(10) DEFAULT 'USD',
   `notes` text COMMENT '备注',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否活跃',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -84,45 +117,18 @@ CREATE TABLE `asset_accounts` (
   `tax_status` enum('TAXABLE','TAX_FREE','TAX_DEFERRED') DEFAULT NULL,
   `is_primary_residence` bit(1) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `category_id` (`category_id`),
-  KEY `idx_user_category` (`user_id`,`category_id`),
+  KEY `idx_user_category` (`user_id`),
   KEY `idx_user_active` (`user_id`,`is_active`),
+  KEY `idx_asset_type_id` (`asset_type_id`),
   CONSTRAINT `asset_accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `asset_accounts_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `asset_categories` (`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产账户表';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `asset_categories`
---
-
-DROP TABLE IF EXISTS `asset_categories`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `asset_categories` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `user_id` bigint NOT NULL COMMENT '用户ID',
-  `name` varchar(50) NOT NULL COMMENT '类别名称',
-  `type` varchar(50) NOT NULL COMMENT '类别类型: CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY',
-  `description` text COMMENT '描述',
-  `icon` varchar(50) DEFAULT NULL COMMENT '图标',
-  `color` varchar(20) DEFAULT NULL COMMENT '显示颜色',
-  `display_order` int DEFAULT '0' COMMENT '显示顺序',
-  `is_system` tinyint(1) DEFAULT '0' COMMENT '是否系统预设',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_name` (`user_id`,`name`),
-  KEY `idx_user_type` (`user_id`,`type`),
-  CONSTRAINT `asset_categories_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产类别表';
+  CONSTRAINT `FKlsfoe2fmtq95j3guuljpp09rx` FOREIGN KEY (`asset_type_id`) REFERENCES `asset_type` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产账户表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `asset_liability_type_mappings`
 --
 
-DROP TABLE IF EXISTS `asset_liability_type_mappings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `asset_liability_type_mappings` (
@@ -140,7 +146,6 @@ CREATE TABLE `asset_liability_type_mappings` (
 -- Table structure for table `asset_records`
 --
 
-DROP TABLE IF EXISTS `asset_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `asset_records` (
@@ -151,7 +156,7 @@ CREATE TABLE `asset_records` (
   `amount` decimal(18,2) NOT NULL COMMENT '金额',
   `quantity` decimal(18,6) DEFAULT NULL COMMENT '数量（股票/基金份额等）',
   `unit_price` decimal(18,6) DEFAULT NULL COMMENT '单价',
-  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币',
+  `currency` varchar(10) DEFAULT 'USD',
   `notes` text COMMENT '备注',
   `attachment_url` varchar(500) DEFAULT NULL COMMENT '附件URL（账单截图等）',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -162,14 +167,36 @@ CREATE TABLE `asset_records` (
   KEY `idx_account_date` (`account_id`,`record_date`),
   CONSTRAINT `asset_records_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `asset_records_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `asset_accounts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=761 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=892 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产记录表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `asset_type`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `asset_type` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `chinese_name` varchar(100) NOT NULL,
+  `color` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `display_order` int NOT NULL,
+  `icon` varchar(50) DEFAULT NULL,
+  `is_investment` bit(1) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `type` varchar(50) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_p5n9lu0p3b85c122x2xet49dq` (`type`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `budgets`
 --
 
-DROP TABLE IF EXISTS `budgets`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `budgets` (
@@ -197,7 +224,6 @@ CREATE TABLE `budgets` (
 -- Table structure for table `exchange_rates`
 --
 
-DROP TABLE IF EXISTS `exchange_rates`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `exchange_rates` (
@@ -217,10 +243,34 @@ CREATE TABLE `exchange_rates` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `expense_budgets`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `expense_budgets` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `budget_year` int NOT NULL COMMENT '预算年份（如2025）',
+  `minor_category_id` bigint NOT NULL COMMENT '子分类ID',
+  `budget_amount` decimal(15,2) NOT NULL COMMENT '预算金额',
+  `currency` varchar(10) NOT NULL DEFAULT 'USD' COMMENT '货币类型（USD, CNY等）',
+  `notes` varchar(500) DEFAULT NULL COMMENT '备注说明',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_family_year_category_currency` (`family_id`,`budget_year`,`minor_category_id`,`currency`),
+  KEY `idx_family_year` (`family_id`,`budget_year`),
+  KEY `idx_minor_category` (`minor_category_id`),
+  CONSTRAINT `fk_budget_family` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`),
+  CONSTRAINT `fk_budget_minor_category` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=65 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出年度预算表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `expense_categories_major`
 --
 
-DROP TABLE IF EXISTS `expense_categories_major`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `expense_categories_major` (
@@ -238,14 +288,13 @@ CREATE TABLE `expense_categories_major` (
   UNIQUE KEY `code` (`code`),
   KEY `idx_is_active` (`is_active`),
   KEY `idx_sort_order` (`sort_order`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出大类表';
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出大类表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `expense_categories_minor`
 --
 
-DROP TABLE IF EXISTS `expense_categories_minor`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `expense_categories_minor` (
@@ -256,6 +305,7 @@ CREATE TABLE `expense_categories_minor` (
   `is_default` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否系统默认分类',
   `sort_order` int NOT NULL DEFAULT '0' COMMENT '排序顺序',
   `description` text COMMENT '说明',
+  `expense_type` varchar(20) NOT NULL DEFAULT 'FIXED_DAILY' COMMENT '默认支出类型（FIXED_DAILY/LARGE_IRREGULAR）',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
@@ -263,20 +313,44 @@ CREATE TABLE `expense_categories_minor` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_major_category` (`major_category_id`),
   CONSTRAINT `expense_categories_minor_ibfk_1` FOREIGN KEY (`major_category_id`) REFERENCES `expense_categories_major` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=82 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出子分类表';
+) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出子分类表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `expense_category_adjustment_config`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `expense_category_adjustment_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `major_category_id` bigint NOT NULL COMMENT '支出大类ID',
+  `adjustment_type` enum('ASSET','LIABILITY') NOT NULL COMMENT '调整类型',
+  `asset_type_code` varchar(50) DEFAULT NULL COMMENT '资产类型代码 (INSURANCE, REAL_ESTATE等)',
+  `liability_type` varchar(50) DEFAULT NULL COMMENT '负债类型 (MORTGAGE, AUTO_LOAN等)',
+  `adjustment_direction` enum('ADD','SUBTRACT') NOT NULL COMMENT '调整方向',
+  `description` text COMMENT '调整说明',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_category_type` (`major_category_id`,`adjustment_type`,`asset_type_code`,`liability_type`),
+  KEY `idx_major_category` (`major_category_id`),
+  KEY `idx_asset_type` (`asset_type_code`),
+  KEY `idx_liability_type` (`liability_type`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出类别调整配置表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `expense_records`
 --
 
-DROP TABLE IF EXISTS `expense_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `expense_records` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `family_id` bigint NOT NULL COMMENT '家庭ID',
-  `user_id` bigint NOT NULL COMMENT '记录人ID',
+  `user_id` bigint DEFAULT NULL COMMENT '记录人ID（可选）',
   `expense_year` int NOT NULL COMMENT '支出年份',
   `expense_month` int NOT NULL COMMENT '支出月份',
   `expense_period` varchar(7) NOT NULL COMMENT '支出期间（YYYY-MM）',
@@ -289,7 +363,7 @@ CREATE TABLE `expense_records` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_period_category` (`family_id`,`expense_period`,`minor_category_id`),
+  UNIQUE KEY `uk_family_period_category_currency` (`family_id`,`expense_period`,`minor_category_id`,`currency`),
   KEY `user_id` (`user_id`),
   KEY `idx_family_period` (`family_id`,`expense_year`,`expense_month`),
   KEY `idx_expense_period` (`expense_period`),
@@ -301,14 +375,13 @@ CREATE TABLE `expense_records` (
   CONSTRAINT `expense_records_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `expense_records_ibfk_3` FOREIGN KEY (`major_category_id`) REFERENCES `expense_categories_major` (`id`),
   CONSTRAINT `expense_records_ibfk_4` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=314 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出记录表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `families`
 --
 
-DROP TABLE IF EXISTS `families`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `families` (
@@ -317,6 +390,7 @@ CREATE TABLE `families` (
   `created_at` datetime(6) NOT NULL,
   `emergency_fund_months` int DEFAULT NULL,
   `family_name` varchar(100) NOT NULL,
+  `is_default` tinyint(1) DEFAULT '0',
   `financial_goals` text,
   `updated_at` datetime(6) DEFAULT NULL,
   `expenses_currency` varchar(10) DEFAULT NULL,
@@ -328,7 +402,6 @@ CREATE TABLE `families` (
 -- Table structure for table `financial_goals`
 --
 
-DROP TABLE IF EXISTS `financial_goals`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `financial_goals` (
@@ -358,7 +431,6 @@ CREATE TABLE `financial_goals` (
 -- Table structure for table `goal_progress_records`
 --
 
-DROP TABLE IF EXISTS `goal_progress_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goal_progress_records` (
@@ -377,20 +449,43 @@ CREATE TABLE `goal_progress_records` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `investment_transactions`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `investment_transactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL COMMENT '资产账户ID',
+  `transaction_period` varchar(7) NOT NULL COMMENT '交易期间(YYYY-MM格式，如2024-01)',
+  `transaction_type` enum('DEPOSIT','WITHDRAWAL') NOT NULL COMMENT '交易类型：DEPOSIT-投入(买入/追加投资), WITHDRAWAL-取出(卖出/提取资金)',
+  `amount` decimal(15,2) NOT NULL COMMENT '交易金额（正数，方向由transaction_type决定）',
+  `description` varchar(500) DEFAULT NULL COMMENT '交易说明',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_account_period_type` (`account_id`,`transaction_period`,`transaction_type`),
+  KEY `idx_account_period` (`account_id`,`transaction_period`),
+  KEY `idx_period` (`transaction_period`),
+  KEY `idx_transaction_type` (`transaction_type`),
+  CONSTRAINT `investment_transactions_ibfk_1` FOREIGN KEY (`account_id`) REFERENCES `asset_accounts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='投资交易记录表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `liability_accounts`
 --
 
-DROP TABLE IF EXISTS `liability_accounts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `liability_accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
-  `category_id` bigint NOT NULL COMMENT '类别ID',
+  `liability_type_id` bigint DEFAULT NULL COMMENT '负债类型ID（关联 liability_type 表）',
   `account_name` varchar(100) NOT NULL COMMENT '账户名称',
   `account_number` varchar(100) DEFAULT NULL COMMENT '账号',
   `institution` varchar(100) DEFAULT NULL COMMENT '机构名称',
-  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币类型',
+  `currency` varchar(10) DEFAULT 'USD',
   `interest_rate` decimal(5,2) DEFAULT NULL COMMENT '利率(%)',
   `original_amount` decimal(18,2) DEFAULT NULL COMMENT '原始借款金额',
   `start_date` date DEFAULT NULL COMMENT '开始日期',
@@ -401,45 +496,18 @@ CREATE TABLE `liability_accounts` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `category_id` (`category_id`),
-  KEY `idx_user_category` (`user_id`,`category_id`),
+  KEY `idx_user_category` (`user_id`),
   KEY `idx_user_active` (`user_id`,`is_active`),
-  CONSTRAINT `liability_accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `liability_accounts_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `liability_categories` (`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债账户表';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `liability_categories`
---
-
-DROP TABLE IF EXISTS `liability_categories`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `liability_categories` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `user_id` bigint NOT NULL COMMENT '用户ID',
-  `name` varchar(50) NOT NULL COMMENT '类别名称',
-  `type` varchar(50) NOT NULL COMMENT '类别类型: MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, OTHER',
-  `description` text COMMENT '描述',
-  `icon` varchar(50) DEFAULT NULL COMMENT '图标',
-  `color` varchar(20) DEFAULT NULL COMMENT '显示颜色',
-  `display_order` int DEFAULT '0' COMMENT '显示顺序',
-  `is_system` tinyint(1) DEFAULT '0' COMMENT '是否系统预设',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_name` (`user_id`,`name`),
-  KEY `idx_user_type` (`user_id`,`type`),
-  CONSTRAINT `liability_categories_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债类别表';
+  KEY `fk_liability_accounts_liability_type` (`liability_type_id`),
+  CONSTRAINT `fk_liability_accounts_liability_type` FOREIGN KEY (`liability_type_id`) REFERENCES `liability_type` (`id`),
+  CONSTRAINT `liability_accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债账户表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `liability_records`
 --
 
-DROP TABLE IF EXISTS `liability_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `liability_records` (
@@ -448,7 +516,7 @@ CREATE TABLE `liability_records` (
   `account_id` bigint NOT NULL COMMENT '账户ID',
   `record_date` date NOT NULL COMMENT '记录日期',
   `outstanding_balance` decimal(18,2) NOT NULL COMMENT '未偿余额',
-  `currency` varchar(10) DEFAULT 'USD' COMMENT '货币',
+  `currency` varchar(10) DEFAULT 'USD',
   `payment_amount` decimal(18,2) DEFAULT NULL COMMENT '本期还款金额',
   `principal_payment` decimal(18,2) DEFAULT NULL COMMENT '本金还款',
   `interest_payment` decimal(18,2) DEFAULT NULL COMMENT '利息还款',
@@ -461,14 +529,35 @@ CREATE TABLE `liability_records` (
   KEY `idx_account_date` (`account_id`,`record_date`),
   CONSTRAINT `liability_records_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `liability_records_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `liability_accounts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=116 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=186 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债记录表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `liability_type`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `liability_type` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `type` varchar(50) NOT NULL COMMENT '负债类型代码 (MORTGAGE, AUTO_LOAN, CREDIT_CARD, etc.)',
+  `chinese_name` varchar(50) NOT NULL COMMENT '中文名称',
+  `english_name` varchar(50) NOT NULL COMMENT '英文名称',
+  `description` text COMMENT '类型描述',
+  `icon` varchar(50) DEFAULT NULL COMMENT '图标',
+  `color` varchar(20) DEFAULT NULL COMMENT '颜色代码',
+  `display_order` int DEFAULT '0' COMMENT '显示顺序',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `type` (`type`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债类型表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `net_asset_categories`
 --
 
-DROP TABLE IF EXISTS `net_asset_categories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `net_asset_categories` (
@@ -482,14 +571,13 @@ CREATE TABLE `net_asset_categories` (
   `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_7h5bspx87836vsma5rlpxei1v` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `net_asset_category_asset_type_mappings`
 --
 
-DROP TABLE IF EXISTS `net_asset_category_asset_type_mappings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `net_asset_category_asset_type_mappings` (
@@ -498,14 +586,13 @@ CREATE TABLE `net_asset_category_asset_type_mappings` (
   `created_at` datetime(6) NOT NULL,
   `net_asset_category_id` bigint NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `net_asset_category_liability_type_mappings`
 --
 
-DROP TABLE IF EXISTS `net_asset_category_liability_type_mappings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `net_asset_category_liability_type_mappings` (
@@ -514,14 +601,13 @@ CREATE TABLE `net_asset_category_liability_type_mappings` (
   `liability_type` varchar(50) NOT NULL,
   `net_asset_category_id` bigint NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `transaction_categories`
 --
 
-DROP TABLE IF EXISTS `transaction_categories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `transaction_categories` (
@@ -548,7 +634,6 @@ CREATE TABLE `transaction_categories` (
 -- Table structure for table `transactions`
 --
 
-DROP TABLE IF EXISTS `transactions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `transactions` (
@@ -584,7 +669,6 @@ CREATE TABLE `transactions` (
 -- Table structure for table `user_preferences`
 --
 
-DROP TABLE IF EXISTS `user_preferences`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_preferences` (
@@ -609,7 +693,6 @@ CREATE TABLE `user_preferences` (
 -- Table structure for table `user_profiles`
 --
 
-DROP TABLE IF EXISTS `user_profiles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_profiles` (
@@ -630,7 +713,6 @@ CREATE TABLE `user_profiles` (
 -- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
@@ -663,8 +745,6 @@ CREATE TABLE `users` (
 -- Temporary view structure for view `v_annual_financial_trend`
 --
 
-DROP TABLE IF EXISTS `v_annual_financial_trend`;
-/*!50001 DROP VIEW IF EXISTS `v_annual_financial_trend`*/;
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
 /*!50001 CREATE VIEW `v_annual_financial_trend` AS SELECT 
@@ -705,7 +785,6 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -716,4 +795,4 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-10 12:24:48
+-- Dump completed on 2025-12-13 18:17:37
