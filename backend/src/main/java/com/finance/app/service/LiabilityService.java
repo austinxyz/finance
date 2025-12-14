@@ -4,11 +4,9 @@ import com.finance.app.dto.BatchRecordUpdateDTO;
 import com.finance.app.dto.LiabilityAccountDTO;
 import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
-import com.finance.app.model.LiabilityCategory;
 import com.finance.app.model.LiabilityRecord;
 import com.finance.app.model.LiabilityType;
 import com.finance.app.repository.LiabilityAccountRepository;
-import com.finance.app.repository.LiabilityCategoryRepository;
 import com.finance.app.repository.LiabilityRecordRepository;
 import com.finance.app.repository.LiabilityTypeRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,6 @@ import java.util.stream.Collectors;
 public class LiabilityService {
 
     private final LiabilityAccountRepository accountRepository;
-    private final LiabilityCategoryRepository categoryRepository;
     private final LiabilityRecordRepository recordRepository;
     private final LiabilityTypeRepository liabilityTypeRepository;
     private final com.finance.app.repository.UserRepository userRepository;
@@ -35,33 +32,6 @@ public class LiabilityService {
 
     public List<LiabilityType> getAllLiabilityTypes() {
         return liabilityTypeRepository.findAllByOrderByDisplayOrderAsc();
-    }
-
-    // ========== Category Operations ==========
-
-    public List<String> getAllCategoryTypes(Long userId) {
-        List<LiabilityCategory> categories = categoryRepository.findByUserIdOrderByDisplayOrderAsc(userId);
-        return categories.stream()
-                .map(LiabilityCategory::getType)
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    public List<LiabilityCategory> getAllCategories(Long userId) {
-        // Return system categories (shared) + user's custom categories
-        List<LiabilityCategory> systemCategories = categoryRepository.findByIsSystemTrueOrderByDisplayOrderAsc();
-        List<LiabilityCategory> userCategories = categoryRepository.findByUserIdAndIsSystemFalseOrderByDisplayOrderAsc(userId);
-
-        // Combine both lists
-        List<LiabilityCategory> allCategories = new ArrayList<>();
-        allCategories.addAll(systemCategories);
-        allCategories.addAll(userCategories);
-
-        return allCategories;
-    }
-
-    public LiabilityCategory createCategory(LiabilityCategory category) {
-        return categoryRepository.save(category);
     }
 
     // ========== Account Operations ==========

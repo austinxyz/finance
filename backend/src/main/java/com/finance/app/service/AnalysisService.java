@@ -14,7 +14,6 @@ import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityRecord;
 import com.finance.app.model.User;
 import com.finance.app.repository.AssetAccountRepository;
-import com.finance.app.repository.AssetCategoryRepository;
 import com.finance.app.repository.AssetRecordRepository;
 import com.finance.app.repository.LiabilityAccountRepository;
 import com.finance.app.repository.LiabilityRecordRepository;
@@ -44,7 +43,6 @@ public class AnalysisService {
 
     private final AssetAccountRepository accountRepository;
     private final AssetRecordRepository recordRepository;
-    private final AssetCategoryRepository categoryRepository;
     private final LiabilityAccountRepository liabilityAccountRepository;
     private final LiabilityRecordRepository liabilityRecordRepository;
     private final NetAssetCategoryRepository netAssetCategoryRepository;

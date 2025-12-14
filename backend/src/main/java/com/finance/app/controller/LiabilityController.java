@@ -6,7 +6,6 @@ import com.finance.app.dto.BatchRecordUpdateDTO;
 import com.finance.app.dto.LiabilityAccountDTO;
 import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
-import com.finance.app.model.LiabilityCategory;
 import com.finance.app.model.LiabilityRecord;
 import com.finance.app.model.LiabilityType;
 import com.finance.app.service.LiabilityService;
@@ -45,26 +44,6 @@ public class LiabilityController {
             .collect(java.util.stream.Collectors.toList());
 
         return ApiResponse.success(typeData);
-    }
-
-    // ========== Category Endpoints ==========
-
-    @GetMapping("/categories/types")
-    public ApiResponse<List<String>> getCategoryTypes(@RequestParam Long userId) {
-        List<String> types = liabilityService.getAllCategoryTypes(userId);
-        return ApiResponse.success(types);
-    }
-
-    @GetMapping("/categories")
-    public ApiResponse<List<LiabilityCategory>> getCategories(@RequestParam Long userId) {
-        List<LiabilityCategory> categories = liabilityService.getAllCategories(userId);
-        return ApiResponse.success(categories);
-    }
-
-    @PostMapping("/categories")
-    public ApiResponse<LiabilityCategory> createCategory(@RequestBody LiabilityCategory category) {
-        LiabilityCategory created = liabilityService.createCategory(category);
-        return ApiResponse.success("Category created successfully", created);
     }
 
     // ========== Account Endpoints ==========
