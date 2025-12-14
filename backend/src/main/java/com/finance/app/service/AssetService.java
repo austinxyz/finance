@@ -26,6 +26,7 @@ public class AssetService {
     private final AssetTypeRepository assetTypeRepository;
     private final AssetRecordRepository recordRepository;
     private final com.finance.app.repository.UserRepository userRepository;
+    private final ExchangeRateService exchangeRateService;
 
     // ========== Asset Type Operations ==========
 
@@ -261,6 +262,14 @@ public class AssetService {
                 .ifPresent(record -> {
                     dto.setLatestAmount(record.getAmount());  // 原币种金额
                     dto.setLatestRecordDate(record.getRecordDate());
+
+                    // 计算基准货币金额（USD）
+                    BigDecimal amountInUSD = exchangeRateService.convertToUSD(
+                        record.getAmount(),
+                        record.getCurrency(),
+                        record.getRecordDate()
+                    );
+                    dto.setLatestAmountInBaseCurrency(amountInUSD);
                 });
 
         return dto;

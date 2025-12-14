@@ -356,7 +356,7 @@ export default {
 
     // 计算属性
     const categoryTotal = computed(() => {
-      return accounts.value.reduce((sum, acc) => sum + (acc.latestValue || 0), 0)
+      return accounts.value.reduce((sum, acc) => sum + (acc.latestValueInUSD || 0), 0)
     })
 
     // 工具函数

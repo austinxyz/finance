@@ -99,7 +99,7 @@
             :class="isActive('/investments/records')"
           >
             <TrendingUp class="w-5 h-5" />
-            <span>分类与记录</span>
+            <span>账户与记录</span>
           </router-link>
           <router-link
             to="/investments/batch-entry"

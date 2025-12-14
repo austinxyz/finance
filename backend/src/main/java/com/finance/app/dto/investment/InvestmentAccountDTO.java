@@ -70,9 +70,14 @@ public class InvestmentAccountDTO {
     private Integer recordCount;
 
     /**
-     * 最新总值（从asset_records获取最近的值）
+     * 最新总值（从asset_records获取最近的值，原币种）
      */
     private Double latestValue;
+
+    /**
+     * 最新总值（USD基准货币）
+     */
+    private Double latestValueInUSD;
 
     /**
      * 最新记录日期

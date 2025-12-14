@@ -24,6 +24,7 @@ public class InvestmentTransactionService {
     private final AssetAccountRepository assetAccountRepository;
     private final UserRepository userRepository;
     private final AssetRecordRepository assetRecordRepository;
+    private final com.finance.app.service.ExchangeRateService exchangeRateService;
 
     // ==================== 投资账户查询 ====================
 
@@ -64,11 +65,20 @@ public class InvestmentTransactionService {
             // 查询最新资产记录
             List<AssetRecord> records = assetRecordRepository.findByAccountIdOrderByRecordDateDesc(account.getId());
             Double latestValue = null;
+            Double latestValueInUSD = null;
             String latestRecordDate = null;
             if (!records.isEmpty()) {
                 AssetRecord latest = records.get(0);
                 latestValue = latest.getAmount().doubleValue();
                 latestRecordDate = latest.getRecordDate().toString();
+
+                // 转换为USD基准货币
+                BigDecimal amountInUSD = exchangeRateService.convertToUSD(
+                    latest.getAmount(),
+                    latest.getCurrency(),
+                    latest.getRecordDate()
+                );
+                latestValueInUSD = amountInUSD != null ? amountInUSD.doubleValue() : null;
             }
 
             return InvestmentAccountDTO.builder()
@@ -84,6 +94,7 @@ public class InvestmentTransactionService {
                 .institution(account.getInstitution())
                 .recordCount(recordCount)
                 .latestValue(latestValue)
+                .latestValueInUSD(latestValueInUSD)
                 .latestRecordDate(latestRecordDate)
                 .build();
         }).collect(Collectors.toList());
