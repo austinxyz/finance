@@ -173,53 +173,54 @@
     </div>
 
     <!-- 按账户录入模式 -->
-    <div v-if="activeTab === 'by-account'" class="space-y-4">
-      <!-- 选择器 -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
-          <select
-            v-model="selectedFamilyIdYear"
-            @change="loadYearAccounts"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
+    <div v-if="activeTab === 'by-account'" class="space-y-3">
+      <!-- 选择器和保存按钮在一行 -->
+      <div class="flex flex-col lg:flex-row gap-2 items-start lg:items-center">
+        <!-- 选择器组 -->
+        <div class="flex flex-col sm:flex-row gap-2 flex-1 w-full lg:w-auto">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
+            <select
+              v-model="selectedFamilyIdYear"
+              @change="loadYearAccounts"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+            >
+              <option v-for="family in families" :key="family.id" :value="family.id">
+                {{ family.familyName }}
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2 w-28">
+            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">年份:</label>
+            <input
+              v-model.number="selectedYear"
+              type="number"
+              min="2000"
+              max="2099"
+              @change="loadYearData"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary w-20"
+            />
+          </div>
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">账户:</label>
+            <select
+              v-model="selectedAccountId"
+              @change="loadYearData"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+            >
+              <option v-if="yearAccounts.length === 0" value="">请先选择家庭</option>
+              <option v-for="account in yearAccounts" :key="account.accountId" :value="account.accountId">
+                {{ account.categoryIcon }} {{ account.accountName }} ({{ account.userName }})
+              </option>
+            </select>
+          </div>
         </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份：</label>
-          <input
-            v-model.number="selectedYear"
-            type="number"
-            min="2000"
-            max="2099"
-            @change="loadYearData"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
-          />
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">账户：</label>
-          <select
-            v-model="selectedAccountId"
-            @change="loadYearData"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
-          >
-            <option v-if="yearAccounts.length === 0" value="">请先选择家庭</option>
-            <option v-for="account in yearAccounts" :key="account.accountId" :value="account.accountId">
-              {{ account.categoryIcon }} {{ account.accountName }} ({{ account.userName }})
-            </option>
-          </select>
-        </div>
-      </div>
 
-      <!-- 操作按钮 -->
-      <div class="flex items-center justify-end">
+        <!-- 保存按钮 -->
         <button
           @click="saveYearData"
           :disabled="savingYear || !hasYearChanges || !selectedAccountId"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap w-full sm:w-auto"
+          class="px-3 py-1.5 bg-primary text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full sm:w-auto"
         >
           {{ savingYear ? '保存中...' : '保存全部' }}
         </button>
@@ -227,53 +228,53 @@
 
       <!-- 12个月的录入表格 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div v-if="loadingYear" class="text-center py-8 text-gray-500 text-sm">加载中...</div>
-        <div v-else-if="!selectedAccountId" class="text-center py-8 text-gray-500 text-sm">请选择账户</div>
+        <div v-if="loadingYear" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
+        <div v-else-if="!selectedAccountId" class="text-center py-6 text-gray-500 text-xs">请选择账户</div>
         <div v-else>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700">月份</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-700">投入 ({{ selectedAccountCurrency }})</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-700">取出 ({{ selectedAccountCurrency }})</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-700">净额</th>
+                  <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">月份</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">投入 ({{ selectedAccountCurrency }})</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">取出 ({{ selectedAccountCurrency }})</th>
+                  <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">净额</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
                 <tr v-for="month in 12" :key="month" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td class="px-2 py-1.5 text-xs font-medium text-gray-900">
                     {{ selectedYear }}年{{ month }}月
                   </td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="relative inline-block w-32">
-                      <span class="absolute left-2 top-1.5 text-gray-500 text-sm">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+                  <td class="px-2 py-1.5 text-right">
+                    <div class="relative inline-block w-24">
+                      <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
                       <input
                         v-model="yearMonthAmounts[month].deposits"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary text-right"
+                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
                         @input="markYearChanged(month)"
                       />
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="relative inline-block w-32">
-                      <span class="absolute left-2 top-1.5 text-gray-500 text-sm">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+                  <td class="px-2 py-1.5 text-right">
+                    <div class="relative inline-block w-24">
+                      <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
                       <input
                         v-model="yearMonthAmounts[month].withdrawals"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary text-right"
+                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
                         @input="markYearChanged(month)"
                       />
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-right text-sm">
+                  <td class="px-2 py-1.5 text-right text-xs">
                     <span :class="getNetAmountClass(month)">
                       {{ getCurrencySymbol(selectedAccountCurrency) }}{{ formatAmount(getNetAmount(month)) }}
                     </span>
@@ -282,14 +283,14 @@
               </tbody>
               <tfoot class="bg-gray-50 border-t-2 border-gray-300">
                 <tr>
-                  <td class="px-4 py-3 text-sm font-bold text-gray-900">合计</td>
-                  <td class="px-4 py-3 text-right text-sm font-bold text-green-600">
+                  <td class="px-2 py-1.5 text-xs font-bold text-gray-900">合计</td>
+                  <td class="px-2 py-1.5 text-right text-xs font-bold text-green-600">
                     {{ getCurrencySymbol(selectedAccountCurrency) }}{{ formatAmount(yearSummary.totalDeposits) }}
                   </td>
-                  <td class="px-4 py-3 text-right text-sm font-bold text-red-600">
+                  <td class="px-2 py-1.5 text-right text-xs font-bold text-red-600">
                     {{ getCurrencySymbol(selectedAccountCurrency) }}{{ formatAmount(yearSummary.totalWithdrawals) }}
                   </td>
-                  <td class="px-4 py-3 text-right text-sm font-bold text-primary">
+                  <td class="px-2 py-1.5 text-right text-xs font-bold text-primary">
                     {{ getCurrencySymbol(selectedAccountCurrency) }}{{ formatAmount(yearSummary.netInvestment) }}
                   </td>
                 </tr>
