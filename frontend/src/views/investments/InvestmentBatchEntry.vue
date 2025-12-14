@@ -1,71 +1,64 @@
 <template>
-  <div class="p-4 md:p-6 space-y-4">
-    <!-- 页面头部 -->
-    <div class="space-y-3">
-      <h1 class="text-xl md:text-2xl font-bold text-gray-900">批量录入投资交易</h1>
+  <div class="p-3 md:p-4 space-y-3">
+    <!-- Tab 切换和家庭选择器 -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-2">
+      <nav class="-mb-2 flex space-x-2" aria-label="Tabs">
+        <button
+          @click="activeTab = 'by-month'"
+          :class="[
+            'whitespace-nowrap py-2 px-3 border-b-2 font-medium text-xs transition-colors',
+            activeTab === 'by-month'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ]"
+        >
+          按月份录入
+        </button>
+        <button
+          @click="activeTab = 'by-account'"
+          :class="[
+            'whitespace-nowrap py-2 px-3 border-b-2 font-medium text-xs transition-colors',
+            activeTab === 'by-account'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ]"
+        >
+          按账户录入
+        </button>
+      </nav>
 
-      <!-- Tab 切换 -->
-      <div class="border-b border-gray-200">
-        <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-          <button
-            @click="activeTab = 'by-month'"
-            :class="[
-              'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
-              activeTab === 'by-month'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            按月份录入
-          </button>
-          <button
-            @click="activeTab = 'by-account'"
-            :class="[
-              'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors',
-              activeTab === 'by-account'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            按账户录入
-          </button>
-        </nav>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
+        <select
+          v-model="activeTab === 'by-month' ? selectedFamilyId : selectedFamilyIdYear"
+          @change="activeTab === 'by-month' ? loadMonthData() : loadYearAccounts()"
+          class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
       </div>
     </div>
 
     <!-- 按月份录入模式 -->
-    <div v-if="activeTab === 'by-month'" class="space-y-4">
-      <!-- 选择器 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
-          <select
-            v-model="selectedFamilyId"
-            @change="loadMonthData"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">月份：</label>
+    <div v-if="activeTab === 'by-month'" class="space-y-2">
+      <!-- 选择器和保存按钮 -->
+      <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">月份:</label>
           <input
             v-model="transactionPeriod"
             type="month"
             @change="loadMonthData"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] flex-1"
+            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-      </div>
 
-      <!-- 操作按钮 -->
-      <div class="flex items-center justify-end">
         <button
           @click="saveMonthData"
           :disabled="savingMonth || !hasMonthChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap w-full sm:w-auto"
+          class="px-3 py-1.5 bg-primary text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full sm:w-auto"
         >
           {{ savingMonth ? '保存中...' : '保存全部' }}
         </button>
@@ -73,14 +66,14 @@
 
       <!-- 按月份的账户列表 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div v-if="loadingMonth" class="text-center py-8 text-gray-500 text-sm">加载中...</div>
-        <div v-else-if="monthAccounts.length === 0" class="text-center py-8 text-gray-500 text-sm">暂无投资账户</div>
+        <div v-if="loadingMonth" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
+        <div v-else-if="monthAccounts.length === 0" class="text-center py-6 text-gray-500 text-xs">暂无投资账户</div>
         <div v-else>
-          <div class="overflow-x-auto -mx-2 sm:mx-0">
-            <div class="inline-block min-w-full align-middle px-2 sm:px-0">
+          <div class="overflow-x-auto">
+            <div class="inline-block min-w-full align-middle">
               <div class="divide-y divide-gray-200">
                 <!-- 表头 -->
-                <div class="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-700" style="min-width: 900px;">
+                <div class="grid grid-cols-12 gap-2 px-2 py-1.5 bg-gray-50 text-xs font-medium text-gray-700" style="min-width: 800px;">
                   <div class="col-span-3">账户</div>
                   <div class="col-span-2 text-right">{{ previousMonth3 }}</div>
                   <div class="col-span-2 text-right">{{ previousMonth2 }}</div>
@@ -92,56 +85,56 @@
                 <div
                   v-for="account in monthAccounts"
                   :key="account.accountId"
-                  class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
-                  style="min-width: 900px;"
+                  class="grid grid-cols-12 gap-2 px-2 py-1.5 hover:bg-gray-50 items-center"
+                  style="min-width: 800px;"
                 >
                   <!-- 账户信息 -->
                   <div class="col-span-3">
-                    <div class="flex items-center gap-2">
-                      <span class="text-lg">{{ account.categoryIcon }}</span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-base">{{ account.categoryIcon }}</span>
                       <div>
-                        <div class="font-medium text-gray-900 text-sm">{{ account.accountName }}</div>
+                        <div class="font-medium text-gray-900 text-xs">{{ account.accountName }}</div>
                         <div class="text-xs text-gray-500">{{ account.categoryName }} | {{ account.userName }}</div>
                       </div>
                     </div>
                   </div>
 
                   <!-- 历史数据 -->
-                  <div class="col-span-2 text-right text-sm text-gray-600">
+                  <div class="col-span-2 text-right text-xs text-gray-600">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month3 || 0) }}
                   </div>
-                  <div class="col-span-2 text-right text-sm text-gray-600">
+                  <div class="col-span-2 text-right text-xs text-gray-600">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month2 || 0) }}
                   </div>
-                  <div class="col-span-2 text-right text-sm text-gray-700 font-medium">
+                  <div class="col-span-2 text-right text-xs text-gray-700 font-medium">
                     {{ getCurrencySymbol(account.currency) }}{{ formatCurrency(monthHistoryData[account.accountId]?.month1 || 0) }}
                   </div>
 
                   <!-- 本月输入 -->
-                  <div class="col-span-3 grid grid-cols-2 gap-2">
+                  <div class="col-span-3 grid grid-cols-2 gap-1.5">
                     <div class="relative">
-                      <label class="block text-xs text-gray-600 mb-1">投入</label>
-                      <span class="absolute left-2 top-[26px] text-gray-500 text-sm">{{ getCurrencySymbol(account.currency) }}</span>
+                      <label class="block text-xs text-gray-600 mb-0.5">投入</label>
+                      <span class="absolute left-1.5 top-[20px] text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
                       <input
                         v-model="monthAmounts[account.accountId].deposits"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                         @input="markMonthChanged(account.accountId)"
                       />
                     </div>
                     <div class="relative">
-                      <label class="block text-xs text-gray-600 mb-1">取出</label>
-                      <span class="absolute left-2 top-[26px] text-gray-500 text-sm">{{ getCurrencySymbol(account.currency) }}</span>
+                      <label class="block text-xs text-gray-600 mb-0.5">取出</label>
+                      <span class="absolute left-1.5 top-[20px] text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
                       <input
                         v-model="monthAmounts[account.accountId].withdrawals"
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                         @input="markMonthChanged(account.accountId)"
                       />
                     </div>
@@ -152,19 +145,19 @@
           </div>
 
           <!-- 统计 -->
-          <div v-if="!loadingMonth && monthAccounts.length > 0" class="px-4 py-4 border-t border-gray-200 bg-gray-50">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          <div v-if="!loadingMonth && monthAccounts.length > 0" class="px-3 py-2 border-t border-gray-200 bg-gray-50">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <div class="text-xs text-gray-600 mb-1">本月总投入</div>
-                <div class="text-xl sm:text-2xl font-bold text-green-600">${{ formatCurrency(monthSummary.totalDeposits) }}</div>
+                <div class="text-xs text-gray-600 mb-0.5">本月总投入</div>
+                <div class="text-base font-bold text-green-600">${{ formatCurrency(monthSummary.totalDeposits) }}</div>
               </div>
               <div>
-                <div class="text-xs text-gray-600 mb-1">本月总取出</div>
-                <div class="text-xl sm:text-2xl font-bold text-red-600">${{ formatCurrency(monthSummary.totalWithdrawals) }}</div>
+                <div class="text-xs text-gray-600 mb-0.5">本月总取出</div>
+                <div class="text-base font-bold text-red-600">${{ formatCurrency(monthSummary.totalWithdrawals) }}</div>
               </div>
               <div>
-                <div class="text-xs text-gray-600 mb-1">净投入</div>
-                <div class="text-xl sm:text-2xl font-bold text-primary">${{ formatCurrency(monthSummary.netInvestment) }}</div>
+                <div class="text-xs text-gray-600 mb-0.5">净投入</div>
+                <div class="text-base font-bold text-primary">${{ formatCurrency(monthSummary.netInvestment) }}</div>
               </div>
             </div>
           </div>
@@ -173,41 +166,28 @@
     </div>
 
     <!-- 按账户录入模式 -->
-    <div v-if="activeTab === 'by-account'" class="space-y-3">
-      <!-- 选择器和保存按钮在一行 -->
-      <div class="flex flex-col lg:flex-row gap-2 items-start lg:items-center">
-        <!-- 选择器组 -->
-        <div class="flex flex-col sm:flex-row gap-2 flex-1 w-full lg:w-auto">
-          <div class="flex items-center gap-2 flex-1 min-w-0">
-            <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-            <select
-              v-model="selectedFamilyIdYear"
-              @change="loadYearAccounts"
-              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
-            >
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-          <div class="flex items-center gap-2 flex-1 min-w-0">
+    <div v-if="activeTab === 'by-account'" class="space-y-2">
+      <!-- 选择器和保存按钮 -->
+      <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <div class="flex items-center gap-2">
             <label class="text-xs font-medium text-gray-700 whitespace-nowrap">年份:</label>
             <select
               v-model.number="selectedYear"
               @change="loadYearData"
-              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option v-for="year in yearOptions" :key="year" :value="year">
                 {{ year }}
               </option>
             </select>
           </div>
-          <div class="flex items-center gap-2 flex-1 min-w-0">
+          <div class="flex items-center gap-2">
             <label class="text-xs font-medium text-gray-700 whitespace-nowrap">账户:</label>
             <select
               v-model="selectedAccountId"
               @change="loadYearData"
-              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary min-w-[200px]"
             >
               <option v-if="yearAccounts.length === 0" value="">请先选择家庭</option>
               <option v-for="account in yearAccounts" :key="account.accountId" :value="account.accountId">
@@ -217,7 +197,6 @@
           </div>
         </div>
 
-        <!-- 保存按钮 -->
         <button
           @click="saveYearData"
           :disabled="savingYear || !hasYearChanges || !selectedAccountId"
