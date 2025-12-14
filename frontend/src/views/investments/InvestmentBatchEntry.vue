@@ -190,16 +190,17 @@
               </option>
             </select>
           </div>
-          <div class="flex items-center gap-2 w-28">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
             <label class="text-xs font-medium text-gray-700 whitespace-nowrap">年份:</label>
-            <input
+            <select
               v-model.number="selectedYear"
-              type="number"
-              min="2000"
-              max="2099"
               @change="loadYearData"
-              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary w-20"
-            />
+              class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+            >
+              <option v-for="year in yearOptions" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </select>
           </div>
           <div class="flex items-center gap-2 flex-1 min-w-0">
             <label class="text-xs font-medium text-gray-700 whitespace-nowrap">账户:</label>
@@ -376,6 +377,16 @@ export default {
 
     // 计算属性 - 按账户模式
     const hasYearChanges = computed(() => changedYearMonths.value.size > 0)
+
+    const yearOptions = computed(() => {
+      const currentYear = new Date().getFullYear()
+      const years = []
+      // 从2020年到明年，提供足够的年份选择
+      for (let year = 2020; year <= currentYear + 1; year++) {
+        years.push(year)
+      }
+      return years.reverse() // 倒序，最新年份在前
+    })
 
     const selectedAccountCurrency = computed(() => {
       if (!selectedAccountId.value) return 'USD'
@@ -742,6 +753,7 @@ export default {
       // 按账户
       selectedFamilyIdYear,
       selectedYear,
+      yearOptions,
       selectedAccountId,
       yearAccounts,
       yearMonthAmounts,
