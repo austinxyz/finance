@@ -351,7 +351,7 @@ export default {
   name: 'InvestmentBatchEntry',
   setup() {
     // Tab状态
-    const activeTab = ref('by-month')
+    const activeTab = ref('by-account')
 
     // 通用数据
     const families = ref([])
