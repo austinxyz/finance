@@ -102,9 +102,9 @@
                   <td class="px-2 py-1.5">
                     <div class="flex items-center gap-1.5">
                       <span class="text-base">{{ account.categoryIcon }}</span>
-                      <div class="min-w-0">
-                        <div class="font-medium text-gray-900 text-xs truncate">{{ account.accountName }}</div>
-                        <div class="text-xs text-gray-500 truncate">{{ account.userName }}</div>
+                      <div class="text-xs truncate">
+                        <span class="font-medium text-gray-900">{{ account.accountName }}</span>
+                        <span class="text-gray-500 ml-1.5">{{ account.userName }}</span>
                       </div>
                     </div>
                   </td>
