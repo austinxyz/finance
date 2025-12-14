@@ -1,118 +1,147 @@
 <template>
-  <div class="p-4 md:p-6 space-y-4">
-    <!-- 页面头部 - 移动端响应式 -->
-    <div class="space-y-3">
-      <!-- 第一行：标题、家庭选择器和分类选择器 -->
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <h1 class="text-xl md:text-2xl font-bold text-gray-900 flex-shrink-0">批量更新资产</h1>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭：</label>
+  <div class="p-3 md:p-4 space-y-3">
+    <!-- 选择器和保存按钮 - 紧凑单行布局 -->
+    <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
           <select
             v-model="selectedFamilyId"
             @change="onFamilyChange"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option v-for="family in families" :key="family.id" :value="family.id">
               {{ family.familyName }}
             </option>
           </select>
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">分类：</label>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">分类:</label>
           <select
             v-model="selectedCategoryType"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option :value="null">全部分类</option>
+            <option :value="null">全部</option>
             <option v-for="type in categoryTypes" :key="type.value" :value="type.value">
               {{ type.label }}
             </option>
           </select>
         </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">日期:</label>
+          <input
+            v-model="recordDate"
+            type="date"
+            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
       </div>
+      <button
+        @click="saveAll"
+        :disabled="saving || !hasChanges"
+        class="px-3 py-1.5 bg-primary text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full sm:w-auto"
+      >
+        {{ saving ? '保存中...' : '保存全部' }}
+      </button>
+    </div>
 
-      <!-- 第二行：日期和保存按钮 -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-        <input
-          v-model="recordDate"
-          type="date"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
-        />
-        <button
-          @click="saveAll"
-          :disabled="saving || !hasChanges"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] whitespace-nowrap"
-        >
-          {{ saving ? '保存中...' : '保存全部' }}
-        </button>
+    <!-- 顶部统计 - 固定不滚动 -->
+    <div v-if="!loading && filteredAccounts.length > 0" class="bg-white rounded-lg shadow border border-gray-200 px-3 py-2">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <div class="text-xs text-gray-600 mb-0.5">账户数量</div>
+          <div class="text-base font-bold text-gray-900">{{ summary.accountCount }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-600 mb-0.5">{{ summary.formattedPreviousDate }}总额</div>
+          <div class="text-sm font-medium text-gray-700">${{ formatNumber(summary.totalPrevious) }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-600 mb-0.5">{{ formattedRecordDate }}总金额</div>
+          <div class="text-base font-bold text-gray-900">${{ formatNumber(summary.totalNew) }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-600 mb-0.5">变化金额</div>
+          <div :class="[
+            'text-base font-bold',
+            summary.difference > 0 ? 'text-green-600' : summary.difference < 0 ? 'text-red-600' : 'text-gray-600'
+          ]">
+            {{ summary.difference >= 0 ? '+' : '' }}${{ formatNumber(Math.abs(summary.difference)) }}
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 账户列表 - 移动端横向滚动 -->
+    <!-- 账户列表 - 表格布局（带滚动条） -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
-      <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
-        加载中...
-      </div>
-      <div v-else-if="filteredAccounts.length === 0" class="text-center py-8 text-gray-500 text-sm">
-        暂无账户
-      </div>
+      <div v-if="loading" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
+      <div v-else-if="filteredAccounts.length === 0" class="text-center py-6 text-gray-500 text-xs">暂无账户</div>
       <div v-else>
-        <!-- 横向滚动容器 -->
-        <div class="overflow-x-auto -mx-2 sm:mx-0">
-          <div class="inline-block min-w-full align-middle px-2 sm:px-0">
-            <div class="divide-y divide-gray-200">
-              <div
-                v-for="account in filteredAccounts"
-                :key="account.id"
-                class="grid grid-cols-12 gap-3 px-4 py-2.5 hover:bg-gray-50 items-center"
-                style="min-width: 900px;"
-              >
-                <!-- 账户信息 -->
-                <div class="col-span-3">
-                  <div class="font-medium text-gray-900 text-sm">{{ account.accountName }}</div>
-                  <div class="text-xs text-gray-500 mt-0.5">
-                    {{ account.assetTypeName }}
+        <div class="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">账户</th>
+                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">分类</th>
+                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">用户</th>
+                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">之前金额</th>
+                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">日期</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700">新金额</th>
+                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-700">差额</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="account in filteredAccounts" :key="account.id" class="hover:bg-gray-50">
+                <!-- 账户名称 -->
+                <td class="px-2 py-1.5 text-xs font-medium text-gray-900">
+                  {{ account.accountName }}
+                </td>
+
+                <!-- 分类 -->
+                <td class="px-2 py-1.5">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-base">{{ account.assetTypeIcon }}</span>
+                    <span class="text-xs text-gray-600">{{ account.assetTypeName }}</span>
                   </div>
-                </div>
+                </td>
 
                 <!-- 用户 -->
-                <div class="col-span-1">
-                  <div class="text-xs text-gray-600">{{ account.userName || '-' }}</div>
-                </div>
+                <td class="px-2 py-1.5 text-xs text-gray-600">
+                  {{ account.userName || '-' }}
+                </td>
 
-                <!-- 之前的金额和日期 (根据选择的日期) -->
-                <div class="col-span-2 text-right">
-                  <div class="text-sm font-semibold text-gray-900">
-                    {{ getCurrencySymbol(account.currency) }}{{ formatNumber(accountPreviousValues[account.id]?.amount ?? 0) }}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-0.5">
-                    {{ formatFullDate(accountPreviousValues[account.id]?.recordDate) }}
-                    <span v-if="accountPreviousValues[account.id]?.hasExactRecord" class="ml-1 text-amber-600" title="该日期已有记录">📝</span>
-                  </div>
-                </div>
+                <!-- 之前金额 -->
+                <td class="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                  {{ getCurrencySymbol(account.currency) }}{{ formatNumber(accountPreviousValues[account.id]?.amount ?? 0) }}
+                </td>
+
+                <!-- 日期 -->
+                <td class="px-2 py-1.5 text-right text-xs text-gray-500 whitespace-nowrap">
+                  {{ formatFullDate(accountPreviousValues[account.id]?.recordDate) }}
+                  <span v-if="accountPreviousValues[account.id]?.hasExactRecord" class="ml-1 text-amber-600" title="该日期已有记录">📝</span>
+                </td>
 
                 <!-- 新金额输入 -->
-                <div class="col-span-3">
+                <td class="px-2 py-1.5">
                   <input
                     v-model="accountAmounts[account.id]"
                     type="number"
                     step="0.01"
                     placeholder="新金额"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
+                    class="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
                     @input="markAsChanged(account.id)"
                   />
-                </div>
+                </td>
 
-                <!-- 差额显示 -->
-                <div class="col-span-3 text-right">
-                  <div v-if="accountAmounts[account.id] !== ''" class="text-xs">
-                    <span class="text-gray-500">差额: </span>
-                    <span :class="getDifferenceClass(account.id, accountPreviousValues[account.id]?.amount ?? 0)">
-                      {{ formatDifference(account.id, accountPreviousValues[account.id]?.amount ?? 0, account.currency) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                <!-- 差额 -->
+                <td class="px-2 py-1.5 text-right text-xs whitespace-nowrap">
+                  <span v-if="accountAmounts[account.id] !== ''" :class="getDifferenceClass(account.id, accountPreviousValues[account.id]?.amount ?? 0)">
+                    {{ formatDifference(account.id, accountPreviousValues[account.id]?.amount ?? 0, account.currency) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -165,6 +194,76 @@ const filteredAccounts = computed(() => {
 
 // 是否有修改
 const hasChanges = computed(() => changedAccounts.value.size > 0)
+
+// 格式化日期显示 (月/日)
+const formattedRecordDate = computed(() => {
+  if (!recordDate.value) return ''
+  const [year, month, day] = recordDate.value.split('-')
+  return `${parseInt(month)}/${parseInt(day)}`
+})
+
+// 统计数据
+const summary = computed(() => {
+  let totalPrevious = 0
+  let totalNew = 0
+  let accountCount = 0
+  let latestPreviousDate = null
+
+  filteredAccounts.value.forEach(account => {
+    const previousData = accountPreviousValues.value[account.id]
+    const previousAmount = previousData?.amount || 0
+    const previousCurrency = previousData?.currency || account.currency || 'USD'
+    const previousDate = previousData?.recordDate
+
+    // Track the latest previous date
+    if (previousDate) {
+      if (!latestPreviousDate || previousDate > latestPreviousDate) {
+        latestPreviousDate = previousDate
+      }
+    }
+
+    // Use current exchange rate to convert previous amount to USD
+    const previousExchangeRate = getExchangeRate(previousCurrency)
+    const previousInUSD = previousAmount * previousExchangeRate
+    totalPrevious += previousInUSD
+
+    // For new total: use user input if available, otherwise use previous value
+    const userInput = accountAmounts.value[account.id]
+    let finalAmount = previousAmount
+    let finalCurrency = previousCurrency
+
+    if (userInput !== '' && userInput !== null && userInput !== undefined) {
+      const newAmount = parseFloat(userInput)
+      if (!isNaN(newAmount)) {
+        finalAmount = newAmount
+        finalCurrency = account.currency || 'USD'
+      }
+    }
+
+    const finalExchangeRate = getExchangeRate(finalCurrency)
+    const finalInUSD = finalAmount * finalExchangeRate
+    totalNew += finalInUSD
+
+    accountCount++
+  })
+
+  const difference = totalNew - totalPrevious
+
+  // Format the latest previous date (月/日)
+  let formattedPreviousDate = ''
+  if (latestPreviousDate) {
+    const [year, month, day] = latestPreviousDate.split('-')
+    formattedPreviousDate = `${parseInt(month)}/${parseInt(day)}`
+  }
+
+  return {
+    totalPrevious,
+    totalNew,
+    difference,
+    accountCount,
+    formattedPreviousDate
+  }
+})
 
 // 格式化数字
 const formatNumber = (num) => {

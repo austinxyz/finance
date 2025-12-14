@@ -63,6 +63,12 @@ public class LiabilityAccount {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    /**
+     * 关联的资产账户ID（例如：房贷关联房产）
+     */
+    @Column(name = "linked_asset_account_id")
+    private Long linkedAssetAccountId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -74,4 +80,11 @@ public class LiabilityAccount {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "liability_type_id", insertable = false, updatable = false)
     private LiabilityType liabilityType;
+
+    /**
+     * 关联的资产账户（例如：房贷关联的房产）
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "linked_asset_account_id", insertable = false, updatable = false)
+    private AssetAccount linkedAssetAccount;
 }

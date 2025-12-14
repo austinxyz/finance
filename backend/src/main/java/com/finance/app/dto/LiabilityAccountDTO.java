@@ -36,6 +36,8 @@ public class LiabilityAccountDTO {
     private BigDecimal latestBalance;  // 最近记录余额（原币种）
     private BigDecimal latestBalanceInBaseCurrency;  // 最近记录余额（基准货币）
     private LocalDate latestRecordDate;  // 最近记录日期
+    private Long linkedAssetAccountId;  // 关联的资产账户ID
+    private String linkedAssetAccountName;  // 关联的资产账户名称（用于显示）
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

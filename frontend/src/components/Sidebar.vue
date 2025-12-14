@@ -207,6 +207,17 @@
             <BarChart3 class="w-5 h-5" />
             <span>预算执行</span>
           </router-link>
+
+          <!-- 投资分析 -->
+          <div class="nav-section-title">投资分析</div>
+          <router-link
+            to="/analysis/investment-annual"
+            class="nav-item"
+            :class="isActive('/analysis/investment-annual')"
+          >
+            <TrendingUp class="w-5 h-5" />
+            <span>年度投资</span>
+          </router-link>
         </div>
 
         <!-- 智能分析 -->

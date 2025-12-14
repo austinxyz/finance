@@ -55,39 +55,68 @@ When the user invokes this skill:
    $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
    ```
 
-## Error Handling
+## Common Use Cases
 
-- If `backend/.env` doesn't exist, show error message
-- If MySQL client not found, suggest: `brew install mysql-client`
-- If connection fails, show connection details for debugging
+### Check Database Schema
 
-## Examples
-
-### Check database tables
-```
+```bash
+# List all tables
 /mysql-exec "SHOW TABLES;"
+
+# Describe table structure
+/mysql-exec "DESCRIBE asset_accounts;"
+/mysql-exec "DESCRIBE liability_accounts;"
 ```
 
-### Query asset accounts
-```
-/mysql-exec "SELECT account_name, balance FROM asset_accounts WHERE is_active = 1;"
+### Query Data
+
+```bash
+# View active asset accounts
+/mysql-exec "SELECT * FROM asset_accounts WHERE is_active = 1;"
+
+# View recent asset records
+/mysql-exec "SELECT ar.*, aa.account_name FROM asset_records ar JOIN asset_accounts aa ON ar.account_id = aa.id ORDER BY ar.record_date DESC LIMIT 10;"
+
+# Check net asset categories
+/mysql-exec "SELECT * FROM net_asset_categories ORDER BY display_order;"
 ```
 
-### Execute schema migration
-```
-/mysql-exec schema/migration_v2.sql
+### Execute Schema Migrations
+
+```bash
+# Execute SQL migration file
+/mysql-exec database/migrations/V1_add_expense_tables.sql
+
+# Execute schema updates
+/mysql-exec schema/update_asset_types.sql
 ```
 
-### Interactive session
-```
+### Interactive Session
+
+```bash
 /mysql-exec
 > SHOW TABLES;
 > DESCRIBE asset_accounts;
+> SELECT COUNT(*) FROM asset_accounts WHERE is_active = 1;
 > exit
 ```
+
+## Error Handling
+
+- If `backend/.env` doesn't exist, show error message with instructions
+- If MySQL client not found, suggest: `brew install mysql-client`
+- If connection fails, display connection details for debugging
+- If SQL execution fails, show full error message and query context
+
+## Prerequisites
+
+- MySQL client must be installed via Homebrew: `brew install mysql-client`
+- Database credentials must exist in `backend/.env`
+- Project must be at root directory when executing
 
 ## Notes
 
 - Database credentials are stored in `backend/.env` (not tracked in git)
 - The skill is project-specific and uses the Finance database
-- Connection details (host, port, database name) are read from the .env file
+- Connection details (host, port, database name) are parsed from DB_URL in .env
+- Shares database server with zjutennis project but uses separate `finance` schema

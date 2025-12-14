@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -48,4 +49,23 @@ public interface AssetRecordRepository extends JpaRepository<AssetRecord, Long> 
            "LIMIT 1")
     Optional<AssetRecord> findLatestByAccountIdBeforeOrOnDate(
             @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定家庭、资产类型的所有账户的最新资产记录（用于投资回报率计算）
+     */
+    @Query("SELECT SUM(r.amount) FROM AssetRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 WHERE r2.accountId = r.accountId)")
+    BigDecimal sumLatestAmountByAccountIds(@Param("accountIds") List<Long> accountIds);
+
+    /**
+     * 查询指定家庭、资产类型的所有账户在指定日期的资产总额
+     */
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM AssetRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate)")
+    BigDecimal sumAmountByAccountIdsAsOfDate(
+            @Param("accountIds") List<Long> accountIds,
+            @Param("asOfDate") LocalDate asOfDate);
 }

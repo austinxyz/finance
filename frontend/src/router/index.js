@@ -179,6 +179,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/investment-annual',
+        name: 'InvestmentAnalysis',
+        component: () => import('../views/analysis/InvestmentAnalysis.vue'),
+        meta: {
+          title: '年度投资分析',
+          description: '分析年度投资结构和净投入情况'
+        }
+      },
+      {
         path: 'analysis/risk',
         name: 'RiskAssessment',
         component: () => import('../views/analysis/RiskAssessment.vue'),

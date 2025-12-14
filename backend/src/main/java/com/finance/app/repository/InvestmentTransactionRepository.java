@@ -111,4 +111,42 @@ public interface InvestmentTransactionRepository extends JpaRepository<Investmen
      * 批量删除指定ID列表的记录
      */
     void deleteByIdIn(List<Long> ids);
+
+    /**
+     * 根据家庭ID和年份模式查询所有投资交易记录（用于年度分析）
+     */
+    @Query("SELECT t FROM InvestmentTransaction t " +
+           "JOIN t.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND t.transactionPeriod LIKE :yearPattern")
+    List<InvestmentTransaction> findByFamilyIdAndYearPattern(
+        @Param("familyId") Long familyId,
+        @Param("yearPattern") String yearPattern
+    );
+
+    /**
+     * 根据家庭ID、大类ID和年份模式查询投资交易记录（用于账户分析）
+     */
+    @Query("SELECT t FROM InvestmentTransaction t " +
+           "JOIN t.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND a.assetTypeId = :assetTypeId " +
+           "AND t.transactionPeriod LIKE :yearPattern")
+    List<InvestmentTransaction> findByFamilyIdAndAssetTypeIdAndYearPattern(
+        @Param("familyId") Long familyId,
+        @Param("assetTypeId") Long assetTypeId,
+        @Param("yearPattern") String yearPattern
+    );
+
+    /**
+     * 根据账户ID和年份模式查询交易记录（用于月度趋势）
+     */
+    @Query("SELECT t FROM InvestmentTransaction t " +
+           "WHERE t.accountId = :accountId " +
+           "AND t.transactionPeriod LIKE :yearPattern " +
+           "ORDER BY t.transactionPeriod ASC")
+    List<InvestmentTransaction> findByAccountIdAndYearPattern(
+        @Param("accountId") Long accountId,
+        @Param("yearPattern") String yearPattern
+    );
 }

@@ -166,10 +166,10 @@
                 </button>
               </div>
             </div>
-            <div v-if="chartData" class="h-80">
+            <div v-show="chartData" class="h-80">
               <canvas ref="chartCanvas"></canvas>
             </div>
-            <div v-else class="h-80 flex items-center justify-center text-gray-500 text-sm">
+            <div v-show="!chartData" class="h-80 flex items-center justify-center text-gray-500 text-sm">
               暂无数据，请添加交易记录
             </div>
           </div>
@@ -438,30 +438,91 @@ export default {
 
     // 渲染图表
     const renderChart = () => {
-      if (!chartCanvas.value) return
+      if (!chartCanvas.value || transactions.value.length === 0) {
+        chartData.value = false
+        return
+      }
 
       // 销毁旧图表
       if (chartInstance.value) {
         chartInstance.value.destroy()
       }
 
+      // 按期间排序交易记录
+      const sortedTransactions = [...transactions.value].sort((a, b) =>
+        a.transactionPeriod.localeCompare(b.transactionPeriod)
+      )
+
+      // 计算累计账户价值
+      let cumulativeValue = 0
+      const chartDataPoints = sortedTransactions.map(tx => {
+        if (tx.transactionType === 'DEPOSIT' || tx.transactionType === 'TRANSFER_IN') {
+          cumulativeValue += tx.amount
+        } else if (tx.transactionType === 'WITHDRAWAL' || tx.transactionType === 'TRANSFER_OUT') {
+          cumulativeValue -= tx.amount
+        } else if (tx.transactionType === 'GAIN') {
+          cumulativeValue += tx.amount
+        } else if (tx.transactionType === 'LOSS') {
+          cumulativeValue -= tx.amount
+        }
+
+        return {
+          period: tx.transactionPeriod,
+          value: cumulativeValue
+        }
+      })
+
       // 准备图表数据
-      // TODO: 实现完整的图表逻辑
       const ctx = chartCanvas.value.getContext('2d')
       chartInstance.value = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: [],
+          labels: chartDataPoints.map(d => d.period),
           datasets: [{
             label: '账户总值',
-            data: [],
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            data: chartDataPoints.map(d => d.value),
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            tension: 0.1,
+            fill: true
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return '总值: ' + getCurrencySymbol(selectedAccount.value.currency) + formatNumber(context.parsed.y)
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              title: {
+                display: true,
+                text: '账户价值'
+              },
+              ticks: {
+                callback: function(value) {
+                  return getCurrencySymbol(selectedAccount.value.currency) + formatNumber(value)
+                }
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: '期间'
+              }
+            }
+          }
         }
       })
 

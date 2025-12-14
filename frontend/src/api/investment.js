@@ -70,9 +70,9 @@ export const investmentAnalysisAPI = {
   },
 
   // 获取账户投资分析
-  getAnnualByAccount(familyId, year, categoryId = null, currency = 'USD') {
+  getAnnualByAccount(familyId, year, assetTypeId = null, currency = 'USD') {
     const params = { familyId, year, currency }
-    if (categoryId) params.categoryId = categoryId
+    if (assetTypeId) params.assetTypeId = assetTypeId
     return request.get('/investments/analysis/annual/by-account', { params })
   },
 

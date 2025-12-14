@@ -26,6 +26,7 @@ public class AssetService {
     private final AssetTypeRepository assetTypeRepository;
     private final AssetRecordRepository recordRepository;
     private final com.finance.app.repository.UserRepository userRepository;
+    private final com.finance.app.repository.LiabilityAccountRepository liabilityAccountRepository;
     private final ExchangeRateService exchangeRateService;
 
     // ========== Asset Type Operations ==========
@@ -273,6 +274,13 @@ public class AssetService {
                         dto.setLatestAmountInBaseCurrency(amountInUSD);
                     }
                 });
+
+        // 获取关联的负债账户信息
+        dto.setLinkedLiabilityAccountId(account.getLinkedLiabilityAccountId());
+        if (account.getLinkedLiabilityAccountId() != null) {
+            liabilityAccountRepository.findById(account.getLinkedLiabilityAccountId())
+                    .ifPresent(linkedAccount -> dto.setLinkedLiabilityAccountName(linkedAccount.getAccountName()));
+        }
 
         return dto;
     }

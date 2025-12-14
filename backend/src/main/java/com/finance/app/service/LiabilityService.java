@@ -27,6 +27,8 @@ public class LiabilityService {
     private final LiabilityRecordRepository recordRepository;
     private final LiabilityTypeRepository liabilityTypeRepository;
     private final com.finance.app.repository.UserRepository userRepository;
+    private final com.finance.app.repository.AssetAccountRepository assetAccountRepository;
+    private final ExchangeRateService exchangeRateService;
 
     // ========== Liability Type Operations ==========
 
@@ -277,7 +279,24 @@ public class LiabilityService {
                 .ifPresent(record -> {
                     dto.setLatestBalance(record.getOutstandingBalance());  // 原币种余额
                     dto.setLatestRecordDate(record.getRecordDate());
+
+                    // 计算基准货币余额（USD）
+                    if (record.getOutstandingBalance() != null && record.getCurrency() != null) {
+                        BigDecimal rate = exchangeRateService.getExchangeRate(
+                            record.getCurrency(),
+                            record.getRecordDate()
+                        );
+                        BigDecimal balanceInUSD = record.getOutstandingBalance().multiply(rate);
+                        dto.setLatestBalanceInBaseCurrency(balanceInUSD);
+                    }
                 });
+
+        // 获取关联的资产账户信息
+        dto.setLinkedAssetAccountId(account.getLinkedAssetAccountId());
+        if (account.getLinkedAssetAccountId() != null) {
+            assetAccountRepository.findById(account.getLinkedAssetAccountId())
+                    .ifPresent(linkedAccount -> dto.setLinkedAssetAccountName(linkedAccount.getAccountName()));
+        }
 
         return dto;
     }

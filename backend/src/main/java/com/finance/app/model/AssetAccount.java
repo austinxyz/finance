@@ -53,6 +53,12 @@ public class AssetAccount {
     @Column(name = "tax_status", length = 20)
     private TaxStatus taxStatus = TaxStatus.TAXABLE;
 
+    /**
+     * 关联的负债账户ID（例如：房产关联房贷）
+     */
+    @Column(name = "linked_liability_account_id")
+    private Long linkedLiabilityAccountId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -65,4 +71,11 @@ public class AssetAccount {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_type_id", insertable = false, updatable = false)
     private AssetType assetType;
+
+    /**
+     * 关联的负债账户（例如：房产关联的房贷）
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "linked_liability_account_id", insertable = false, updatable = false)
+    private LiabilityAccount linkedLiabilityAccount;
 }

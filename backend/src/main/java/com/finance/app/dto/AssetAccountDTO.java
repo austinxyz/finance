@@ -30,6 +30,8 @@ public class AssetAccountDTO {
     private BigDecimal latestAmount;  // 最近记录金额（原币种）
     private BigDecimal latestAmountInBaseCurrency;  // 最近记录金额（基准货币）
     private LocalDate latestRecordDate;  // 最近记录日期
+    private Long linkedLiabilityAccountId;  // 关联的负债账户ID
+    private String linkedLiabilityAccountName;  // 关联的负债账户名称（用于显示）
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

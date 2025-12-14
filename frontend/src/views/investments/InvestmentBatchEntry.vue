@@ -79,12 +79,45 @@
         </button>
       </div>
 
-      <!-- 按月份的账户列表 -->
+      <!-- 顶部统计 - 固定不滚动 -->
+      <div v-if="!loadingMonth && monthAccounts.length > 0" class="bg-white rounded-lg shadow border border-gray-200 px-3 py-2">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <!-- 前三个月净投入 -->
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">{{ previousMonth3 }}净投入</div>
+            <div class="text-sm font-medium text-gray-700">${{ formatCurrency(historyMonthNet3) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">{{ previousMonth2 }}净投入</div>
+            <div class="text-sm font-medium text-gray-700">${{ formatCurrency(historyMonthNet2) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">{{ previousMonth1 }}净投入</div>
+            <div class="text-sm font-semibold text-gray-900">${{ formatCurrency(historyMonthNet1) }}</div>
+          </div>
+
+          <!-- 本月数据 -->
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">本月总投入</div>
+            <div class="text-base font-bold text-green-600">${{ formatCurrency(monthSummary.totalDeposits) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">本月总取出</div>
+            <div class="text-base font-bold text-red-600">${{ formatCurrency(monthSummary.totalWithdrawals) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">本月净投入</div>
+            <div class="text-base font-bold text-primary">${{ formatCurrency(monthSummary.netInvestment) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 按月份的账户列表 - 表格布局（带滚动条） -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div v-if="loadingMonth" class="text-center py-6 text-gray-500 text-xs">加载中...</div>
         <div v-else-if="filteredMonthAccounts.length === 0" class="text-center py-6 text-gray-500 text-xs">暂无投资账户</div>
         <div v-else>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
             <table class="w-full">
               <thead class="bg-gray-50 sticky top-0">
                 <tr>
@@ -154,24 +187,6 @@
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          <!-- 统计 -->
-          <div v-if="!loadingMonth && monthAccounts.length > 0" class="px-3 py-2 border-t border-gray-200 bg-gray-50">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <div class="text-xs text-gray-600 mb-0.5">本月总投入</div>
-                <div class="text-base font-bold text-green-600">${{ formatCurrency(monthSummary.totalDeposits) }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-600 mb-0.5">本月总取出</div>
-                <div class="text-base font-bold text-red-600">${{ formatCurrency(monthSummary.totalWithdrawals) }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-600 mb-0.5">净投入</div>
-                <div class="text-base font-bold text-primary">${{ formatCurrency(monthSummary.netInvestment) }}</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -437,6 +452,31 @@ export default {
     const previousMonth2 = computed(() => getPreviousMonth(transactionPeriod.value, 2))
     const previousMonth3 = computed(() => getPreviousMonth(transactionPeriod.value, 3))
 
+    // 前三个月的净投入统计
+    const historyMonthNet3 = computed(() => {
+      return filteredMonthAccounts.value.reduce((sum, account) => {
+        const deposits = monthHistoryData.value[account.accountId]?.month3 || 0
+        const withdrawals = monthHistoryData.value[account.accountId]?.month3Withdrawals || 0
+        return sum + (deposits - withdrawals)
+      }, 0)
+    })
+
+    const historyMonthNet2 = computed(() => {
+      return filteredMonthAccounts.value.reduce((sum, account) => {
+        const deposits = monthHistoryData.value[account.accountId]?.month2 || 0
+        const withdrawals = monthHistoryData.value[account.accountId]?.month2Withdrawals || 0
+        return sum + (deposits - withdrawals)
+      }, 0)
+    })
+
+    const historyMonthNet1 = computed(() => {
+      return filteredMonthAccounts.value.reduce((sum, account) => {
+        const deposits = monthHistoryData.value[account.accountId]?.month1 || 0
+        const withdrawals = monthHistoryData.value[account.accountId]?.month1Withdrawals || 0
+        return sum + (deposits - withdrawals)
+      }, 0)
+    })
+
     // 计算属性 - 按账户模式
     const hasYearChanges = computed(() => changedYearMonths.value.size > 0)
 
@@ -619,7 +659,10 @@ export default {
       const [year, month] = transactionPeriod.value.split('-').map(Number)
 
       for (const account of monthAccounts.value) {
-        const history = { month1: 0, month2: 0, month3: 0 }
+        const history = {
+          month1: 0, month2: 0, month3: 0,
+          month1Withdrawals: 0, month2Withdrawals: 0, month3Withdrawals: 0
+        }
 
         for (let i = 1; i <= 3; i++) {
           const date = new Date(year, month - 1 - i, 1)
@@ -631,7 +674,11 @@ export default {
               const deposits = response.data
                 .filter(tx => tx.transactionType === 'DEPOSIT')
                 .reduce((sum, tx) => sum + parseFloat(tx.amount), 0)
+              const withdrawals = response.data
+                .filter(tx => tx.transactionType === 'WITHDRAWAL')
+                .reduce((sum, tx) => sum + parseFloat(tx.amount), 0)
               history[`month${i}`] = deposits
+              history[`month${i}Withdrawals`] = withdrawals
             }
           } catch (error) {
             console.error(`加载账户${account.accountId}历史数据失败:`, error)
@@ -861,6 +908,9 @@ export default {
       previousMonth1,
       previousMonth2,
       previousMonth3,
+      historyMonthNet1,
+      historyMonthNet2,
+      historyMonthNet3,
       markMonthChanged,
       loadMonthData,
       saveMonthData,

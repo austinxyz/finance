@@ -25,33 +25,33 @@
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">总资产</div>
-        <div class="text-2xl font-bold text-green-600">${{ formatAmount(totalAssets) }}</div>
-        <p class="text-xs text-gray-500 mt-1">Total Assets</p>
+        <div class="text-sm font-medium text-gray-600 mb-2">当前净资产</div>
+        <div class="text-2xl font-bold text-blue-600">${{ formatAmount(financialMetrics.currentNetWorth) }}</div>
+        <p class="text-xs text-gray-500 mt-1">Current Net Worth</p>
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">总负债</div>
-        <div class="text-2xl font-bold text-red-600">${{ formatAmount(totalLiabilities) }}</div>
-        <p class="text-xs text-gray-500 mt-1">Total Liabilities</p>
+        <div class="text-sm font-medium text-gray-600 mb-2">去年净资产</div>
+        <div class="text-2xl font-bold text-gray-600">${{ formatAmount(financialMetrics.lastYearNetWorth) }}</div>
+        <p class="text-xs text-gray-500 mt-1">Last Year Net Worth</p>
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">净资产</div>
-        <div class="text-2xl font-bold text-blue-600">${{ formatAmount(netWorth) }}</div>
-        <p class="text-xs text-gray-500 mt-1">Net Worth</p>
-      </div>
-
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">本年度总支出</div>
-        <div class="text-2xl font-bold text-orange-600">${{ formatAmount(totalExpense) }}</div>
+        <div class="text-sm font-medium text-gray-600 mb-2">本年度实际支出</div>
+        <div class="text-2xl font-bold text-orange-600">${{ formatAmount(financialMetrics.annualExpense) }}</div>
         <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Expense</p>
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">资产负债率</div>
-        <div class="text-2xl font-bold" :class="debtRatioColor">{{ debtRatio }}%</div>
-        <p class="text-xs text-gray-500 mt-1">Debt Ratio</p>
+        <div class="text-sm font-medium text-gray-600 mb-2">本年度投资回报</div>
+        <div class="text-2xl font-bold" :class="getReturnColor(financialMetrics.annualInvestmentReturn)">${{ formatAmountWithSign(financialMetrics.annualInvestmentReturn) }}</div>
+        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Investment Return</p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
+        <div class="text-sm font-medium text-gray-600 mb-2">本年度工作收入</div>
+        <div class="text-2xl font-bold text-green-600">${{ formatAmount(financialMetrics.annualWorkIncome) }}</div>
+        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Work Income</p>
       </div>
     </div>
 
@@ -376,7 +376,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { assetAccountAPI, liabilityAccountAPI, familyAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
 import { annualSummaryAPI } from '@/api/annualSummary'
@@ -396,6 +396,7 @@ import {
   Legend,
   Filler
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 ChartJS.register(
   CategoryScale,
@@ -409,8 +410,98 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 )
+
+// ========== 图表配置常量 ==========
+// 使用统一的颜色方案（Material Design）
+const CHART_COLORS = [
+  '#2196F3', // Blue 500
+  '#4CAF50', // Green 500
+  '#FF9800', // Orange 500
+  '#F44336', // Red 500
+  '#9C27B0', // Purple 500
+  '#E91E63', // Pink 500
+  '#00BCD4', // Cyan 500
+  '#FF5722', // Deep Orange 500
+  '#009688', // Teal 500
+  '#8BC34A', // Light Green 500
+  '#FFC107', // Amber 500
+  '#673AB7'  // Deep Purple 500
+]
+
+// 图表默认配置
+const CHART_DEFAULTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: {
+    duration: 750,
+    easing: 'easeInOutQuart'
+  },
+  interaction: {
+    mode: 'index',
+    intersect: false
+  }
+}
+
+// 饼图配置生成器
+const createDoughnutChartOptions = (formatFn, showDataLabels = true) => ({
+  ...CHART_DEFAULTS,
+  plugins: {
+    legend: {
+      display: false // 使用自定义图例
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: 12,
+      titleFont: {
+        size: 14,
+        weight: 'bold'
+      },
+      bodyFont: {
+        size: 13
+      },
+      cornerRadius: 6,
+      displayColors: true,
+      callbacks: {
+        label: function(context) {
+          const label = context.label || ''
+          const value = context.parsed || 0
+          const dataset = context.dataset
+          const total = dataset.data.reduce((a, b) => Math.abs(a) + Math.abs(b), 0)
+          const percentage = total > 0 ? ((Math.abs(value) / total) * 100).toFixed(1) : '0.0'
+          return `${label}: $${formatFn(Math.abs(value))} (${percentage}%)`
+        }
+      }
+    },
+    datalabels: showDataLabels ? {
+      color: '#fff',
+      font: {
+        weight: 'bold',
+        size: 11,
+        lineHeight: 1.2
+      },
+      formatter: (value, context) => {
+        const dataset = context.dataset
+        const total = dataset.data.reduce((a, b) => Math.abs(a) + Math.abs(b), 0)
+        const percentage = total > 0 ? ((Math.abs(value) / total) * 100).toFixed(1) : '0.0'
+        const label = context.chart.data.labels[context.dataIndex]
+
+        if (percentage <= 5) return ''
+
+        if (percentage > 10) {
+          return `${label}\n${percentage}%`
+        } else {
+          return `${percentage}%`
+        }
+      },
+      anchor: 'center',
+      align: 'center',
+      textAlign: 'center'
+    } : false
+  }
+})
 
 const userId = ref(1) // TODO: 从用户登录状态获取
 const families = ref([])
@@ -422,6 +513,16 @@ const summaryData = ref({ totalAssets: 0, totalLiabilities: 0, netWorth: 0 })
 const loading = ref(false)
 const loadingTrend = ref(false)
 const loadingExpense = ref(false)
+
+// 财务指标数据
+const financialMetrics = ref({
+  currentNetWorth: 0,
+  lastYearNetWorth: 0,
+  annualExpense: 0,
+  annualInvestmentReturn: 0,
+  annualWorkIncome: 0,
+  year: new Date().getFullYear()
+})
 
 const assetChartCanvas = ref(null)
 const liabilityChartCanvas = ref(null)
@@ -885,6 +986,38 @@ function formatAmount(amount) {
   })
 }
 
+// 格式化金额（带正负号）
+function formatAmountWithSign(amount) {
+  if (!amount && amount !== 0) return '0.00'
+  const formatted = formatAmount(Math.abs(amount))
+  return amount >= 0 ? formatted : `-${formatted}`
+}
+
+// 获取投资回报颜色
+function getReturnColor(amount) {
+  if (!amount && amount !== 0) return 'text-gray-600'
+  return amount >= 0 ? 'text-green-600' : 'text-red-600'
+}
+
+// 加载财务指标数据
+async function loadFinancialMetrics() {
+  try {
+    const response = await analysisAPI.getFinancialMetrics(null, familyId.value, null)
+    if (response.success && response.data) {
+      financialMetrics.value = {
+        currentNetWorth: response.data.currentNetWorth || 0,
+        lastYearNetWorth: response.data.lastYearNetWorth || 0,
+        annualExpense: response.data.annualExpense || 0,
+        annualInvestmentReturn: response.data.annualInvestmentReturn || 0,
+        annualWorkIncome: response.data.annualWorkIncome || 0,
+        year: response.data.year || new Date().getFullYear()
+      }
+    }
+  } catch (error) {
+    console.error('加载财务指标失败:', error)
+  }
+}
+
 // 加载账户数据
 async function loadAccounts() {
   loading.value = true
@@ -898,6 +1031,9 @@ async function loadAccounts() {
       analysisAPI.getLiabilityAllocation(null, familyId.value, null), // userId, familyId, asOfDate - 负债分布（按类型）
       analysisAPI.getSummary(null, familyId.value, null) // userId, familyId, asOfDate
     ])
+
+    // 同时加载财务指标
+    loadFinancialMetrics()
 
     if (assetResponse.success) {
       assetAccounts.value = assetResponse.data
@@ -986,40 +1122,30 @@ function updateNetWorthChart() {
   }
 
   const ctx = netWorthChartCanvas.value.getContext('2d')
+
+  // 准备数据
+  const chartData = netAssetCategories.value.map(c => ({
+    label: c.name,
+    value: Math.abs(c.total),
+    color: c.color,
+    isNegative: c.isNegative
+  }))
+
   netWorthChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
-      labels: netAssetCategories.value.map(c => c.name),
+      labels: chartData.map(c => c.label),
       datasets: [{
-        // 使用绝对值显示饼图（负值无法正常渲染）
-        data: netAssetCategories.value.map(c => Math.abs(c.total)),
-        backgroundColor: netAssetCategories.value.map(c => c.color),
+        data: chartData.map(c => c.value),
+        backgroundColor: chartData.map(c => c.color),
         borderWidth: 2,
-        borderColor: '#fff'
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || ''
-              const category = netAssetCategories.value[context.dataIndex]
-              // 显示实际值（包括负值）
-              const absValue = formatAmount(Math.abs(category.total))
-              const sign = category.isNegative ? '-' : ''
-              const percentage = category.percentage
-              return `${label}: ${sign}$${absValue} (${percentage}%)`
-            }
-          }
-        }
-      }
-    }
+    options: createDoughnutChartOptions(formatAmount, true)
   })
 }
 
@@ -1038,6 +1164,7 @@ function updateAssetChart() {
   }
 
   const ctx = assetChartCanvas.value.getContext('2d')
+
   assetChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
@@ -1046,28 +1173,13 @@ function updateAssetChart() {
         data: assetCategories.value.map(c => c.total),
         backgroundColor: assetCategories.value.map(c => c.color),
         borderWidth: 2,
-        borderColor: '#fff'
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || ''
-              const value = formatAmount(context.parsed)
-              const percentage = assetCategories.value[context.dataIndex].percentage
-              return `${label}: $${value} (${percentage}%)`
-            }
-          }
-        }
-      }
-    }
+    options: createDoughnutChartOptions(formatAmount, true)
   })
 }
 
@@ -1086,6 +1198,7 @@ function updateLiabilityChart() {
   }
 
   const ctx = liabilityChartCanvas.value.getContext('2d')
+
   liabilityChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
@@ -1094,28 +1207,13 @@ function updateLiabilityChart() {
         data: liabilityCategories.value.map(c => c.total),
         backgroundColor: liabilityCategories.value.map(c => c.color),
         borderWidth: 2,
-        borderColor: '#fff'
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || ''
-              const value = formatAmount(context.parsed)
-              const percentage = liabilityCategories.value[context.dataIndex].percentage
-              return `${label}: $${value} (${percentage}%)`
-            }
-          }
-        }
-      }
-    }
+    options: createDoughnutChartOptions(formatAmount, true)
   })
 }
 
@@ -1134,6 +1232,7 @@ function updateExpenseChart() {
   }
 
   const ctx = expenseChartCanvas.value.getContext('2d')
+
   expenseChartInstance = new ChartJS(ctx, {
     type: 'doughnut',
     data: {
@@ -1142,28 +1241,13 @@ function updateExpenseChart() {
         data: expenseCategories.value.map(c => c.amount),
         backgroundColor: expenseCategories.value.map(c => c.color),
         borderWidth: 2,
-        borderColor: '#fff'
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const label = context.label || ''
-              const value = formatAmount(context.parsed)
-              const percentage = expenseCategories.value[context.dataIndex].percentage
-              return `${label}: $${value} (${percentage}%)`
-            }
-          }
-        }
-      }
-    }
+    options: createDoughnutChartOptions(formatAmount, true)
   })
 }
 
@@ -1276,8 +1360,57 @@ watch(familyId, (newId) => {
   }
 })
 
+// 清理所有图表实例
+function destroyAllCharts() {
+  if (netWorthChartInstance) {
+    netWorthChartInstance.destroy()
+    netWorthChartInstance = null
+  }
+  if (assetChartInstance) {
+    assetChartInstance.destroy()
+    assetChartInstance = null
+  }
+  if (liabilityChartInstance) {
+    liabilityChartInstance.destroy()
+    liabilityChartInstance = null
+  }
+  if (expenseChartInstance) {
+    expenseChartInstance.destroy()
+    expenseChartInstance = null
+  }
+  if (annualNetWorthChartInstance) {
+    annualNetWorthChartInstance.destroy()
+    annualNetWorthChartInstance = null
+  }
+}
+
+// 响应式窗口大小调整
+let resizeTimer = null
+function handleResize() {
+  if (resizeTimer) clearTimeout(resizeTimer)
+
+  resizeTimer = setTimeout(() => {
+    // 重新渲染所有活动的图表
+    if (netAssetCategories.value.length > 0) updateNetWorthChart()
+    if (assetCategories.value.length > 0) updateAssetChart()
+    if (liabilityCategories.value.length > 0) updateLiabilityChart()
+    if (expenseCategories.value.length > 0) updateExpenseChart()
+    if (overallTrendData.value.length > 0) updateAnnualNetWorthChart()
+  }, 250) // 250ms 防抖
+}
+
 onMounted(async () => {
   await loadFamilies()
   // loadFamilies会设置familyId，然后watcher会自动加载数据
+
+  // 添加窗口大小调整监听
+  window.addEventListener('resize', handleResize)
+})
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  destroyAllCharts()
+  window.removeEventListener('resize', handleResize)
+  if (resizeTimer) clearTimeout(resizeTimer)
 })
 </script>
