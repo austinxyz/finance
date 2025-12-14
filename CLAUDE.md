@@ -223,6 +223,9 @@ Execute MySQL commands with automatic credential loading. Supports SQL files, in
 ### `/git-push`
 Reference guide for Git operations including commit conventions and branch management.
 
+### `/docker-build-push`
+Build and push multi-architecture Docker images (amd64/arm64) to xuaustin's Docker Hub.
+
 ## Typical Development Workflow
 
 1. **Start Development**:
