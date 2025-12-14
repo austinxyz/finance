@@ -30,8 +30,8 @@
       <div class="flex items-center gap-2">
         <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
         <select
-          v-model="activeTab === 'by-month' ? selectedFamilyId : selectedFamilyIdYear"
-          @change="activeTab === 'by-month' ? loadMonthData() : loadYearAccounts()"
+          :value="activeTab === 'by-month' ? selectedFamilyId : selectedFamilyIdYear"
+          @change="handleFamilyChange($event.target.value)"
           class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option v-for="family in families" :key="family.id" :value="family.id">
@@ -455,6 +455,18 @@ export default {
       }
     }
 
+    // 处理家庭选择变化
+    const handleFamilyChange = (familyId) => {
+      const id = parseInt(familyId)
+      if (activeTab.value === 'by-month') {
+        selectedFamilyId.value = id
+        loadMonthData()
+      } else {
+        selectedFamilyIdYear.value = id
+        loadYearAccounts()
+      }
+    }
+
     // 按月份模式 - 加载数据
     const loadMonthData = async () => {
       if (!selectedFamilyId.value || !transactionPeriod.value) return
@@ -707,6 +719,7 @@ export default {
 
       // 通用
       families,
+      handleFamilyChange,
       formatCurrency,
       formatAmount,
       getCurrencySymbol,
