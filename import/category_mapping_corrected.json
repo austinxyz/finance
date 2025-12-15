@@ -111,8 +111,8 @@
     "confidence": "high"
   },
   "车": {
-    "db_name": "日常交通",
-    "db_id": 69,
+    "db_name": "车保养保险",
+    "db_id": 87,
     "confidence": "high"
   },
   "交通": {

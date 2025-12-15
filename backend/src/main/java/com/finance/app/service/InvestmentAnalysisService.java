@@ -114,8 +114,8 @@ public class InvestmentAnalysisService {
      * 回报率 = (当前资产 - 去年年底资产 - 净投入) / (去年年底资产 + 净投入)
      */
     private void calculateReturnRates(Long familyId, Integer year, String targetCurrency, Map<Long, InvestmentCategoryAnalysisDTO> categoryMap) {
-        // 获取当前日期和去年年底日期
-        LocalDate currentDate = LocalDate.now();
+        // 获取选中年份年底日期和去年年底日期
+        LocalDate currentDate = LocalDate.of(year, 12, 31);  // 修复：使用选中年份的年末，而不是今天
         LocalDate lastYearEndDate = LocalDate.of(year - 1, 12, 31);
 
         // 获取该家庭的所有用户ID
@@ -159,12 +159,12 @@ public class InvestmentAnalysisService {
                     // 房地产账户：计算净资产（房产 - 房贷）
                     LiabilityAccount mortgageAccount = liabilityAccountRepository.findById(account.getLinkedLiabilityAccountId()).orElse(null);
                     if (mortgageAccount != null) {
-                        // 查询当前房产价值
-                        BigDecimal currentRealEstateValue = assetRecordRepository.sumLatestAmountByAccountIds(List.of(account.getId()));
+                        // 查询当前房产价值（修复：使用指定日期）
+                        BigDecimal currentRealEstateValue = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(account.getId()), currentDate);
                         if (currentRealEstateValue == null) currentRealEstateValue = BigDecimal.ZERO;
 
-                        // 查询当前房贷余额
-                        BigDecimal currentMortgage = liabilityRecordRepository.findLatestByAccountId(mortgageAccount.getId())
+                        // 查询当前房贷余额（修复：使用指定日期）
+                        BigDecimal currentMortgage = liabilityRecordRepository.findLatestByAccountIdBeforeOrOnDate(mortgageAccount.getId(), currentDate)
                             .map(LiabilityRecord::getOutstandingBalance)
                             .orElse(BigDecimal.ZERO);
 
@@ -194,7 +194,8 @@ public class InvestmentAnalysisService {
                     }
                 } else {
                     // 普通投资账户：直接使用资产记录
-                    BigDecimal accountCurrentAsset = assetRecordRepository.sumLatestAmountByAccountIds(List.of(account.getId()));
+                    // 修复：使用指定日期的资产记录，而不是最新记录
+                    BigDecimal accountCurrentAsset = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(account.getId()), currentDate);
                     if (accountCurrentAsset != null && accountCurrentAsset.compareTo(BigDecimal.ZERO) > 0) {
                         // 货币转换到目标货币
                         BigDecimal convertedAmount = convertCurrency(accountCurrentAsset, account.getCurrency(), targetCurrency, currentDate);
@@ -374,7 +375,7 @@ public class InvestmentAnalysisService {
      * 计算账户投资回报率
      */
     private void calculateAccountReturnRates(Long familyId, Integer year, String targetCurrency, Map<Long, InvestmentAccountAnalysisDTO> accountMap) {
-        LocalDate currentDate = LocalDate.now();
+        LocalDate currentDate = LocalDate.of(year, 12, 31);  // 修复：使用选中年份的年末
         LocalDate lastYearEndDate = LocalDate.of(year - 1, 12, 31);
 
         // 获取所有账户信息以获取货币类型
@@ -401,8 +402,8 @@ public class InvestmentAnalysisService {
                 calculateRealEstateReturns(familyId, year, targetCurrency, dto, account);
             } else {
                 // 普通投资账户：使用标准计算逻辑
-                // 查询当前资产（原始货币金额）
-                BigDecimal currentAssetsOriginal = assetRecordRepository.sumLatestAmountByAccountIds(List.of(accountId));
+                // 查询当前资产（原始货币金额）修复：使用指定日期
+                BigDecimal currentAssetsOriginal = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(accountId), currentDate);
                 if (currentAssetsOriginal == null) {
                     currentAssetsOriginal = BigDecimal.ZERO;
                 }
@@ -506,10 +507,11 @@ public class InvestmentAnalysisService {
         BigDecimal netDeposits = totalDeposits.subtract(totalWithdrawals);
 
         // 查询资产数据（原始货币金额）
-        LocalDate currentDate = LocalDate.now();
+        LocalDate currentDate = LocalDate.of(year, 12, 31);  // 修复：使用选中年份的年末
         LocalDate lastYearEndDate = LocalDate.of(year - 1, 12, 31);
 
-        BigDecimal currentAssets = assetRecordRepository.sumLatestAmountByAccountIds(List.of(accountId));
+        // 修复：使用指定日期的资产记录，而不是最新记录
+        BigDecimal currentAssets = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(accountId), currentDate);
         if (currentAssets == null) {
             currentAssets = BigDecimal.ZERO;
         }
@@ -624,12 +626,12 @@ public class InvestmentAnalysisService {
             return;
         }
 
-        LocalDate currentDate = LocalDate.now();
+        LocalDate currentDate = LocalDate.of(year, 12, 31);  // 修复：使用选中年份的年末
         LocalDate lastYearEndDate = LocalDate.of(year - 1, 12, 31);
 
-        // 1. 查询房产资产价值（原始货币）
-        BigDecimal currentRealEstateValue = assetRecordRepository.sumLatestAmountByAccountIds(
-            List.of(realEstateAccount.getId())
+        // 1. 查询房产资产价值（原始货币）修复：使用指定日期
+        BigDecimal currentRealEstateValue = assetRecordRepository.sumAmountByAccountIdsAsOfDate(
+            List.of(realEstateAccount.getId()), currentDate
         );
         if (currentRealEstateValue == null) {
             currentRealEstateValue = BigDecimal.ZERO;
@@ -642,8 +644,10 @@ public class InvestmentAnalysisService {
             lastYearRealEstateValue = BigDecimal.ZERO;
         }
 
-        // 2. 查询房贷负债（原始货币）
-        var currentMortgageRecord = liabilityRecordRepository.findLatestByAccountId(mortgageAccount.getId());
+        // 2. 查询房贷负债（原始货币）修复：使用指定日期
+        var currentMortgageRecord = liabilityRecordRepository.findLatestByAccountIdBeforeOrOnDate(
+            mortgageAccount.getId(), currentDate
+        );
         BigDecimal currentMortgage = currentMortgageRecord.map(LiabilityRecord::getOutstandingBalance)
             .orElse(BigDecimal.ZERO);
 
