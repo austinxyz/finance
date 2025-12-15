@@ -47,3 +47,17 @@ start-with-api.sh
 diagnose-risk-issue.sh
 START_HERE.md
 API_KEY_SETUP.md
+
+# Excel files (may contain sensitive data)
+*.xlsx
+*.xls
+
+# Import temporary files
+import/preview_*.json
+import/preview_*.xlsx
+import/import_*.sql
+import/import_success_*.txt
+import/budget_preview_*.json
+import/budget_preview_*.xlsx
+import/import_budget_*.sql
+import/import_budget_success_*.txt

@@ -1,0 +1,319 @@
+{
+  "学费": {
+    "db_name": "学费",
+    "db_id": 82,
+    "confidence": "high"
+  },
+  "宝宝学费": {
+    "db_name": "学费",
+    "db_id": 82,
+    "confidence": "high"
+  },
+  "宝宝学琴,老师礼物等": {
+    "db_name": "学费",
+    "db_id": 82,
+    "confidence": "high"
+  },
+  "礼金": {
+    "db_name": "礼金",
+    "db_id": 83,
+    "confidence": "high"
+  },
+  "宝宝礼金": {
+    "db_name": "礼金",
+    "db_id": 83,
+    "confidence": "high"
+  },
+  "宝宝礼物": {
+    "db_name": "礼金",
+    "db_id": 83,
+    "confidence": "high"
+  },
+  "若凌礼物": {
+    "db_name": "礼金",
+    "db_id": 83,
+    "confidence": "high"
+  },
+  "宝宝过生日": {
+    "db_name": "礼金",
+    "db_id": 83,
+    "confidence": "high"
+  },
+  "宝宝用品": {
+    "db_name": "育儿费用",
+    "db_id": 65,
+    "confidence": "high"
+  },
+  "宝宝": {
+    "db_name": "育儿费用",
+    "db_id": 65,
+    "confidence": "high"
+  },
+  "服装化妆品": {
+    "db_name": "服装化妆品",
+    "db_id": 66,
+    "confidence": "high"
+  },
+  "饮食": {
+    "db_name": "饮食",
+    "db_id": 67,
+    "confidence": "high"
+  },
+  "保姆": {
+    "db_name": "保姆",
+    "db_id": 86,
+    "confidence": "high"
+  },
+  "房产税": {
+    "db_name": "房产税",
+    "db_id": 85,
+    "confidence": "high"
+  },
+  "水电煤物业": {
+    "db_name": "水电煤物业",
+    "db_id": 68,
+    "confidence": "high"
+  },
+  "水电煤通讯物业": {
+    "db_name": "水电煤物业",
+    "db_id": 68,
+    "confidence": "high"
+  },
+  "生活用品": {
+    "db_name": "生活用品",
+    "db_id": 81,
+    "confidence": "high"
+  },
+  "租房还贷": {
+    "db_name": "租房还贷",
+    "db_id": 84,
+    "confidence": "high"
+  },
+  "房租": {
+    "db_name": "租房还贷",
+    "db_id": 84,
+    "confidence": "low",
+    "note": "排除（重复，已有租房还贷）"
+  },
+  "装修": {
+    "db_name": "装修",
+    "db_id": 98,
+    "confidence": "high"
+  },
+  "房屋装修": {
+    "db_name": "装修",
+    "db_id": 98,
+    "confidence": "high"
+  },
+  "卫生间": {
+    "db_name": "装修",
+    "db_id": 98,
+    "confidence": "high"
+  },
+  "车": {
+    "db_name": "日常交通",
+    "db_id": 69,
+    "confidence": "high"
+  },
+  "交通": {
+    "db_name": "日常交通",
+    "db_id": 69,
+    "confidence": "high"
+  },
+  "交通费": {
+    "db_name": "日常交通",
+    "db_id": 69,
+    "confidence": "high"
+  },
+  "安吉星/车保险": {
+    "db_name": "车保养保险",
+    "db_id": 87,
+    "confidence": "high"
+  },
+  "车保养保险": {
+    "db_name": "车保养保险",
+    "db_id": 87,
+    "confidence": "high"
+  },
+  "保养": {
+    "db_name": "车保养保险",
+    "db_id": 87,
+    "confidence": "high"
+  },
+  "旅游": {
+    "db_name": "旅游",
+    "db_id": 88,
+    "confidence": "high"
+  },
+  "去厦门": {
+    "db_name": "旅游",
+    "db_id": 88,
+    "confidence": "high"
+  },
+  "去美国": {
+    "db_name": "中美往来机票",
+    "db_id": 92,
+    "confidence": "high"
+  },
+  "美国机票": {
+    "db_name": "中美往来机票",
+    "db_id": 92,
+    "confidence": "high"
+  },
+  "保险": {
+    "db_name": "房屋保险",
+    "db_id": 96,
+    "confidence": "high"
+  },
+  "医疗": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "医疗保险": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "亲戚朋友往来": {
+    "db_name": "朋友人情",
+    "db_id": 71,
+    "confidence": "high"
+  },
+  "美容": {
+    "db_name": "健身美容",
+    "db_id": 93,
+    "confidence": "high"
+  },
+  "健身美容": {
+    "db_name": "健身美容",
+    "db_id": 93,
+    "confidence": "high"
+  },
+  "娱乐健身": {
+    "db_name": "娱乐健身",
+    "db_id": 72,
+    "confidence": "high"
+  },
+  "数码产品": {
+    "db_name": "数码产品",
+    "db_id": 94,
+    "confidence": "high"
+  },
+  "数码产品电脑": {
+    "db_name": "数码产品",
+    "db_id": 94,
+    "confidence": "high"
+  },
+  "手机": {
+    "db_name": "数码产品",
+    "db_id": 94,
+    "confidence": "high"
+  },
+  "基金": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "low",
+    "note": "排除（投资类）"
+  },
+  "股票": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "low",
+    "note": "排除（投资类）"
+  },
+  "其他": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "high",
+    "note": "在支出中仅导入86行之前"
+  },
+  "大额花费": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "low",
+    "note": "排除（40-46行）"
+  },
+  "房租房贷": {
+    "db_name": "租房还贷",
+    "db_id": 84,
+    "confidence": "high"
+  },
+  "住院": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "娱乐": {
+    "db_name": "娱乐健身",
+    "db_id": 72,
+    "confidence": "high"
+  },
+  "学习": {
+    "db_name": "学费",
+    "db_id": 82,
+    "confidence": "high"
+  },
+  "朋友往来": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  },
+  "机票": {
+    "db_name": "中美往来机票",
+    "db_id": 92,
+    "confidence": "high"
+  },
+  "经营": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "low",
+    "note": "排除（投资类）"
+  },
+  "车保养": {
+    "db_name": "车保养保险",
+    "db_id": 87,
+    "confidence": "high"
+  },
+  "转给妈": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  },
+  "过年": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  },
+  "锅": {
+    "db_name": "生活用品",
+    "db_id": 81,
+    "confidence": "high"
+  },
+  "养老保险": {
+    "db_name": "养老保险",
+    "db_id": 90,
+    "confidence": "high"
+  },
+  "其他，妈房产": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "high"
+  },
+  "租房房贷": {
+    "db_name": "租房还贷",
+    "db_id": 84,
+    "confidence": "high"
+  },
+  "经营费用": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "low",
+    "note": "排除（投资类）"
+  },
+  "过年费": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  }
+}
