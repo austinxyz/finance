@@ -95,5 +95,12 @@ export const expenseAnalysisAPI = {
     return request.get('/expenses/analysis/annual/summary', {
       params: { familyId, year, currency, includeTotals }
     })
+  },
+
+  // 刷新年度支出汇总（触发存储过程）
+  refreshAnnualSummary(familyId, year) {
+    return request.post('/expenses/analysis/annual/summary/calculate', null, {
+      params: { familyId, year }
+    })
   }
 }

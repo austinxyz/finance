@@ -46,24 +46,59 @@
     </div>
 
     <!-- 顶部统计 - 固定不滚动 -->
-    <div v-if="!loading && budgets.length > 0" class="bg-white rounded-lg shadow border border-gray-200 px-3 py-2">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <div class="text-xs text-gray-600 mb-0.5">总预算</div>
-          <div class="text-base font-bold text-gray-900">{{ formatCurrency(totalBudget) }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-600 mb-0.5">固定日常预算</div>
-          <div class="text-sm font-semibold text-blue-600">
-            {{ formatCurrency(fixedBudget) }}
-            <span class="text-xs text-gray-500 ml-1">({{ fixedPercentage }}%)</span>
+    <div v-if="!loading && budgets.length > 0" class="bg-white rounded-lg shadow border border-gray-200 px-3 py-2 space-y-3">
+      <!-- 当前年份统计 -->
+      <div>
+        <h4 class="text-xs font-semibold text-gray-700 mb-2">{{ selectedYear }}年</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">总预算</div>
+            <div class="text-base font-bold text-gray-900">{{ formatCurrency(totalBudget) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">实际支出</div>
+            <div class="text-base font-bold text-blue-600">{{ formatCurrency(currentYearActual) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">固定日常</div>
+            <div class="text-sm font-semibold text-blue-600">
+              {{ formatCurrency(fixedBudget) }}
+              <span class="text-xs text-gray-500 ml-1">({{ fixedPercentage }}%)</span>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">不定期</div>
+            <div class="text-sm font-semibold text-purple-600">
+              {{ formatCurrency(irregularBudget) }}
+              <span class="text-xs text-gray-500 ml-1">({{ irregularPercentage }}%)</span>
+            </div>
           </div>
         </div>
-        <div>
-          <div class="text-xs text-gray-600 mb-0.5">不定期预算</div>
-          <div class="text-sm font-semibold text-purple-600">
-            {{ formatCurrency(irregularBudget) }}
-            <span class="text-xs text-gray-500 ml-1">({{ irregularPercentage }}%)</span>
+      </div>
+
+      <!-- 前一年统计 -->
+      <div class="border-t border-gray-200 pt-2">
+        <h4 class="text-xs font-semibold text-gray-700 mb-2">{{ selectedYear - 1 }}年</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">总预算</div>
+            <div class="text-sm font-semibold text-gray-700">{{ formatCurrency(lastYearBudget) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">实际支出</div>
+            <div class="text-sm font-semibold text-gray-600">{{ formatCurrency(lastYearActual) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">预算差异</div>
+            <div class="text-sm font-semibold" :class="budgetYearOverYearGrowth >= 0 ? 'text-red-600' : 'text-green-600'">
+              {{ budgetYearOverYearGrowth >= 0 ? '+' : '' }}{{ budgetYearOverYearGrowth.toFixed(1) }}%
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-0.5">支出同比</div>
+            <div class="text-sm font-semibold" :class="actualYearOverYearGrowth >= 0 ? 'text-red-600' : 'text-green-600'">
+              {{ actualYearOverYearGrowth >= 0 ? '+' : '' }}{{ actualYearOverYearGrowth.toFixed(1) }}%
+            </div>
           </div>
         </div>
       </div>
@@ -78,15 +113,24 @@
           <table class="w-full">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
-                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">分类</th>
-                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700">预算金额</th>
-                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700">备注</th>
+                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700 border-r border-gray-300">分类</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700" colspan="2">{{ selectedYear }}年</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-700 border-l border-gray-300" colspan="2">{{ selectedYear - 1 }}年</th>
+                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-700 border-l border-gray-300">备注</th>
+              </tr>
+              <tr class="bg-gray-100">
+                <th class="px-2 py-1.5 text-xs font-medium text-gray-600 border-r border-gray-300"></th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600">预算</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600">实际</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 border-l border-gray-300">预算</th>
+                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600">实际</th>
+                <th class="px-2 py-1.5 text-xs font-medium text-gray-600 border-l border-gray-300"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
               <tr v-for="budget in budgets" :key="budget.minorCategoryId" class="hover:bg-gray-50">
                 <!-- 分类信息 -->
-                <td class="px-2 py-1.5">
+                <td class="px-2 py-1.5 border-r border-gray-200">
                   <div class="flex items-center gap-1.5">
                     <span class="text-base">{{ budget.majorCategoryIcon }}</span>
                     <div class="flex items-center gap-1.5 text-xs">
@@ -103,7 +147,7 @@
                   </div>
                 </td>
 
-                <!-- 预算金额输入 -->
+                <!-- 当前年份预算金额输入 -->
                 <td class="px-2 py-1.5">
                   <div class="relative">
                     <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
@@ -119,8 +163,23 @@
                   </div>
                 </td>
 
+                <!-- 当前年份实际支出 -->
+                <td class="px-2 py-1.5 text-right text-xs">
+                  <span class="text-gray-700">{{ formatCurrency(getCurrentYearActual(budget.minorCategoryId)) }}</span>
+                </td>
+
+                <!-- 前一年预算 -->
+                <td class="px-2 py-1.5 text-right text-xs border-l border-gray-200">
+                  <span class="text-gray-600">{{ formatCurrency(getLastYearBudget(budget.minorCategoryId)) }}</span>
+                </td>
+
+                <!-- 前一年实际支出 -->
+                <td class="px-2 py-1.5 text-right text-xs">
+                  <span class="text-gray-600">{{ formatCurrency(getLastYearActual(budget.minorCategoryId)) }}</span>
+                </td>
+
                 <!-- 备注 -->
-                <td class="px-2 py-1.5">
+                <td class="px-2 py-1.5 border-l border-gray-200">
                   <input
                     v-model="budgetNotes[budget.minorCategoryId]"
                     @input="markAsChanged(budget.minorCategoryId)"
@@ -143,6 +202,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { familyAPI } from '@/api/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+import { expenseAnalysisAPI } from '@/api/expense'
 import axios from 'axios'
 
 // 响应式数据
@@ -152,6 +212,11 @@ const budgets = ref([])
 const budgetAmounts = ref({})  // categoryId -> amount
 const budgetNotes = ref({})    // categoryId -> notes
 const budgetIds = ref({})      // categoryId -> budgetId (for tracking existing records)
+
+// 实际支出数据
+const currentYearActualData = ref([])  // 当前年份实际支出
+const lastYearBudgetData = ref([])     // 前一年预算
+const lastYearActualData = ref([])     // 前一年实际支出
 
 const selectedFamilyId = ref(null)
 const selectedYear = ref(new Date().getFullYear())
@@ -198,6 +263,57 @@ const irregularPercentage = computed(() => {
   if (totalBudget.value === 0) return 0
   return ((irregularBudget.value / totalBudget.value) * 100).toFixed(1)
 })
+
+// 当前年份实际支出总计
+const currentYearActual = computed(() => {
+  return currentYearActualData.value.reduce((sum, item) => {
+    return sum + parseFloat(item.actualAmount || 0)
+  }, 0)
+})
+
+// 前一年预算总计
+const lastYearBudget = computed(() => {
+  return lastYearBudgetData.value.reduce((sum, item) => {
+    return sum + parseFloat(item.budgetAmount || 0)
+  }, 0)
+})
+
+// 前一年实际支出总计
+const lastYearActual = computed(() => {
+  return lastYearActualData.value.reduce((sum, item) => {
+    return sum + parseFloat(item.actualAmount || 0)
+  }, 0)
+})
+
+// 预算同比增长
+const budgetYearOverYearGrowth = computed(() => {
+  if (lastYearBudget.value === 0) return 0
+  return ((totalBudget.value - lastYearBudget.value) / lastYearBudget.value) * 100
+})
+
+// 实际支出同比增长
+const actualYearOverYearGrowth = computed(() => {
+  if (lastYearActual.value === 0) return 0
+  return ((currentYearActual.value - lastYearActual.value) / lastYearActual.value) * 100
+})
+
+// 获取当前年份指定分类的实际支出
+function getCurrentYearActual(minorCategoryId) {
+  const item = currentYearActualData.value.find(d => d.minorCategoryId === minorCategoryId)
+  return item ? parseFloat(item.actualAmount || 0) : 0
+}
+
+// 获取前一年指定分类的预算
+function getLastYearBudget(minorCategoryId) {
+  const item = lastYearBudgetData.value.find(d => d.minorCategoryId === minorCategoryId)
+  return item ? parseFloat(item.budgetAmount || 0) : 0
+}
+
+// 获取前一年指定分类的实际支出
+function getLastYearActual(minorCategoryId) {
+  const item = lastYearActualData.value.find(d => d.minorCategoryId === minorCategoryId)
+  return item ? parseFloat(item.actualAmount || 0) : 0
+}
 
 // 格式化货币
 function formatCurrency(amount) {
@@ -305,22 +421,46 @@ async function loadBudgets() {
 
   loading.value = true
   try {
-    const response = await axios.get('/api/expense-budgets', {
-      params: {
-        familyId: selectedFamilyId.value,
-        budgetYear: selectedYear.value,
-        currency: selectedCurrency.value
-      }
-    })
+    // 并行加载当前年份预算、实际支出，以及前一年的预算和实际支出
+    const [budgetResponse, currentActualResponse, lastYearBudgetResponse, lastYearActualResponse] = await Promise.all([
+      // 当前年份预算
+      axios.get('/api/expense-budgets', {
+        params: {
+          familyId: selectedFamilyId.value,
+          budgetYear: selectedYear.value,
+          currency: selectedCurrency.value
+        }
+      }),
+      // 当前年份实际支出
+      expenseAnalysisAPI.getBudgetExecution(
+        selectedFamilyId.value,
+        selectedYear.value,
+        selectedCurrency.value
+      ).catch(() => ({ success: false, data: [] })),
+      // 前一年预算
+      axios.get('/api/expense-budgets', {
+        params: {
+          familyId: selectedFamilyId.value,
+          budgetYear: selectedYear.value - 1,
+          currency: selectedCurrency.value
+        }
+      }).catch(() => ({ data: [] })),
+      // 前一年实际支出
+      expenseAnalysisAPI.getBudgetExecution(
+        selectedFamilyId.value,
+        selectedYear.value - 1,
+        selectedCurrency.value
+      ).catch(() => ({ success: false, data: [] }))
+    ])
 
-    // 三种响应格式处理
+    // 处理当前年份预算数据
     let data = []
-    if (Array.isArray(response.data)) {
-      data = response.data
-    } else if (response.data && response.data.data) {
-      data = Array.isArray(response.data.data) ? response.data.data : []
-    } else if (response.data && 'success' in response.data) {
-      data = Array.isArray(response.data.data) ? response.data.data : []
+    if (Array.isArray(budgetResponse.data)) {
+      data = budgetResponse.data
+    } else if (budgetResponse.data && budgetResponse.data.data) {
+      data = Array.isArray(budgetResponse.data.data) ? budgetResponse.data.data : []
+    } else if (budgetResponse.data && 'success' in budgetResponse.data) {
+      data = Array.isArray(budgetResponse.data.data) ? budgetResponse.data.data : []
     }
 
     budgets.value = data
@@ -343,6 +483,29 @@ async function loadBudgets() {
       budgetNotes.value[budget.minorCategoryId] = budget.notes || ''
       budgetIds.value[budget.minorCategoryId] = budget.id
     })
+
+    // 处理当前年份实际支出数据
+    if (currentActualResponse && currentActualResponse.success) {
+      currentYearActualData.value = currentActualResponse.data || []
+    } else {
+      currentYearActualData.value = []
+    }
+
+    // 处理前一年预算数据
+    let lastYearBudgets = []
+    if (Array.isArray(lastYearBudgetResponse.data)) {
+      lastYearBudgets = lastYearBudgetResponse.data
+    } else if (lastYearBudgetResponse.data && lastYearBudgetResponse.data.data) {
+      lastYearBudgets = Array.isArray(lastYearBudgetResponse.data.data) ? lastYearBudgetResponse.data.data : []
+    }
+    lastYearBudgetData.value = lastYearBudgets
+
+    // 处理前一年实际支出数据
+    if (lastYearActualResponse && lastYearActualResponse.success) {
+      lastYearActualData.value = lastYearActualResponse.data || []
+    } else {
+      lastYearActualData.value = []
+    }
 
     // 清空变更标记
     changedCategories.value.clear()

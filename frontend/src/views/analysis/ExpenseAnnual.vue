@@ -42,7 +42,7 @@
     <!-- 支出总览汇总卡片 -->
     <div v-if="majorCategoryData.length > 0" class="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg shadow border border-red-200 p-4">
       <h3 class="text-base font-semibold text-gray-900 mb-3">支出总览</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div class="bg-white rounded-lg p-3 shadow-sm">
           <div class="text-xs text-gray-600 mb-1">总预算</div>
           <div class="text-lg font-bold text-gray-900">{{ formatCurrency(totalBudget) }}</div>
@@ -60,6 +60,16 @@
         <div class="bg-white rounded-lg p-3 shadow-sm">
           <div class="text-xs text-gray-600 mb-1">平均月支出</div>
           <div class="text-lg font-bold text-blue-600">{{ formatCurrency(totalExpense / 12) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">{{ selectedYear - 1 }}年支出</div>
+          <div class="text-lg font-bold text-gray-700">{{ formatCurrency(lastYearTotalExpense) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">同比增长</div>
+          <div class="text-lg font-bold" :class="yearOverYearGrowth >= 0 ? 'text-red-600' : 'text-green-600'">
+            {{ yearOverYearGrowth >= 0 ? '+' : '' }}{{ yearOverYearGrowth.toFixed(1) }}%
+          </div>
         </div>
       </div>
     </div>
@@ -86,7 +96,8 @@
                 <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">预算</th>
                 <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">实际</th>
                 <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">剩余</th>
-                <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">占比</th>
+                <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">去年</th>
+                <th class="px-1.5 py-1.5 text-right font-medium text-gray-700 uppercase tracking-tight text-[10px]">同比</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -118,7 +129,11 @@
                   {{ formatCurrency((item.budgetAmount || 0) - item.totalAmount) }}
                 </td>
                 <td class="px-1.5 py-1.5 text-right text-gray-600 whitespace-nowrap text-[11px]">
-                  {{ ((item.totalAmount / totalExpense) * 100).toFixed(1) }}%
+                  {{ formatCurrency(getLastYearExpense(item.majorCategoryId)) }}
+                </td>
+                <td class="px-1.5 py-1.5 text-right font-semibold whitespace-nowrap text-[11px]"
+                    :class="getCategoryYearOverYearGrowth(item.majorCategoryId, item.totalAmount) >= 0 ? 'text-red-600' : 'text-green-600'">
+                  {{ getCategoryYearOverYearGrowth(item.majorCategoryId, item.totalAmount) >= 0 ? '+' : '' }}{{ getCategoryYearOverYearGrowth(item.majorCategoryId, item.totalAmount).toFixed(1) }}%
                 </td>
               </tr>
             </tbody>
@@ -157,7 +172,8 @@
                   <th class="px-2 py-1 text-center font-medium text-gray-700 uppercase tracking-tight">类型</th>
                   <th class="px-2 py-1 text-right font-medium text-gray-700 uppercase tracking-tight">预算</th>
                   <th class="px-2 py-1 text-right font-medium text-gray-700 uppercase tracking-tight">实际</th>
-                  <th class="px-2 py-1 text-right font-medium text-gray-700 uppercase tracking-tight">占比</th>
+                  <th class="px-2 py-1 text-right font-medium text-gray-700 uppercase tracking-tight">去年</th>
+                  <th class="px-2 py-1 text-right font-medium text-gray-700 uppercase tracking-tight">同比</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
@@ -193,7 +209,11 @@
                     {{ formatCurrency(item.totalAmount) }}
                   </td>
                   <td class="px-2 py-1 text-right text-gray-600 whitespace-nowrap">
-                    {{ ((item.totalAmount / minorCategoryTotal) * 100).toFixed(1) }}%
+                    {{ formatCurrency(getLastYearMinorExpense(item.minorCategoryId)) }}
+                  </td>
+                  <td class="px-2 py-1 text-right font-semibold whitespace-nowrap"
+                      :class="getMinorCategoryYearOverYearGrowth(item.minorCategoryId, item.totalAmount) >= 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ getMinorCategoryYearOverYearGrowth(item.minorCategoryId, item.totalAmount) >= 0 ? '+' : '' }}{{ getMinorCategoryYearOverYearGrowth(item.minorCategoryId, item.totalAmount).toFixed(1) }}%
                   </td>
                 </tr>
               </tbody>
@@ -206,8 +226,8 @@
                   <td class="px-2 py-1.5 text-right text-gray-900 whitespace-nowrap">
                     {{ formatCurrency(minorCategoryTotal) }}
                   </td>
-                  <td class="px-2 py-1.5 text-right text-gray-900 whitespace-nowrap">
-                    100.0%
+                  <td class="px-2 py-1.5 text-right text-gray-900 whitespace-nowrap" colspan="2">
+                    -
                   </td>
                 </tr>
               </tfoot>
@@ -288,6 +308,11 @@ export default {
     // 预算数据
     const budgetData = ref([])
 
+    // 上一年数据
+    const lastYearTotalExpense = ref(0)
+    const lastYearMajorCategoryData = ref([])
+    const lastYearMinorCategoryData = ref([])
+
     // Chart实例
     const majorCategoryChart = ref(null)
     const minorCategoryChart = ref(null)
@@ -333,6 +358,42 @@ export default {
       if (totalBudget.value === 0) return 0
       return (totalExpense.value / totalBudget.value) * 100
     })
+
+    // 同比增长率（总体）
+    const yearOverYearGrowth = computed(() => {
+      if (lastYearTotalExpense.value === 0) return 0
+      return ((totalExpense.value - lastYearTotalExpense.value) / lastYearTotalExpense.value) * 100
+    })
+
+    // 获取指定大类的上一年支出
+    const getLastYearExpense = (majorCategoryId) => {
+      const lastYearCategory = lastYearMajorCategoryData.value.find(
+        item => item.majorCategoryId === majorCategoryId
+      )
+      return lastYearCategory ? parseFloat(lastYearCategory.totalAmount || 0) : 0
+    }
+
+    // 计算指定大类的同比增长率
+    const getCategoryYearOverYearGrowth = (majorCategoryId, currentAmount) => {
+      const lastYearAmount = getLastYearExpense(majorCategoryId)
+      if (lastYearAmount === 0) return 0
+      return ((parseFloat(currentAmount) - lastYearAmount) / lastYearAmount) * 100
+    }
+
+    // 获取指定小类的上一年支出
+    const getLastYearMinorExpense = (minorCategoryId) => {
+      const lastYearCategory = lastYearMinorCategoryData.value.find(
+        item => item.minorCategoryId === minorCategoryId
+      )
+      return lastYearCategory ? parseFloat(lastYearCategory.totalAmount || 0) : 0
+    }
+
+    // 计算指定小类的同比增长率
+    const getMinorCategoryYearOverYearGrowth = (minorCategoryId, currentAmount) => {
+      const lastYearAmount = getLastYearMinorExpense(minorCategoryId)
+      if (lastYearAmount === 0) return 0
+      return ((parseFloat(currentAmount) - lastYearAmount) / lastYearAmount) * 100
+    }
 
     const minorCategoryBudgetTotal = computed(() => {
       return minorCategoryData.value.reduce((sum, item) => sum + parseFloat(item.budgetAmount || 0), 0)
@@ -426,7 +487,7 @@ export default {
 
       loading.value = true
       try {
-        // 并行加载预算数据和支出数据
+        // 并行加载预算数据、当年支出数据和上一年支出数据
         await Promise.all([
           loadBudgetData(),
           expenseAnalysisAPI.getAnnualMajorCategories(
@@ -441,6 +502,30 @@ export default {
             }
           })
         ])
+
+        // 加载上一年支出数据
+        try {
+          const lastYearResponse = await expenseAnalysisAPI.getAnnualMajorCategories(
+            selectedFamilyId.value,
+            selectedYear.value - 1,
+            selectedCurrency.value
+          )
+
+          if (lastYearResponse && lastYearResponse.success) {
+            const lastYearData = lastYearResponse.data || []
+            // 保存上一年大类数据（用于表格显示）
+            lastYearMajorCategoryData.value = lastYearData
+            // 计算上一年总支出
+            lastYearTotalExpense.value = lastYearData.reduce((sum, item) => sum + parseFloat(item.totalAmount || 0), 0)
+          } else {
+            lastYearMajorCategoryData.value = []
+            lastYearTotalExpense.value = 0
+          }
+        } catch (error) {
+          console.error('加载上一年数据失败:', error)
+          lastYearMajorCategoryData.value = []
+          lastYearTotalExpense.value = 0
+        }
 
         // 将预算数据合并到大类数据中
         mergeBudgetToMajorCategories()
@@ -457,6 +542,8 @@ export default {
       } catch (error) {
         console.error('加载大类数据失败:', error)
         majorCategoryData.value = []
+        lastYearTotalExpense.value = 0
+        lastYearMajorCategoryData.value = []
       } finally {
         loading.value = false
       }
@@ -491,19 +578,38 @@ export default {
       monthlyTrendData.value = []
 
       try {
-        const response = await expenseAnalysisAPI.getAnnualMinorCategories(
-          selectedFamilyId.value,
-          selectedYear.value,
-          item.majorCategoryId,
-          selectedCurrency.value
-        )
+        // 并行加载当年和上一年的小类数据
+        const [currentYearResponse, lastYearResponse] = await Promise.all([
+          expenseAnalysisAPI.getAnnualMinorCategories(
+            selectedFamilyId.value,
+            selectedYear.value,
+            item.majorCategoryId,
+            selectedCurrency.value
+          ),
+          expenseAnalysisAPI.getAnnualMinorCategories(
+            selectedFamilyId.value,
+            selectedYear.value - 1,
+            item.majorCategoryId,
+            selectedCurrency.value
+          ).catch(error => {
+            console.error('加载上一年小类数据失败:', error)
+            return { success: false, data: [] }
+          })
+        ])
 
-        if (response && response.success) {
-          minorCategoryData.value = response.data || []
+        if (currentYearResponse && currentYearResponse.success) {
+          minorCategoryData.value = currentYearResponse.data || []
           // 将预算数据合并到小类数据
           mergeBudgetToMinorCategories(item.majorCategoryId)
         } else {
           minorCategoryData.value = []
+        }
+
+        // 保存上一年小类数据
+        if (lastYearResponse && lastYearResponse.success) {
+          lastYearMinorCategoryData.value = lastYearResponse.data || []
+        } else {
+          lastYearMinorCategoryData.value = []
         }
 
         // 更新小类饼图
@@ -512,6 +618,7 @@ export default {
       } catch (error) {
         console.error('加载小类数据失败:', error)
         minorCategoryData.value = []
+        lastYearMinorCategoryData.value = []
       }
     }
 
@@ -817,6 +924,13 @@ export default {
       totalBudget,
       totalBudgetExecutionRate,
       minorCategoryBudgetTotal,
+      lastYearTotalExpense,
+      lastYearMajorCategoryData,
+      yearOverYearGrowth,
+      getLastYearExpense,
+      getCategoryYearOverYearGrowth,
+      getLastYearMinorExpense,
+      getMinorCategoryYearOverYearGrowth,
       majorCategoryChartCanvas,
       minorCategoryChartCanvas,
       monthlyTrendChartCanvas,

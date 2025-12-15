@@ -26,6 +26,16 @@
             {{ year }}年
           </option>
         </select>
+
+        <!-- 刷新按钮 -->
+        <button
+          @click="handleRefresh"
+          :disabled="refreshing || loading"
+          class="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm md:text-base whitespace-nowrap"
+        >
+          <span v-if="refreshing">🔄 刷新中...</span>
+          <span v-else>🔄 刷新数据</span>
+        </button>
       </div>
     </div>
 
@@ -34,8 +44,45 @@
       <div class="text-gray-500">加载中...</div>
     </div>
 
+    <!-- 支出总览汇总卡片 -->
+    <div v-else-if="totalRow" class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow border border-blue-200 p-4 md:p-6">
+      <h3 class="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">年度支出总计</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">基础支出</div>
+          <div class="text-lg md:text-xl font-bold text-gray-900">{{ formatCurrency(totalRow.baseExpenseAmount) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">资产调整</div>
+          <div class="text-lg md:text-xl font-bold text-red-600">
+            {{ totalRow.assetAdjustment > 0 ? '-' : '' }}{{ formatCurrency(Math.abs(totalRow.assetAdjustment)) }}
+          </div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">负债调整</div>
+          <div class="text-lg md:text-xl font-bold text-red-600">
+            {{ totalRow.liabilityAdjustment > 0 ? '-' : '' }}{{ formatCurrency(Math.abs(totalRow.liabilityAdjustment)) }}
+          </div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">实际支出</div>
+          <div class="text-lg md:text-xl font-bold text-blue-600">{{ formatCurrency(totalRow.actualExpenseAmount) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">{{ selectedYear - 1 }}年支出</div>
+          <div class="text-lg md:text-xl font-bold text-gray-700">{{ formatCurrency(lastYearTotalExpense) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">同比增长</div>
+          <div class="text-lg md:text-xl font-bold" :class="yearOverYearGrowth >= 0 ? 'text-red-600' : 'text-green-600'">
+            {{ yearOverYearGrowth >= 0 ? '+' : '' }}{{ yearOverYearGrowth.toFixed(1) }}%
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 主内容 -->
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+    <div v-if="!loading" class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- 左侧：实际支出饼图 -->
       <div class="bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6">
         <h3 class="text-md md:text-lg font-semibold mb-3 md:mb-4">实际支出分布</h3>
@@ -143,7 +190,9 @@ export default {
     const selectedFamilyId = ref(null)
     const selectedYear = ref(new Date().getFullYear())
     const loading = ref(false)
+    const refreshing = ref(false)
     const summaryData = ref([])
+    const lastYearTotalExpense = ref(0)
 
     // Chart实例
     const actualExpenseChart = ref(null)
@@ -172,6 +221,13 @@ export default {
     // 总实际支出（排除总计行）
     const totalActualExpense = computed(() => {
       return categoryData.value.reduce((sum, item) => sum + parseFloat(item.actualExpenseAmount || 0), 0)
+    })
+
+    // 同比增长率（基于实际支出）
+    const yearOverYearGrowth = computed(() => {
+      if (!totalRow.value || lastYearTotalExpense.value === 0) return 0
+      const currentYear = parseFloat(totalRow.value.actualExpenseAmount || 0)
+      return ((currentYear - lastYearTotalExpense.value) / lastYearTotalExpense.value) * 100
     })
 
     // 加载家庭列表
@@ -215,6 +271,7 @@ export default {
 
       loading.value = true
       try {
+        // 加载当前年份数据
         const response = await expenseAnalysisAPI.getAnnualSummary(
           selectedFamilyId.value,
           selectedYear.value,
@@ -228,11 +285,34 @@ export default {
           summaryData.value = []
         }
 
+        // 加载上一年数据（仅获取总计）
+        try {
+          const lastYearResponse = await expenseAnalysisAPI.getAnnualSummary(
+            selectedFamilyId.value,
+            selectedYear.value - 1,
+            'USD',
+            true
+          )
+
+          if (lastYearResponse && lastYearResponse.success) {
+            const lastYearData = lastYearResponse.data || []
+            const lastYearTotal = lastYearData.find(item => item.majorCategoryId === 0)
+            // 使用实际支出（调整后的支出）进行对比
+            lastYearTotalExpense.value = lastYearTotal ? parseFloat(lastYearTotal.actualExpenseAmount || 0) : 0
+          } else {
+            lastYearTotalExpense.value = 0
+          }
+        } catch (error) {
+          console.error('加载上一年数据失败:', error)
+          lastYearTotalExpense.value = 0
+        }
+
         // 更新饼图
         setTimeout(() => updateActualExpenseChart(), 100)
       } catch (error) {
         console.error('加载年度支出汇总失败:', error)
         summaryData.value = []
+        lastYearTotalExpense.value = 0
       } finally {
         loading.value = false
       }
@@ -328,6 +408,30 @@ export default {
       }
     }
 
+    // 刷新数据（触发存储过程）
+    const handleRefresh = async () => {
+      if (!selectedFamilyId.value) {
+        alert('请先选择家庭')
+        return
+      }
+
+      refreshing.value = true
+      try {
+        // 调用存储过程刷新年度支出汇总
+        await expenseAnalysisAPI.refreshAnnualSummary(selectedFamilyId.value, selectedYear.value)
+
+        // 重新加载数据
+        await loadSummaryData()
+
+        alert('✅ 数据刷新成功！')
+      } catch (error) {
+        console.error('刷新失败:', error)
+        alert('❌ 刷新失败: ' + (error.message || '未知错误'))
+      } finally {
+        refreshing.value = false
+      }
+    }
+
     // 监听选项变化
     watch([selectedFamilyId, selectedYear], () => {
       loadSummaryData()
@@ -345,12 +449,16 @@ export default {
       selectedYear,
       availableYears,
       loading,
+      refreshing,
       summaryData,
       categoryData,
       totalRow,
+      lastYearTotalExpense,
+      yearOverYearGrowth,
       actualExpenseChartCanvas,
       formatCurrency,
-      calculatePercentage
+      calculatePercentage,
+      handleRefresh
     }
   }
 }
