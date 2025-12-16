@@ -1,256 +1,200 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Claude Code 工作指南 - 家庭理财管理系统
 
-> **IMPORTANT for Claude**:
-> - **Project Root**: `/Users/yanzxu/claude/finance/`
-> - After any `/clear` or context summarization, always read this CLAUDE.md file again
-> - If working directory changes, navigate back to project root: `cd /Users/yanzxu/claude/finance`
-> - This ensures you're working in the correct project context
+> **重要提示**:
+> - 项目根目录: `/Users/yanzxu/claude/finance/`
+> - 会话重置后，先读取此文件恢复上下文
 
-## Project Overview
+## 项目概览
 
-**Name**: personal-finance
-**Root Directory**: `/Users/yanzxu/claude/finance/`
-**Description**: 个人理财管理系统 (Personal Finance Management System) - A full-stack application for managing personal assets, liabilities, and financial analysis using Java Spring Boot backend and Vue.js frontend with Tailwind CSS.
+**技术栈**: Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
+**架构**: 前后端分离 + RESTful API + 时序数据模型
 
-## Environment Setup
+## 环境配置
 
-### Java Version Configuration
+### 1. Java 环境
 
-This project **REQUIRES Java 17**. Use the `/setup-java` skill to automatically configure the environment:
+**必须使用 Java 17**，运行setup-java技能自动配置：
 
 ```bash
 /setup-java
 ```
 
-This skill will:
-- Set JAVA_HOME to Java 17
-- Load database credentials from backend/.env
-- Export all necessary environment variables
+自动完成：设置JAVA_HOME、加载数据库凭证、导出环境变量
 
-### Database Configuration
+### 2. 数据库配置
 
-Database credentials are stored in `backend/.env` file (not tracked in git):
+凭证存储在 `backend/.env`（不提交到git）：
 
 ```bash
-# backend/.env example
-DB_URL=jdbc:mysql://your-host:port/finance?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+DB_URL=jdbc:mysql://host:port/finance?useSSL=false&serverTimezone=UTC
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
 
-**Note**: The `.env` file is loaded automatically by the setup script. DO NOT commit this file to git.
+## 开发命令
 
-## Development Commands
-
-### Backend (Spring Boot with Hot Reload)
-
-**ALWAYS run `/setup-java` first!**
+### 后端（Spring Boot）
 
 ```bash
 cd backend
-mvn clean install          # Build project
-mvn spring-boot:run        # Start with hot reload
-mvn test                   # Run tests
+mvn clean install          # 构建项目
+mvn spring-boot:run        # 启动（支持热重载）
+mvn test                   # 运行测试
 ```
 
-**Hot Reload**: Spring Boot DevTools is enabled - backend will automatically restart when you save Java files.
+**热重载**: Spring Boot DevTools自动重启
 
-### Frontend (Vue.js + Vite with Hot Module Replacement)
+### 前端（Vue 3 + Vite）
 
 ```bash
 cd frontend
-npm install                # Install dependencies (first time only)
-npm run dev                # Development server (port 3000)
-npm run build              # Production build
-npm run preview            # Preview production build
+npm install                # 安装依赖
+npm run dev                # 开发服务器（端口3000，HMR）
+npm run build              # 生产构建
 ```
 
-**Hot Reload**: Vite HMR is enabled - frontend will automatically update in browser when you save Vue/JS/CSS files.
+**热重载**: Vite HMR自动更新
 
-### MySQL Database Operations
+### 数据库操作
 
-Use the `/mysql-exec` skill for all MySQL operations:
+使用 `/mysql-exec` 技能：
 
 ```bash
-# Execute SQL file
-/mysql-exec path/to/script.sql
-
-# Interactive MySQL shell
-/mysql-exec
-
-# Quick query
-/mysql-exec "SHOW TABLES;"
+/mysql-exec path/to/script.sql    # 执行SQL文件
+/mysql-exec "SHOW TABLES;"        # 快速查询
+/mysql-exec                       # 交互式shell
 ```
 
-**Database Type Tables:**
-- `asset_type` - Asset type definitions (CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER)
-- `liability_type` - Liability type definitions (MORTGAGE, AUTO_LOAN, CREDIT_CARD, PERSONAL_LOAN, STUDENT_LOAN, BUSINESS_LOAN, OTHER)
-- `net_asset_categories` - Net asset category definitions (REAL_ESTATE_NET, RETIREMENT_FUND_NET, LIQUID_NET, INVESTMENT_NET, OTHER_NET)
-- `expense_categories_major` - Expense major category definitions (CHILDREN, CLOTHING, FOOD, HOUSING, etc.)
-- `expense_categories_minor` - Expense minor category definitions (subcategories under each major category)
+## 架构设计
 
-## Architecture
+### 后端分层（com.finance.app）
 
-### Backend Architecture (com.finance.app)
+```
+controller/    # REST API端点
+service/       # 业务逻辑
+repository/    # 数据访问（Spring Data JPA）
+model/         # JPA实体
+dto/           # 数据传输对象
+config/        # 配置（CORS等）
+```
 
-**Layered Structure:**
-- `controller/` - REST API endpoints, handles HTTP requests
-- `service/` - Business logic layer, orchestrates data operations
-- `repository/` - Spring Data JPA repositories for database access
-- `model/` - JPA entity classes (database table mappings)
-- `dto/` - Data Transfer Objects for API contracts
-- `config/` - Spring configuration (CORS, etc.)
+**关键技术**:
+- JPA配置: `ddl-auto=update`（自动更新schema）
+- 连接池: Tomcat JDBC
+- 数据库: MySQL 8.0 dialect
 
-**Key Technologies:**
-- Spring Boot 3.2.0 with Java 17
-- Spring Data JPA with Hibernate (ddl-auto=update)
-- MySQL 8.0 dialect
-- Lombok for reducing boilerplate
+### 前端组件（Vue 3 Composition API）
 
-**Database Connection:**
-- Uses environment variables (DB_URL, DB_USERNAME, DB_PASSWORD)
-- Connection pool configured with Tomcat JDBC
+```
+components/    # 可复用组件
+  MainLayout.vue    # 主布局
+  Sidebar.vue       # 导航侧边栏
+  ui/               # shadcn风格组件
+views/         # 页面组件
+  assets/           # 资产管理
+  liabilities/      # 负债管理
+  analysis/         # 数据分析
+router/        # 路由配置（懒加载）
+api/           # Axios API客户端
+```
 
-### Frontend Architecture
+**样式系统**:
+- Tailwind CSS + CSS变量主题
+- shadcn/ui组件模式（基于radix-vue）
+- `cn()`工具: 合并类名（clsx + tailwind-merge）
+- 深色模式支持
 
-**Component Structure:**
-- `components/` - Reusable UI components
-  - `MainLayout.vue` - Main app layout with sidebar and top bar
-  - `Sidebar.vue` - Navigation sidebar with sections: 仪表盘, 资产管理, 负债管理, 数据分析, 智能建议
-  - `ui/` - shadcn/ui style components (Card, Button, etc.)
-- `views/` - Page components organized by feature
-  - `Dashboard.vue` - Main dashboard
-  - `assets/` - Asset management views
-  - `liabilities/` - Liability management views
-  - `analysis/` - Data analysis views
-- `router/` - Vue Router configuration with lazy loading
-- `api/` - Axios-based API client (proxy to localhost:8080)
-- `lib/utils.js` - Utility functions (cn() for className merging)
+**最佳实践** (详见 `docs/frontend-best-practices.md`):
+- Chart.js饼图: 标签格式"名称-百分比%"，5%可见阈值
+- 货币显示: 统一格式化，带货币符号
+- 响应式布局: 图表-表格50/50分割
 
-**Key Technologies:**
-- Vue 3 with Composition API
-- Tailwind CSS with custom theme (green primary color for finance theme)
-- shadcn/ui component patterns (radix-vue based)
-- Lucide icons
-- Chart.js for data visualization
-- Vite for build tooling
+### 数据模型
 
-**Styling System:**
-- Tailwind CSS with CSS variables for theming
-- Dark mode support via `class` strategy
-- Custom color palette defined in `style.css` using HSL values
-- `cn()` utility combines clsx and tailwind-merge for conditional classes
+**核心实体**:
+- Users（用户）
+- Asset Categories/Accounts/Records（资产类别/账户/记录）
+- Liability Categories/Accounts/Records（负债类别/账户/记录）
+- Expense Categories/Budgets/Records（支出类别/预算/记录）
 
-### Frontend Best Practices
+**时序数据模式**:
+账户使用基于记录的时序方法，每个账户可有多条带时间戳的价值记录，用于趋势分析。
 
-See `docs/frontend-best-practices.md` for detailed implementation guides:
+**类型定义表**:
+- `asset_type` - 8种资产类型
+- `liability_type` - 7种负债类型
+- `net_asset_categories` - 净资产分类
+- `expense_categories_major` - 支出主类别
+- `expense_categories_minor` - 支出子类别
 
-- **Chart.js Pie Charts**: Label format "名称-百分比%", 5% visibility threshold, use chartjs-plugin-datalabels
-- **Currency Display**: Consistent formatting with currency symbols based on selected currency
-- **Responsive Layouts**: 50/50 split for chart-table layouts, use Tailwind flex utilities
+## API 接口
 
-### Data Model (Planned)
+**基础路径**: `http://localhost:8080/api`
 
-**Core Entities:**
-- Users
-- Asset Categories (现金, 股票, 退休基金, 保险, 房产, 数字货币)
-- Asset Accounts (multiple accounts per category)
-- Asset Records (time-series data points)
-- Liability Categories (房贷, 车贷, 信用卡, 个人借债, etc.)
-- Liability Accounts
-- Liability Records (time-series data)
-- Financial Goals
+**端点**:
+- `/assets/*` - 资产CRUD
+- `/liabilities/*` - 负债CRUD
+- `/expenses/*` - 支出管理
+- `/analysis/*` - 财务分析
+- `/family` - 家庭管理
 
-**Time-Series Pattern:**
-Assets and liabilities use a record-based time-series approach where each account can have multiple timestamped value records for trend analysis.
+**前后端集成**:
+- 前端开发服务器（3000端口）代理`/api`到后端（8080端口）
+- CORS配置: 开发环境允许所有来源
+- API客户端: `src/api/request.js`中的Axios实例
 
-## API Structure
+## 业务逻辑
 
-Base path: `http://localhost:8080/api` (not `/api/api` - the context path is already `/api`)
+**财务计算**:
+```
+总资产 = 所有资产账户最新时间戳的值总和
+总负债 = 所有负债账户最新时间戳的值总和
+净资产 = 总资产 - 总负债
+资产配置 = 各类别资产百分比分布
+负债比率 = 总负债 / 总资产
+```
 
-**Planned Endpoints:**
-- `/assets/*` - Asset management CRUD
-- `/liabilities/*` - Liability management CRUD
-- `/records/*` - Time-series data recording
-- `/analysis/*` - Financial analysis and calculations
+**多币种支持**: 数据录入支持多币种，自动转换为基础货币（USD）
 
-## Frontend-Backend Integration
+## 可用技能（Slash Commands）
 
-- Frontend dev server (port 3000) proxies `/api` requests to backend (port 8080)
-- CORS is configured in `CorsConfig.java` to allow all origins in development
-- API requests use Axios instance in `src/api/request.js`
+- `/setup-java` - 配置Java 17 + 加载数据库凭证
+- `/mysql-exec` - 执行MySQL命令（SQL文件/查询/交互shell）
+- `/git-commit-push` - 暂存、提交、推送到GitHub
+- `/docker-build-push` - 构建多架构Docker镜像（amd64/arm64）
 
-## Key Business Logic
+## 典型工作流
 
-**Financial Calculations:**
-- Total Assets = sum of all asset account values at latest timestamp
-- Total Liabilities = sum of all liability account values at latest timestamp
-- Net Worth = Total Assets - Total Liabilities
-- Asset Allocation = percentage distribution across asset categories
-- Debt-to-Asset Ratio = Total Liabilities / Total Assets
+```bash
+# 1. 启动开发
+/setup-java              # 配置环境
+cd backend && mvn spring-boot:run
 
-**Multi-Currency Support (Planned):**
-Data entry supports multiple currencies with automatic conversion to base currency - USD.
+# 2. 数据库操作
+/mysql-exec              # 交互shell
 
-## Important Notes
+# 3. 代码修改
+# 保存Java/Vue文件 → 自动重载
 
-- JPA is set to `ddl-auto=update` - schema changes are auto-applied but be careful with production data
-- The system shares MySQL server with zjutennis project but uses separate `finance` schema
-- Frontend uses lazy loading for all routes except Dashboard for better initial load performance
-- Sidebar navigation is Chinese-language focused (仪表盘, 资产管理, etc.)
-- Time-series data recording is a core pattern - many operations involve creating new timestamped records rather than updating existing values
+# 4. 提交代码
+git add .
+git commit -m "feat: new feature"
+git push
+```
 
-## Requirements Reference
+## 重要提示
 
-See `requirement/需求说明.md` for detailed feature specifications including:
-- Asset/liability category taxonomies
-- Analysis requirements (trends, allocation, risk assessment)
-- Smart recommendation features (AI-driven suggestions)
-- Report generation and export capabilities
+- JPA `ddl-auto=update` 会自动应用schema变更，生产环境需谨慎
+- 与zjutennis项目共享MySQL服务器，但使用独立的`finance`数据库
+- 路由懒加载：除Dashboard外所有路由均懒加载
+- 导航界面为中文（仪表盘、资产管理等）
+- 时序数据记录是核心模式：创建新时间戳记录，而非更新现有值
 
-## Available Skills
+## 参考文档
 
-This project includes several Claude Code skills (slash commands) for common tasks:
-
-### `/setup-java`
-Automatically configures Java 17 environment and loads database credentials from backend/.env
-
-### `/mysql-exec`
-Execute MySQL commands with automatic credential loading. Supports SQL files, inline queries, and interactive shell.
-
-### `/git-commit-push`
-Stage all changes (including new files), commit with descriptive message, and push to GitHub.
-
-### `/docker-build-push`
-Build and push multi-architecture Docker images (amd64/arm64) to xuaustin's Docker Hub.
-
-## Typical Development Workflow
-
-1. **Start Development**:
-   ```bash
-   /setup-java           # Configure Java 17 + load DB credentials
-   cd backend
-   mvn spring-boot:run   # Start backend with hot reload
-   ```
-
-2. **Database Operations**:
-   ```bash
-   /mysql-exec           # Open interactive shell
-   # Or
-   /mysql-exec "SELECT * FROM asset_accounts;"
-   ```
-
-3. **Code Changes**:
-   - Make changes to Java/Vue files
-   - Both backend and frontend auto-reload on save
-   - Test changes in browser
-
-4. **Commit and Push**:
-   ```bash
-   git status
-   git add .
-   git commit -m "feat: implement new feature"
-   git push origin main
-   ```
+- `requirement/需求说明.md` - 功能详细规划
+- `requirement/API文档.md` - 接口说明
+- `docs/frontend-best-practices.md` - 前端实现指南
+- Swagger UI: http://localhost:8080/api/swagger-ui/index.html
