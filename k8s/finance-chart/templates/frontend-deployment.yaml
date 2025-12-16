@@ -1,0 +1,56 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.frontend.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    component: frontend
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      component: frontend
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        component: frontend
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.frontend.service.targetPort }}
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
+        {{- if .Values.frontend.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.frontend.livenessProbe.httpGet.path }}
+            port: {{ .Values.frontend.livenessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.frontend.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.frontend.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.frontend.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.frontend.livenessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.frontend.readinessProbe.enabled }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.frontend.readinessProbe.httpGet.path }}
+            port: {{ .Values.frontend.readinessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.frontend.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.frontend.readinessProbe.failureThreshold }}
+        {{- end }}
+{{- end }}

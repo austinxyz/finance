@@ -127,14 +127,20 @@ def create_preview_excel(year, family_id, mapping_file, output_file):
     print(f"输出文件: {output_file}")
     print()
 
+    # 脚本在scripts/目录下，需要找到import/目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # scripts/目录
+    import_dir = os.path.dirname(script_dir)  # import/目录
+
     # 检查输入文件
     excel_file = f"{year}.xlsx"
-    if not os.path.exists(excel_file):
-        print(f"❌ 错误: Excel文件不存在: {excel_file}")
+    excel_path = os.path.join(import_dir, excel_file)
+    if not os.path.exists(excel_path):
+        print(f"❌ 错误: Excel文件不存在: {excel_path}")
         sys.exit(1)
 
-    if not os.path.exists(mapping_file):
-        print(f"❌ 错误: 映射文件不存在: {mapping_file}")
+    mapping_path = os.path.join(import_dir, mapping_file)
+    if not os.path.exists(mapping_path):
+        print(f"❌ 错误: 映射文件不存在: {mapping_path}")
         sys.exit(1)
 
     # 定义所有预览任务
@@ -143,60 +149,60 @@ def create_preview_excel(year, family_id, mapping_file, output_file):
             'name': f'{year}-expense-USD',
             'description': '美国总账 - 费用预览',
             'script': 'import_expenses.py',
-            'json_file': f'preview_{year}_USD.json',
+            'json_file': os.path.join(import_dir, f'preview_{year}_USD.json'),
             'command': [
-                'python3', 'import_expenses.py', 'preview',
-                '--file', excel_file,
+                'python3', os.path.join(script_dir, 'import_expenses.py'), 'preview',
+                '--file', excel_path,
                 '--sheet', f'{year}总帐 (US)',
                 '--family', str(family_id),
                 '--year', str(year),
                 '--currency', 'USD',
-                '--mapping', mapping_file
+                '--mapping', mapping_path
             ]
         },
         {
             'name': f'{year}-expense-CNY',
             'description': '中国总账 - 费用预览',
             'script': 'import_expenses.py',
-            'json_file': f'preview_{year}_CNY.json',
+            'json_file': os.path.join(import_dir, f'preview_{year}_CNY.json'),
             'command': [
-                'python3', 'import_expenses.py', 'preview',
-                '--file', excel_file,
+                'python3', os.path.join(script_dir, 'import_expenses.py'), 'preview',
+                '--file', excel_path,
                 '--sheet', f'{year}总帐（中国）',
                 '--family', str(family_id),
                 '--year', str(year),
                 '--currency', 'CNY',
-                '--mapping', mapping_file
+                '--mapping', mapping_path
             ]
         },
         {
             'name': f'{year}-budgets-USD',
             'description': '美国总账 - 预算预览',
             'script': 'import_budgets.py',
-            'json_file': f'budget_preview_{year}_USD.json',
+            'json_file': os.path.join(import_dir, f'budget_preview_{year}_USD.json'),
             'command': [
-                'python3', 'import_budgets.py', 'preview',
-                '--file', excel_file,
+                'python3', os.path.join(script_dir, 'import_budgets.py'), 'preview',
+                '--file', excel_path,
                 '--sheet', f'{year}总帐 (US)',
                 '--family', str(family_id),
                 '--year', str(year),
                 '--currency', 'USD',
-                '--mapping', mapping_file
+                '--mapping', mapping_path
             ]
         },
         {
             'name': f'{year}-budgets-CNY',
             'description': '中国总账 - 预算预览',
             'script': 'import_budgets.py',
-            'json_file': f'budget_preview_{year}_CNY.json',
+            'json_file': os.path.join(import_dir, f'budget_preview_{year}_CNY.json'),
             'command': [
-                'python3', 'import_budgets.py', 'preview',
-                '--file', excel_file,
+                'python3', os.path.join(script_dir, 'import_budgets.py'), 'preview',
+                '--file', excel_path,
                 '--sheet', f'{year}总帐（中国）',
                 '--family', str(family_id),
                 '--year', str(year),
                 '--currency', 'CNY',
-                '--mapping', mapping_file
+                '--mapping', mapping_path
             ]
         }
     ]
@@ -256,6 +262,9 @@ def create_preview_excel(year, family_id, mapping_file, output_file):
 
     # 保存文件
     try:
+        # 确保output_file使用绝对路径（指向import目录）
+        if not os.path.isabs(output_file):
+            output_file = os.path.join(import_dir, output_file)
         wb.save(output_file)
         print(f"\n{'='*80}")
         print(f"✅ 预览文件生成成功!")

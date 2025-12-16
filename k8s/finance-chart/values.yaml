@@ -1,0 +1,223 @@
+# Default values for finance chart
+
+# Global settings
+global:
+  storageClass: ""  # Use default storage class
+
+# Namespace
+namespace: finance
+
+# Backend configuration
+backend:
+  enabled: true
+  name: finance-backend
+  replicaCount: 2
+
+  image:
+    repository: xuaustin/finance-backend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  # Health check configuration
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /api/actuator/health
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /api/actuator/health
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # Environment variables (in addition to database config)
+  env:
+    SPRING_PROFILES_ACTIVE: "production"
+
+# Frontend configuration
+frontend:
+  enabled: true
+  name: finance-frontend
+  replicaCount: 2
+
+  image:
+    repository: xuaustin/finance-frontend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
+
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # CORS settings
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+
+  hosts:
+    - host: finance.example.com  # Change to your domain
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend: backend
+        - path: /
+          pathType: Prefix
+          backend: frontend
+
+  tls:
+    - secretName: finance-tls
+      hosts:
+        - finance.example.com  # Change to your domain
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  backend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  frontend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# MySQL configuration (Bitnami chart)
+mysql:
+  enabled: true
+
+  # MySQL authentication
+  auth:
+    rootPassword: "root123456"  # Change in production
+    database: "finance"
+    username: "financeuser"
+    password: "finance123456"  # Change in production
+
+  # Primary configuration
+  primary:
+    persistence:
+      enabled: true
+      storageClass: ""  # Use default storage class
+      size: 20Gi
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+    # Custom MySQL configuration
+    configuration: |-
+      [mysqld]
+      default_authentication_plugin=mysql_native_password
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mysql
+      plugin_dir=/opt/bitnami/mysql/lib/plugin
+      port=3306
+      socket=/opt/bitnami/mysql/tmp/mysql.sock
+      datadir=/bitnami/mysql/data
+      tmpdir=/opt/bitnami/mysql/tmp
+      max_allowed_packet=16M
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+      log-error=/opt/bitnami/mysql/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+      slow_query_log=0
+      slow_query_log_file=/opt/bitnami/mysql/logs/mysqld-slow.log
+      long_query_time=10.0
+
+  # Initialize database schema on first run
+  initdbScripts:
+    01-init-schema.sql: |
+      -- This script will be executed on first MySQL start
+      -- Database 'finance' is already created by auth.database setting
+      USE finance;
+
+      -- Tables will be auto-created by Spring Boot (ddl-auto=update)
+      -- But we can pre-create some if needed
+
+      GRANT ALL PRIVILEGES ON finance.* TO 'financeuser'@'%';
+      FLUSH PRIVILEGES;
+
+# Database connection configuration for backend
+database:
+  # Use in-cluster MySQL by default
+  # Format: mysql-<release-name>.<namespace>.svc.cluster.local
+  host: mysql
+  port: 3306
+  name: finance
+  username: financeuser
+  password: finance123456
+  # Additional JDBC parameters
+  jdbcParams: "useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+
+# ConfigMap data
+config:
+  serverPort: "8080"
+  springProfilesActive: "production"

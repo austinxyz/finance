@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.backend.name }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    component: backend
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+data:
+  SERVER_PORT: {{ .Values.config.serverPort | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.config.springProfilesActive | quote }}
