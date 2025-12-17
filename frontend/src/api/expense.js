@@ -102,5 +102,19 @@ export const expenseAnalysisAPI = {
     return request.post('/expenses/analysis/annual/summary/calculate', null, {
       params: { familyId, year }
     })
+  },
+
+  // 获取多年度支出趋势数据
+  getAnnualTrend(familyId, limit = 5, currency = 'USD') {
+    return request.get('/expenses/analysis/annual/trend', {
+      params: { familyId, limit, currency }
+    })
+  },
+
+  // 获取各大类的多年度基础支出趋势
+  getAnnualCategoryTrend(familyId, limit = 5, currency = 'USD') {
+    return request.get('/expenses/analysis/annual/category-trend', {
+      params: { familyId, limit, currency }
+    })
   }
 }

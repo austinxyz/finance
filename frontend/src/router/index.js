@@ -179,6 +179,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/expense-annual-trend',
+        name: 'ExpenseAnnualTrend',
+        component: () => import('../views/analysis/ExpenseAnnualTrend.vue'),
+        meta: {
+          title: '支出年度趋势',
+          description: '查看支出年度变化趋势及同比增长率'
+        }
+      },
+      {
         path: 'analysis/investment-annual',
         name: 'InvestmentAnalysis',
         component: () => import('../views/analysis/InvestmentAnalysis.vue'),

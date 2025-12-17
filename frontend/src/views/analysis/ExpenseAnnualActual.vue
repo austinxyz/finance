@@ -178,7 +178,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { familyAPI } from '@/api/family'
-import { expenseAnalysisAPI } from '@/api/expense'
+import { expenseAnalysisAPI, expenseCategoryAPI } from '@/api/expense'
 
 Chart.register(...registerables, ChartDataLabels)
 
@@ -271,7 +271,18 @@ export default {
 
       loading.value = true
       try {
-        // 加载当前年份数据
+        // 首先加载所有大类
+        const categoriesResponse = await expenseCategoryAPI.getAll()
+        let allCategories = []
+        if (Array.isArray(categoriesResponse.data)) {
+          allCategories = categoriesResponse.data
+        } else if (categoriesResponse.data && categoriesResponse.data.data) {
+          allCategories = categoriesResponse.data.data
+        } else if (categoriesResponse.data && 'success' in categoriesResponse.data) {
+          allCategories = categoriesResponse.data.data || []
+        }
+
+        // 加载当前年份实际支出数据
         const response = await expenseAnalysisAPI.getAnnualSummary(
           selectedFamilyId.value,
           selectedYear.value,
@@ -279,11 +290,46 @@ export default {
           true
         )
 
+        let actualExpenseData = []
         if (response && response.success) {
-          summaryData.value = response.data || []
-        } else {
-          summaryData.value = []
+          actualExpenseData = response.data || []
         }
+
+        // 创建实际支出数据的映射（majorCategoryId -> 数据）
+        const expenseMap = new Map()
+        actualExpenseData.forEach(item => {
+          expenseMap.set(item.majorCategoryId, item)
+        })
+
+        // 合并：确保所有大类都显示（即使支出为0）
+        const mergedData = []
+
+        // 添加所有大类，即使没有支出记录
+        allCategories.forEach(category => {
+          if (expenseMap.has(category.id)) {
+            // 有实际支出数据
+            mergedData.push(expenseMap.get(category.id))
+          } else {
+            // 没有支出数据，创建零值记录
+            mergedData.push({
+              majorCategoryId: category.id,
+              majorCategoryName: category.name,
+              majorCategoryIcon: category.icon,
+              baseExpenseAmount: 0,
+              assetAdjustment: 0,
+              liabilityAdjustment: 0,
+              actualExpenseAmount: 0
+            })
+          }
+        })
+
+        // 添加总计行（majorCategoryId = 0）
+        const totalRow = expenseMap.get(0)
+        if (totalRow) {
+          mergedData.push(totalRow)
+        }
+
+        summaryData.value = mergedData
 
         // 加载上一年数据（仅获取总计）
         try {
@@ -326,13 +372,16 @@ export default {
         actualExpenseChart.value.destroy()
       }
 
+      // 饼图只显示非零支出的分类
+      const nonZeroCategories = categoryData.value.filter(d => parseFloat(d.actualExpenseAmount || 0) > 0)
+
       const ctx = actualExpenseChartCanvas.value.getContext('2d')
       actualExpenseChart.value = new Chart(ctx, {
         type: 'pie',
         data: {
-          labels: categoryData.value.map(d => `${d.majorCategoryIcon || ''} ${d.majorCategoryName}`),
+          labels: nonZeroCategories.map(d => `${d.majorCategoryIcon || ''} ${d.majorCategoryName}`),
           datasets: [{
-            data: categoryData.value.map(d => d.actualExpenseAmount),
+            data: nonZeroCategories.map(d => d.actualExpenseAmount),
             backgroundColor: [
               '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
               '#DFE6E9', '#74B9FF', '#A29BFE', '#FD79A8', '#FDCB6E'
@@ -356,7 +405,8 @@ export default {
               callbacks: {
                 label: (context) => {
                   const value = context.parsed
-                  const percentage = ((value / totalActualExpense.value) * 100).toFixed(1)
+                  const total = nonZeroCategories.reduce((sum, d) => sum + parseFloat(d.actualExpenseAmount || 0), 0)
+                  const percentage = ((value / total) * 100).toFixed(1)
                   return ` ${formatChartAmount(value)} (${percentage}%)`
                 }
               }
@@ -368,8 +418,9 @@ export default {
                 size: 11
               },
               formatter: (value, context) => {
-                const label = categoryData.value[context.dataIndex].majorCategoryName
-                const percentage = ((value / totalActualExpense.value) * 100).toFixed(1)
+                const label = nonZeroCategories[context.dataIndex].majorCategoryName
+                const total = nonZeroCategories.reduce((sum, d) => sum + parseFloat(d.actualExpenseAmount || 0), 0)
+                const percentage = ((value / total) * 100).toFixed(1)
                 // 只显示占比大于5%的标签，避免拥挤
                 if (percentage >= 5) {
                   return `${label}\n${percentage}%`

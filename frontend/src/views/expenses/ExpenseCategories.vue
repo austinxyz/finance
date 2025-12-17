@@ -1,13 +1,26 @@
 <template>
   <div class="p-3 md:p-6 space-y-4 md:space-y-6">
-    <!-- 页面标题和家庭选择器 -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-gray-900">支出分类与记录</h1>
-        <p class="text-xs md:text-sm text-gray-600 mt-1">管理支出分类，按大类查看历史记录和趋势分析</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
+    <!-- 家庭选择器和大类 Tab 在同一行 -->
+    <div class="flex items-center justify-between gap-4 border-b border-gray-200">
+      <nav class="-mb-px flex space-x-1 md:space-x-2 flex-1" aria-label="Tabs">
+        <button
+          v-for="category in majorCategories"
+          :key="category.id"
+          @click="selectedMajorCategory = category"
+          :class="[
+            'whitespace-nowrap py-2 px-2 border-b-2 font-medium text-xs transition-colors flex items-center gap-1',
+            selectedMajorCategory?.id === category.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ]"
+        >
+          <span class="text-sm">{{ category.icon }}</span>
+          {{ category.name }}
+        </button>
+      </nav>
+
+      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
         <select
           v-model="selectedFamilyId"
           @change="onFamilyChange"
@@ -18,26 +31,6 @@
           </option>
         </select>
       </div>
-    </div>
-
-    <!-- 大类 Tab -->
-    <div class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-2 md:space-x-4 overflow-x-auto" aria-label="Tabs">
-        <button
-          v-for="category in majorCategories"
-          :key="category.id"
-          @click="selectedMajorCategory = category"
-          :class="[
-            'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
-            selectedMajorCategory?.id === category.id
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          ]"
-        >
-          <span class="text-lg">{{ category.icon }}</span>
-          {{ category.name }}
-        </button>
-      </nav>
     </div>
 
     <!-- 三列布局：子分类列表 + 趋势图 + 历史记录 -->

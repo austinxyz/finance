@@ -568,9 +568,25 @@ export default {
         const response = await familyAPI.getAll()
         if (response.success) {
           families.value = response.data
+
+          // 尝试获取默认家庭
           if (families.value.length > 0) {
-            selectedFamilyId.value = families.value[0].id
-            selectedFamilyIdYear.value = families.value[0].id
+            try {
+              const defaultResponse = await familyAPI.getDefault()
+              if (defaultResponse.success && defaultResponse.data) {
+                selectedFamilyId.value = defaultResponse.data.id
+                selectedFamilyIdYear.value = defaultResponse.data.id
+              } else {
+                // 如果没有默认家庭，使用第一个
+                selectedFamilyId.value = families.value[0].id
+                selectedFamilyIdYear.value = families.value[0].id
+              }
+            } catch (err) {
+              console.error('获取默认家庭失败:', err)
+              // 如果获取默认家庭失败，使用第一个
+              selectedFamilyId.value = families.value[0].id
+              selectedFamilyIdYear.value = families.value[0].id
+            }
           }
         }
       } catch (error) {

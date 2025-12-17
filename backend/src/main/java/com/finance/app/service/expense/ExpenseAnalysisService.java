@@ -529,4 +529,206 @@ public class ExpenseAnalysisService {
             throw new RuntimeException("计算年度支出汇总失败: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * 获取多年度支出趋势分析
+     * 返回最近N年的年度总支出(基础和实际)及同比增长率
+     */
+    public List<Map<String, Object>> getAnnualExpenseTrend(Long familyId, Integer limit, String currency) {
+        // 1. 获取最近N年的年度汇总数据
+        List<AnnualExpenseSummary> summaries = annualExpenseSummaryRepository
+                .findByFamilyIdOrderByYearDesc(familyId);
+
+        if (summaries.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 2. 限制年份数量
+        if (limit != null && limit > 0 && summaries.size() > limit) {
+            summaries = summaries.subList(0, limit);
+        }
+
+        // 3. 按年份升序排列（从旧到新）
+        summaries.sort(Comparator.comparing(AnnualExpenseSummary::getSummaryYear));
+
+        // 4. 加载汇率（用于货币转换）
+        Map<Integer, Map<String, BigDecimal>> exchangeRatesByYear = new HashMap<>();
+        for (AnnualExpenseSummary summary : summaries) {
+            if (!currency.equals(summary.getCurrency())) {
+                exchangeRatesByYear.put(summary.getSummaryYear(), loadExchangeRates(summary.getSummaryYear()));
+            }
+        }
+
+        // 5. 构建结果列表
+        List<Map<String, Object>> result = new ArrayList<>();
+        BigDecimal prevBaseExpense = null;
+        BigDecimal prevActualExpense = null;
+
+        for (int i = 0; i < summaries.size(); i++) {
+            AnnualExpenseSummary summary = summaries.get(i);
+            Map<String, Object> yearData = new HashMap<>();
+
+            // 转换货币
+            BigDecimal baseExpense = summary.getBaseExpenseAmount();
+            BigDecimal actualExpense = summary.getActualExpenseAmount();
+
+            if (!currency.equals(summary.getCurrency())) {
+                Map<String, BigDecimal> rates = exchangeRatesByYear.get(summary.getSummaryYear());
+                baseExpense = convertCurrency(baseExpense, summary.getCurrency(), currency, rates);
+                actualExpense = convertCurrency(actualExpense, summary.getCurrency(), currency, rates);
+            }
+
+            // 基本信息
+            yearData.put("year", summary.getSummaryYear());
+            yearData.put("baseExpense", baseExpense);
+            yearData.put("actualExpense", actualExpense);
+            yearData.put("currency", currency);
+
+            // 计算同比增长（与前一年比较）
+            if (prevBaseExpense != null && prevBaseExpense.compareTo(BigDecimal.ZERO) != 0) {
+                BigDecimal baseChange = baseExpense.subtract(prevBaseExpense);
+                BigDecimal baseChangePct = baseChange.divide(prevBaseExpense, 4, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"));
+                yearData.put("yoyBaseChange", baseChange);
+                yearData.put("yoyBaseChangePct", baseChangePct);
+            } else {
+                yearData.put("yoyBaseChange", null);
+                yearData.put("yoyBaseChangePct", null);
+            }
+
+            if (prevActualExpense != null && prevActualExpense.compareTo(BigDecimal.ZERO) != 0) {
+                BigDecimal actualChange = actualExpense.subtract(prevActualExpense);
+                BigDecimal actualChangePct = actualChange.divide(prevActualExpense, 4, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"));
+                yearData.put("yoyActualChange", actualChange);
+                yearData.put("yoyActualChangePct", actualChangePct);
+            } else {
+                yearData.put("yoyActualChange", null);
+                yearData.put("yoyActualChangePct", null);
+            }
+
+            prevBaseExpense = baseExpense;
+            prevActualExpense = actualExpense;
+
+            result.add(yearData);
+        }
+
+        return result;
+    }
+
+    /**
+     * 货币转换辅助方法
+     */
+    private BigDecimal convertCurrency(BigDecimal amount, String fromCurrency, String toCurrency,
+                                       Map<String, BigDecimal> rates) {
+        if (amount == null || fromCurrency.equals(toCurrency)) {
+            return amount;
+        }
+
+        // 先转为USD
+        BigDecimal amountInUSD = amount;
+        if (!"USD".equals(fromCurrency)) {
+            BigDecimal fromRate = rates.getOrDefault(fromCurrency, BigDecimal.ONE);
+            amountInUSD = amount.multiply(fromRate);
+        }
+
+        // 再转为目标货币
+        if (!"USD".equals(toCurrency)) {
+            BigDecimal toRate = rates.getOrDefault(toCurrency, BigDecimal.ONE);
+            return amountInUSD.divide(toRate, 2, RoundingMode.HALF_UP);
+        }
+
+        return amountInUSD;
+    }
+
+    /**
+     * 获取各大类的多年度基础支出趋势
+     * 返回每个大类最近N年的基础支出数据
+     */
+    public List<Map<String, Object>> getAnnualCategoryTrend(Long familyId, Integer limit, String currency) {
+        // 1. 获取所有大类
+        List<ExpenseCategoryMajor> majorCategories = majorCategoryRepository.findAll();
+
+        // 2. 获取年度汇总数据（大类级别），只获取指定货币的数据
+        List<AnnualExpenseSummary> allSummaries = annualExpenseSummaryRepository
+                .findByFamilyIdAndMajorCategoryIdNot(familyId, 0L); // 排除总计记录
+
+        // 过滤出指定货币的记录
+        allSummaries = allSummaries.stream()
+                .filter(s -> currency.equals(s.getCurrency()))
+                .collect(Collectors.toList());
+
+        if (allSummaries.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 3. 限制年份数量 - 获取最近的N个年份
+        List<Integer> allYearsList = allSummaries.stream()
+                .map(AnnualExpenseSummary::getSummaryYear)
+                .distinct()
+                .sorted((a, b) -> b - a) // 降序
+                .collect(Collectors.toList());
+
+        if (limit != null && limit > 0 && allYearsList.size() > limit) {
+            allYearsList = allYearsList.subList(0, limit);
+        }
+
+        final List<Integer> allYears = allYearsList; // 创建final变量供lambda使用
+
+        // 4. 按大类分组数据
+        Map<Long, List<AnnualExpenseSummary>> summariesByCategory = allSummaries.stream()
+                .filter(s -> allYears.contains(s.getSummaryYear()))
+                .collect(Collectors.groupingBy(AnnualExpenseSummary::getMajorCategoryId));
+
+        // 5. 构建结果列表
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (ExpenseCategoryMajor major : majorCategories) {
+            List<AnnualExpenseSummary> categorySummaries = summariesByCategory.get(major.getId());
+            if (categorySummaries == null || categorySummaries.isEmpty()) {
+                continue; // 该大类没有数据，跳过
+            }
+
+            // 按年份排序（从旧到新）
+            categorySummaries.sort(Comparator.comparing(AnnualExpenseSummary::getSummaryYear));
+
+            // 构建年度数据列表（按年份去重，只保留每年第一条记录）
+            Map<Integer, AnnualExpenseSummary> yearToSummaryMap = new LinkedHashMap<>();
+            for (AnnualExpenseSummary summary : categorySummaries) {
+                Integer year = summary.getSummaryYear();
+                if (!yearToSummaryMap.containsKey(year)) {
+                    yearToSummaryMap.put(year, summary);
+                }
+            }
+
+            List<Map<String, Object>> yearlyData = new ArrayList<>();
+            for (Map.Entry<Integer, AnnualExpenseSummary> entry : yearToSummaryMap.entrySet()) {
+                Map<String, Object> yearData = new HashMap<>();
+                yearData.put("year", entry.getKey());
+                yearData.put("baseExpense", entry.getValue().getBaseExpenseAmount());
+                yearData.put("actualExpense", entry.getValue().getActualExpenseAmount());
+                yearlyData.add(yearData);
+            }
+
+            // 构建大类数据
+            Map<String, Object> categoryData = new HashMap<>();
+            categoryData.put("majorCategoryId", major.getId());
+            categoryData.put("majorCategoryName", major.getName());
+            categoryData.put("majorCategoryIcon", major.getIcon());
+            categoryData.put("majorCategoryCode", major.getCode());
+            categoryData.put("currency", currency);
+            categoryData.put("yearlyData", yearlyData);
+
+            result.add(categoryData);
+        }
+
+        // 6. 按大类ID排序
+        result.sort((a, b) -> {
+            Long idA = (Long) a.get("majorCategoryId");
+            Long idB = (Long) b.get("majorCategoryId");
+            return idA.compareTo(idB);
+        });
+
+        return result;
+    }
 }

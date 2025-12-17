@@ -306,14 +306,88 @@
     "confidence": "high"
   },
   "经营费用": {
-    "db_name": "未分类",
-    "db_id": 80,
-    "confidence": "low",
-    "note": "排除（投资类）"
+    "db_name": "经营开支",
+    "db_id": 95,
+    "confidence": "high"
   },
   "过年费": {
     "db_name": "亲戚往来",
     "db_id": 91,
+    "confidence": "high"
+  },
+  "看病": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "门诊": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "日常交通": {
+    "db_name": "日常交通",
+    "db_id": 69,
+    "confidence": "high"
+  },
+  "停车费": {
+    "db_name": "日常交通",
+    "db_id": 69,
+    "confidence": "high"
+  },
+  "亲戚往来": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  },
+  "朋友人情": {
+    "db_name": "朋友人情",
+    "db_id": 71,
+    "confidence": "high"
+  },
+  "中美往来机票": {
+    "db_name": "中美往来机票",
+    "db_id": 92,
+    "confidence": "high"
+  },
+  "房屋保险": {
+    "db_name": "房屋保险",
+    "db_id": 96,
+    "confidence": "high"
+  },
+  "未分类": {
+    "db_name": "未分类",
+    "db_id": 80,
+    "confidence": "high"
+  },
+  "爸妈礼物": {
+    "db_name": "亲戚往来",
+    "db_id": 91,
+    "confidence": "high"
+  },
+  "搬家": {
+    "db_name": "装修",
+    "db_id": 98,
+    "confidence": "high"
+  },
+  "妈医疗保险": {
+    "db_name": "门诊",
+    "db_id": 97,
+    "confidence": "high"
+  },
+  "家具": {
+    "db_name": "装修",
+    "db_id": 98,
+    "confidence": "high"
+  },
+  "签证": {
+    "db_name": "旅游",
+    "db_id": 88,
+    "confidence": "high"
+  },
+  "租房": {
+    "db_name": "租房还贷",
+    "db_id": 84,
     "confidence": "high"
   }
 }

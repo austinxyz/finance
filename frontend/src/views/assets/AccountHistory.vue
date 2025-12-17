@@ -420,6 +420,76 @@
             ></textarea>
           </div>
 
+          <!-- 房产记录字段（仅当资产类型为房地产时显示） -->
+          <div v-if="selectedCategoryType === 'REAL_ESTATE'" class="border-t border-gray-200 pt-4 space-y-4">
+            <div class="text-sm font-semibold text-gray-900 mb-2">房产信息</div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                购买日期 *
+              </label>
+              <input
+                v-model="propertyFormData.purchaseDate"
+                type="date"
+                :required="selectedCategoryType === 'REAL_ESTATE'"
+                :max="new Date().toISOString().split('T')[0]"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                房产价值 *
+              </label>
+              <input
+                v-model.number="propertyFormData.propertyValue"
+                type="number"
+                step="0.01"
+                :required="selectedCategoryType === 'REAL_ESTATE'"
+                placeholder="购买时的市场价值"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                首付金额 *
+              </label>
+              <input
+                v-model.number="propertyFormData.downPayment"
+                type="number"
+                step="0.01"
+                :required="selectedCategoryType === 'REAL_ESTATE'"
+                placeholder="首付款金额"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                房贷金额 *
+              </label>
+              <input
+                v-model.number="propertyFormData.mortgageAmount"
+                type="number"
+                step="0.01"
+                :required="selectedCategoryType === 'REAL_ESTATE'"
+                placeholder="初始贷款金额"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">房产备注</label>
+              <textarea
+                v-model="propertyFormData.notes"
+                rows="2"
+                placeholder="房产相关备注"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              ></textarea>
+            </div>
+          </div>
+
           </form>
         </div>
 
@@ -553,6 +623,7 @@ import { assetTypeAPI, assetAccountAPI, assetRecordAPI } from '@/api/asset'
 import { liabilityAccountAPI } from '@/api/liability'
 import { userAPI } from '@/api/user'
 import { familyAPI } from '@/api/family'
+import { propertyRecordAPI } from '@/api/property'
 import { getTodayDate } from '@/lib/utils'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
@@ -617,6 +688,18 @@ const accountFormData = ref({
   userId: 1,
   linkedLiabilityAccountId: null
 })
+
+// 房产记录表单数据
+const propertyFormData = ref({
+  purchaseDate: '',
+  propertyValue: '',
+  downPayment: '',
+  mortgageAmount: '',
+  notes: ''
+})
+
+// 当前编辑的房产记录ID（用于更新）
+const editingPropertyRecordId = ref(null)
 
 // 当前分类下的账户
 const currentCategoryAccounts = computed(() => {
@@ -1073,6 +1156,8 @@ const openAccountDialog = async (account = null) => {
   await loadLiabilityAccounts()
 
   editingAccount.value = account
+  editingPropertyRecordId.value = null
+
   if (account) {
     accountFormData.value = {
       accountName: account.accountName,
@@ -1085,6 +1170,34 @@ const openAccountDialog = async (account = null) => {
       assetTypeId: account.assetTypeId,  // 保存 assetTypeId 用于更新
       linkedLiabilityAccountId: account.linkedLiabilityAccountId || null
     }
+
+    // 如果是房产类资产，加载房产记录
+    if (account.assetTypeCode === 'REAL_ESTATE') {
+      try {
+        const response = await propertyRecordAPI.getByAssetAccountId(account.id)
+        if (response.success && response.data) {
+          const pr = response.data
+          propertyFormData.value = {
+            purchaseDate: pr.purchaseDate,
+            propertyValue: pr.propertyValue,
+            downPayment: pr.downPayment,
+            mortgageAmount: pr.mortgageAmount,
+            notes: pr.notes || ''
+          }
+          editingPropertyRecordId.value = pr.id
+        }
+      } catch (error) {
+        // 如果没有找到房产记录，使用空表单
+        console.log('该房产账户暂无房产记录')
+        propertyFormData.value = {
+          purchaseDate: '',
+          propertyValue: '',
+          downPayment: '',
+          mortgageAmount: '',
+          notes: ''
+        }
+      }
+    }
   } else {
     accountFormData.value = {
       accountName: '',
@@ -1095,6 +1208,15 @@ const openAccountDialog = async (account = null) => {
       notes: '',
       userId: users.value.length > 0 ? users.value[0].id : 1,
       linkedLiabilityAccountId: null
+    }
+
+    // 重置房产表单
+    propertyFormData.value = {
+      purchaseDate: '',
+      propertyValue: '',
+      downPayment: '',
+      mortgageAmount: '',
+      notes: ''
     }
   }
   showAccountDialog.value = true
@@ -1140,6 +1262,35 @@ const submitAccountForm = async () => {
     }
 
     if (response.success) {
+      const accountId = editingAccount.value ? editingAccount.value.id : response.data.id
+
+      // 如果是房产类资产，保存房产记录
+      if (selectedCategoryType.value === 'REAL_ESTATE' ||
+          (editingAccount.value && editingAccount.value.assetTypeCode === 'REAL_ESTATE')) {
+        try {
+          const propertyData = {
+            assetAccountId: accountId,
+            purchaseDate: propertyFormData.value.purchaseDate,
+            propertyValue: propertyFormData.value.propertyValue,
+            downPayment: propertyFormData.value.downPayment,
+            mortgageAmount: propertyFormData.value.mortgageAmount,
+            currency: accountFormData.value.currency,
+            notes: propertyFormData.value.notes
+          }
+
+          if (editingPropertyRecordId.value) {
+            // 更新现有房产记录
+            await propertyRecordAPI.update(editingPropertyRecordId.value, propertyData)
+          } else {
+            // 创建新房产记录
+            await propertyRecordAPI.create(propertyData)
+          }
+        } catch (propertyError) {
+          console.error('房产记录保存失败:', propertyError)
+          alert('账户保存成功，但房产记录保存失败，请稍后编辑账户补充房产信息')
+        }
+      }
+
       closeAccountDialog()
       await loadAccounts()
       alert(editingAccount.value ? '账户更新成功' : '账户创建成功')

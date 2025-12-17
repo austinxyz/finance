@@ -277,7 +277,7 @@ import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { familyAPI } from '@/api/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
-import { expenseAnalysisAPI } from '@/api/expense'
+import { expenseAnalysisAPI, expenseCategoryAPI } from '@/api/expense'
 
 Chart.register(...registerables, ChartDataLabels)
 
@@ -487,7 +487,12 @@ export default {
 
       loading.value = true
       try {
-        // 并行加载预算数据、当年支出数据和上一年支出数据
+        // 1. 先获取所有大类分类
+        const categoriesResponse = await expenseCategoryAPI.getAll()
+        const allMajorCategories = categoriesResponse.data || []
+
+        // 2. 并行加载预算数据、当年支出数据和上一年支出数据
+        let currentYearExpenseData = []
         await Promise.all([
           loadBudgetData(),
           expenseAnalysisAPI.getAnnualMajorCategories(
@@ -496,14 +501,13 @@ export default {
             selectedCurrency.value
           ).then(response => {
             if (response && response.success) {
-              majorCategoryData.value = response.data || []
-            } else {
-              majorCategoryData.value = []
+              currentYearExpenseData = response.data || []
             }
           })
         ])
 
-        // 加载上一年支出数据
+        // 3. 加载上一年支出数据
+        let lastYearExpenseData = []
         try {
           const lastYearResponse = await expenseAnalysisAPI.getAnnualMajorCategories(
             selectedFamilyId.value,
@@ -512,11 +516,11 @@ export default {
           )
 
           if (lastYearResponse && lastYearResponse.success) {
-            const lastYearData = lastYearResponse.data || []
+            lastYearExpenseData = lastYearResponse.data || []
             // 保存上一年大类数据（用于表格显示）
-            lastYearMajorCategoryData.value = lastYearData
+            lastYearMajorCategoryData.value = lastYearExpenseData
             // 计算上一年总支出
-            lastYearTotalExpense.value = lastYearData.reduce((sum, item) => sum + parseFloat(item.totalAmount || 0), 0)
+            lastYearTotalExpense.value = lastYearExpenseData.reduce((sum, item) => sum + parseFloat(item.totalAmount || 0), 0)
           } else {
             lastYearMajorCategoryData.value = []
             lastYearTotalExpense.value = 0
@@ -527,7 +531,26 @@ export default {
           lastYearTotalExpense.value = 0
         }
 
-        // 将预算数据合并到大类数据中
+        // 4. 创建当年支出数据的映射（按大类ID索引）
+        const currentYearExpenseMap = {}
+        currentYearExpenseData.forEach(item => {
+          currentYearExpenseMap[item.majorCategoryId] = item
+        })
+
+        // 5. 将所有大类和支出数据合并
+        majorCategoryData.value = allMajorCategories.map(major => {
+          const expenseItem = currentYearExpenseMap[major.id]
+          return {
+            majorCategoryId: major.id,
+            majorCategoryName: major.name,
+            majorCategoryIcon: major.icon,
+            majorCategoryCode: major.code,
+            totalAmount: expenseItem ? expenseItem.totalAmount : 0,
+            currency: expenseItem ? expenseItem.currency : selectedCurrency.value
+          }
+        })
+
+        // 6. 将预算数据合并到大类数据中
         mergeBudgetToMajorCategories()
 
         // 清空小类和月度数据
@@ -681,12 +704,15 @@ export default {
         '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
       ]
 
+      // 只在饼图中显示有支出的大类（排除零支出类别以获得更清晰的可视化）
+      const nonZeroCategories = majorCategoryData.value.filter(d => parseFloat(d.totalAmount) > 0)
+
       majorCategoryChart.value = new Chart(ctx, {
         type: 'pie',
         data: {
-          labels: majorCategoryData.value.map(d => d.majorCategoryName),
+          labels: nonZeroCategories.map(d => d.majorCategoryName),
           datasets: [{
-            data: majorCategoryData.value.map(d => d.totalAmount),
+            data: nonZeroCategories.map(d => d.totalAmount),
             backgroundColor: colors
           }]
         },
@@ -716,7 +742,7 @@ export default {
                 size: 11
               },
               formatter: (value, context) => {
-                const label = majorCategoryData.value[context.dataIndex].majorCategoryName
+                const label = nonZeroCategories[context.dataIndex].majorCategoryName
                 const percentage = ((value / totalExpense.value) * 100).toFixed(1)
                 // 只显示占比大于5%的标签
                 if (percentage >= 5) {

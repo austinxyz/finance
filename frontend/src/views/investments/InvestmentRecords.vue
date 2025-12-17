@@ -1,28 +1,8 @@
 <template>
   <div class="p-3 md:p-6 space-y-4 md:space-y-6">
-    <!-- 页面标题和家庭选择器 -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-gray-900">投资管理 - 分类与记录</h1>
-        <p class="text-xs md:text-sm text-gray-600 mt-1">管理投资账户，按大类查看投资趋势和交易记录</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 大类 Tab -->
-    <div class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-2 md:space-x-4 overflow-x-auto" aria-label="Tabs">
+    <!-- 家庭选择器和投资大类 Tab 在同一行 -->
+    <div class="flex items-center justify-between gap-4 border-b border-gray-200">
+      <nav class="-mb-px flex space-x-2 md:space-x-4 overflow-x-auto flex-1" aria-label="Tabs">
         <button
           v-for="category in investmentCategories"
           :key="category.categoryId"
@@ -34,10 +14,23 @@
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           ]"
         >
-          <span class="text-lg">{{ category.categoryIcon }}</span>
-          {{ category.categoryName }}
+          <span class="text-base">{{ category.categoryIcon }}</span>
+          <span>{{ category.categoryName }}</span>
         </button>
       </nav>
+
+      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
+        <select
+          v-model="selectedFamilyId"
+          @change="onFamilyChange"
+          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
+        >
+          <option v-for="family in families" :key="family.id" :value="family.id">
+            {{ family.familyName }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- 三列布局：账户列表 + 账户详情 -->
@@ -389,8 +382,22 @@ export default {
         const response = await familyAPI.getAll()
         if (response.success) {
           families.value = response.data
+
+          // 尝试获取默认家庭
           if (families.value.length > 0) {
-            selectedFamilyId.value = families.value[0].id
+            try {
+              const defaultResponse = await familyAPI.getDefault()
+              if (defaultResponse.success && defaultResponse.data) {
+                selectedFamilyId.value = defaultResponse.data.id
+              } else {
+                // 如果没有默认家庭，使用第一个
+                selectedFamilyId.value = families.value[0].id
+              }
+            } catch (err) {
+              console.error('获取默认家庭失败:', err)
+              // 如果获取默认家庭失败，使用第一个
+              selectedFamilyId.value = families.value[0].id
+            }
             await onFamilyChange()
           }
         }

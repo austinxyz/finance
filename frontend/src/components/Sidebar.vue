@@ -207,6 +207,14 @@
             <BarChart3 class="w-5 h-5" />
             <span>预算执行</span>
           </router-link>
+          <router-link
+            to="/analysis/expense-annual-trend"
+            class="nav-item"
+            :class="isActive('/analysis/expense-annual-trend')"
+          >
+            <TrendingUp class="w-5 h-5" />
+            <span>年度趋势</span>
+          </router-link>
 
           <!-- 投资分析 -->
           <div class="nav-section-title">投资分析</div>

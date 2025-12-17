@@ -171,4 +171,54 @@ public class ExpenseAnalysisController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * 获取多年度支出趋势分析
+     * GET /expenses/analysis/annual/trend?familyId=1&limit=5&currency=USD
+     */
+    @GetMapping("/annual/trend")
+    public ResponseEntity<Map<String, Object>> getAnnualExpenseTrend(
+            @RequestParam Long familyId,
+            @RequestParam(defaultValue = "5") Integer limit,
+            @RequestParam(defaultValue = "USD") String currency) {
+        try {
+            List<Map<String, Object>> result = expenseAnalysisService
+                    .getAnnualExpenseTrend(familyId, limit, currency);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "查询年度趋势失败: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取各大类的多年度基础支出趋势
+     * GET /expenses/analysis/annual/category-trend?familyId=1&limit=5&currency=USD
+     */
+    @GetMapping("/annual/category-trend")
+    public ResponseEntity<Map<String, Object>> getAnnualCategoryTrend(
+            @RequestParam Long familyId,
+            @RequestParam(defaultValue = "5") Integer limit,
+            @RequestParam(defaultValue = "USD") String currency) {
+        try {
+            List<Map<String, Object>> result = expenseAnalysisService
+                    .getAnnualCategoryTrend(familyId, limit, currency);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "查询大类年度趋势失败: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

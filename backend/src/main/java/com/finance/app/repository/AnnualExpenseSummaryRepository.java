@@ -88,4 +88,28 @@ public interface AnnualExpenseSummaryRepository extends JpaRepository<AnnualExpe
      * @param summaryYear 汇总年份
      */
     void deleteByFamilyIdAndSummaryYear(Long familyId, Integer summaryYear);
+
+    /**
+     * 查询家庭所有年度的总计记录(用于趋势分析)
+     * @param familyId 家庭ID
+     * @return 按年份降序排列的总计记录列表
+     */
+    @Query("SELECT s FROM AnnualExpenseSummary s " +
+           "WHERE s.familyId = :familyId " +
+           "AND s.majorCategoryId = 0 " +
+           "ORDER BY s.summaryYear DESC")
+    List<AnnualExpenseSummary> findByFamilyIdOrderByYearDesc(@Param("familyId") Long familyId);
+
+    /**
+     * 查询家庭所有大类的年度汇总记录(排除总计)
+     * @param familyId 家庭ID
+     * @param majorCategoryId 要排除的大类ID（通常是0，表示总计）
+     * @return 大类级别的年度汇总记录列表
+     */
+    @Query("SELECT s FROM AnnualExpenseSummary s " +
+           "WHERE s.familyId = :familyId " +
+           "AND s.majorCategoryId <> :majorCategoryId")
+    List<AnnualExpenseSummary> findByFamilyIdAndMajorCategoryIdNot(
+            @Param("familyId") Long familyId,
+            @Param("majorCategoryId") Long majorCategoryId);
 }
