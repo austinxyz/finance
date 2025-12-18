@@ -791,6 +791,7 @@ BEGIN
     DECLARE v_real_estate_assets DECIMAL(18, 2) DEFAULT 0;
     DECLARE v_real_estate_net_worth DECIMAL(18, 2) DEFAULT 0;
     DECLARE v_non_real_estate_net_worth DECIMAL(18, 2) DEFAULT 0;
+    DECLARE v_base_rate DECIMAL(18, 6) DEFAULT 1;
     -- 计算该年度的12月31日
     SET v_year_end_date = DATE(CONCAT(p_year, '-12-31'));
     -- 获取家庭的基准货币
@@ -802,224 +803,155 @@ BEGIN
     IF v_currency IS NULL THEN
         SET v_currency = 'USD';
     END IF;
-    -- 查找距离12月31日最近的记录日期
+    -- ========================================
+    -- Step 1: 找到当年最晚的记录日期
+    -- ========================================
     SELECT MAX(record_date) INTO v_summary_date
     FROM (
         SELECT ar.record_date
         FROM asset_records ar
         INNER JOIN users u ON ar.user_id = u.id
-        WHERE u.family_id = p_family_id AND YEAR(ar.record_date) = p_year
+        WHERE u.family_id = p_family_id
+            AND YEAR(ar.record_date) = p_year
         UNION
         SELECT lr.record_date
         FROM liability_records lr
         INNER JOIN users u ON lr.user_id = u.id
-        WHERE u.family_id = p_family_id AND YEAR(lr.record_date) = p_year
+        WHERE u.family_id = p_family_id
+            AND YEAR(lr.record_date) = p_year
     ) AS all_dates
     WHERE record_date <= v_year_end_date;
-    -- 如果没有找到记录日期，使用12月31日
+    -- 如果当年没有任何记录，使用12月31日
     IF v_summary_date IS NULL THEN
         SET v_summary_date = v_year_end_date;
     END IF;
-    -- 计算总资产和资产分类汇总（按TYPE分组，使用年度最后一天的汇率）
+    -- ========================================
+    -- Step 2: 创建汇率快照临时表
+    -- 获取截止到 v_summary_date 的所有货币最新汇率
+    -- ========================================
+    DROP TEMPORARY TABLE IF EXISTS temp_exchange_rates;
+    CREATE TEMPORARY TABLE temp_exchange_rates AS
     SELECT
-        COALESCE(SUM(category_total), 0) AS total,
+        currency,
+        rate_to_usd
+    FROM (
+        SELECT
+            currency,
+            rate_to_usd,
+            ROW_NUMBER() OVER (PARTITION BY currency ORDER BY effective_date DESC) as rn
+        FROM exchange_rates
+        WHERE effective_date <= v_summary_date
+            AND is_active = TRUE
+    ) ranked
+    WHERE rn = 1;
+    -- 获取基准货币的汇率
+    SELECT COALESCE(rate_to_usd, 1) INTO v_base_rate
+    FROM temp_exchange_rates
+    WHERE currency = v_currency
+    LIMIT 1;
+    -- ========================================
+    -- Step 3: 计算总资产和资产分类汇总
+    -- ========================================
+    SELECT
+        COALESCE(SUM(converted_amount), 0) AS total,
         COALESCE(
-            JSON_OBJECTAGG(category_type, category_total),
+            JSON_OBJECTAGG(asset_type, category_total),
             JSON_OBJECT()
         ) AS breakdown
     INTO v_total_assets, v_asset_breakdown
     FROM (
         SELECT
-            ac.type AS category_type,
+            ac.type AS asset_type,
             SUM(
-                -- 使用年度最后一天的汇率进行转换
-                CASE
-                    WHEN ar.currency = v_currency THEN ar.amount
-                    WHEN ar.currency = 'USD' AND v_currency != 'USD' THEN
-                        ar.amount / COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = v_currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                    WHEN ar.currency != 'USD' AND v_currency = 'USD' THEN
-                        ar.amount * COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = ar.currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                    ELSE
-                        -- 非USD货币之间的转换：先转到USD，再转到基准货币
-                        ar.amount * COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = ar.currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        ) / COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = v_currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                END
-            ) AS category_total
+                -- 汇率转换：原币金额 * 原币对USD汇率 / 基准货币对USD汇率
+                ar.amount * COALESCE(ter.rate_to_usd, 1) / v_base_rate
+            ) AS category_total,
+            SUM(
+                ar.amount * COALESCE(ter.rate_to_usd, 1) / v_base_rate
+            ) AS converted_amount
         FROM asset_records ar
         INNER JOIN users u ON ar.user_id = u.id
         INNER JOIN asset_accounts aa ON ar.account_id = aa.id
         INNER JOIN asset_type ac ON aa.asset_type_id = ac.id
+        LEFT JOIN temp_exchange_rates ter ON ar.currency = ter.currency
         WHERE u.family_id = p_family_id
+            AND aa.is_active = TRUE
+            -- 取每个账户在 v_summary_date 之前的最新记录
             AND ar.record_date = (
                 SELECT MAX(ar2.record_date)
                 FROM asset_records ar2
                 WHERE ar2.account_id = ar.account_id
                     AND ar2.record_date <= v_summary_date
             )
-            AND aa.is_active = TRUE
         GROUP BY ac.type
     ) AS asset_summary;
-    -- 计算房产资产总额（REAL_ESTATE类型，使用年度最后一天的汇率）
+    -- 计算房产资产总额
     SELECT
-        COALESCE(SUM(
-            CASE
-                WHEN ar.currency = v_currency THEN ar.amount
-                WHEN ar.currency = 'USD' AND v_currency != 'USD' THEN
-                    ar.amount / COALESCE(
-                        (SELECT rate_to_usd FROM exchange_rates
-                         WHERE currency = v_currency
-                         AND effective_date <= v_summary_date
-                         AND is_active = TRUE
-                         ORDER BY effective_date DESC LIMIT 1),
-                        1
-                    )
-                WHEN ar.currency != 'USD' AND v_currency = 'USD' THEN
-                    ar.amount * COALESCE(
-                        (SELECT rate_to_usd FROM exchange_rates
-                         WHERE currency = ar.currency
-                         AND effective_date <= v_summary_date
-                         AND is_active = TRUE
-                         ORDER BY effective_date DESC LIMIT 1),
-                        1
-                    )
-                ELSE
-                    ar.amount * COALESCE(
-                        (SELECT rate_to_usd FROM exchange_rates
-                         WHERE currency = ar.currency
-                         AND effective_date <= v_summary_date
-                         AND is_active = TRUE
-                         ORDER BY effective_date DESC LIMIT 1),
-                        1
-                    ) / COALESCE(
-                        (SELECT rate_to_usd FROM exchange_rates
-                         WHERE currency = v_currency
-                         AND effective_date <= v_summary_date
-                         AND is_active = TRUE
-                         ORDER BY effective_date DESC LIMIT 1),
-                        1
-                    )
-            END
-        ), 0) INTO v_real_estate_assets
+        COALESCE(SUM(ar.amount * COALESCE(ter.rate_to_usd, 1) / v_base_rate), 0)
+    INTO v_real_estate_assets
     FROM asset_records ar
     INNER JOIN users u ON ar.user_id = u.id
     INNER JOIN asset_accounts aa ON ar.account_id = aa.id
     INNER JOIN asset_type ac ON aa.asset_type_id = ac.id
+    LEFT JOIN temp_exchange_rates ter ON ar.currency = ter.currency
     WHERE u.family_id = p_family_id
         AND ac.type = 'REAL_ESTATE'
+        AND aa.is_active = TRUE
         AND ar.record_date = (
             SELECT MAX(ar2.record_date)
             FROM asset_records ar2
             WHERE ar2.account_id = ar.account_id
                 AND ar2.record_date <= v_summary_date
-        )
-        AND aa.is_active = TRUE;
-    -- 计算总负债和负债分类汇总（按TYPE分组，使用年度最后一天的汇率）
+        );
+    -- ========================================
+    -- Step 4: 计算总负债和负债分类汇总
+    -- ========================================
     SELECT
-        COALESCE(SUM(category_total), 0) AS total,
+        COALESCE(SUM(converted_balance), 0) AS total,
         COALESCE(
-            JSON_OBJECTAGG(category_type, category_total),
+            JSON_OBJECTAGG(liability_type, category_total),
             JSON_OBJECT()
         ) AS breakdown
     INTO v_total_liabilities, v_liability_breakdown
     FROM (
         SELECT
-            lc.type AS category_type,
+            lc.type AS liability_type,
             SUM(
-                CASE
-                    WHEN lr.currency = v_currency THEN lr.outstanding_balance
-                    WHEN lr.currency = 'USD' AND v_currency != 'USD' THEN
-                        lr.outstanding_balance / COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = v_currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                    WHEN lr.currency != 'USD' AND v_currency = 'USD' THEN
-                        lr.outstanding_balance * COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = lr.currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                    ELSE
-                        lr.outstanding_balance * COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = lr.currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        ) / COALESCE(
-                            (SELECT rate_to_usd FROM exchange_rates
-                             WHERE currency = v_currency
-                             AND effective_date <= v_summary_date
-                             AND is_active = TRUE
-                             ORDER BY effective_date DESC LIMIT 1),
-                            1
-                        )
-                END
-            ) AS category_total
+                -- 汇率转换
+                lr.outstanding_balance * COALESCE(ter.rate_to_usd, 1) / v_base_rate
+            ) AS category_total,
+            SUM(
+                lr.outstanding_balance * COALESCE(ter.rate_to_usd, 1) / v_base_rate
+            ) AS converted_balance
         FROM liability_records lr
         INNER JOIN users u ON lr.user_id = u.id
         INNER JOIN liability_accounts la ON lr.account_id = la.id
         INNER JOIN liability_type lc ON la.liability_type_id = lc.id
+        LEFT JOIN temp_exchange_rates ter ON lr.currency = ter.currency
         WHERE u.family_id = p_family_id
+            AND la.is_active = TRUE
+            -- 取每个账户在 v_summary_date 之前的最新记录
             AND lr.record_date = (
                 SELECT MAX(lr2.record_date)
                 FROM liability_records lr2
                 WHERE lr2.account_id = lr.account_id
                     AND lr2.record_date <= v_summary_date
             )
-            AND la.is_active = TRUE
         GROUP BY lc.type
     ) AS liability_summary;
-    -- 计算净资产
+    -- 清理临时表
+    DROP TEMPORARY TABLE IF EXISTS temp_exchange_rates;
+    -- ========================================
+    -- Step 5: 计算净资产
+    -- ========================================
     SET v_net_worth = v_total_assets - v_total_liabilities;
     -- 计算房产净资产和非房产净资产
-    -- 房产净资产 = 房产资产 - 房贷
     SET v_real_estate_net_worth = v_real_estate_assets - COALESCE(
         JSON_EXTRACT(v_liability_breakdown, '$.MORTGAGE'),
         0
     );
     SET v_non_real_estate_net_worth = v_net_worth - v_real_estate_net_worth;
-    -- 计算净资产分类明细（按net_asset_categories的逻辑）
-    -- 这里我们创建一个简单的净资产分类，包含：
-    -- 1. REAL_ESTATE_NET: 房地产净值 = REAL_ESTATE资产 - MORTGAGE负债
-    -- 2. RETIREMENT_FUND_NET: 退休基金净值 = RETIREMENT_FUND资产
-    -- 3. LIQUID_NET: 流动资产净值 = CASH资产 - CREDIT_CARD - OTHER负债
-    -- 4. INVESTMENT_NET: 投资净值 = STOCKS + PRECIOUS_METALS + CRYPTOCURRENCY - PERSONAL_LOAN - STUDENT_LOAN
-    -- 5. OTHER_NET: 其他净值 = 其他资产 - 其他负债（不包括上面已计算的）
+    -- 计算净资产分类明细
     SET v_net_asset_breakdown = JSON_OBJECT(
         'REAL_ESTATE_NET', v_real_estate_assets - COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.MORTGAGE'), 0),
         'RETIREMENT_FUND_NET', COALESCE(JSON_EXTRACT(v_asset_breakdown, '$.RETIREMENT_FUND'), 0),
@@ -1032,15 +964,17 @@ BEGIN
             COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.PERSONAL_LOAN'), 0) +
             COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.STUDENT_LOAN'), 0)
         ),
+        'INSURANCE_NET', COALESCE(JSON_EXTRACT(v_asset_breakdown, '$.INSURANCE'), 0),
         'OTHER_NET', (
-            COALESCE(JSON_EXTRACT(v_asset_breakdown, '$.INSURANCE'), 0) +
             COALESCE(JSON_EXTRACT(v_asset_breakdown, '$.OTHER'), 0)
         ) - (
             COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.AUTO_LOAN'), 0) +
             COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.OTHER'), 0)
         )
     );
-    -- 插入或更新年度摘要
+    -- ========================================
+    -- Step 6: 插入或更新年度摘要（确保只有一笔记录）
+    -- ========================================
     INSERT INTO annual_financial_summary (
         family_id, year, summary_date,
         total_assets, total_liabilities, net_worth,
@@ -1067,17 +1001,19 @@ BEGIN
         real_estate_net_worth = v_real_estate_net_worth,
         non_real_estate_net_worth = v_non_real_estate_net_worth,
         updated_at = CURRENT_TIMESTAMP;
-    -- 计算同比数据
+    -- ========================================
+    -- Step 7: 计算同比数据
+    -- ========================================
     UPDATE annual_financial_summary AS current
     LEFT JOIN annual_financial_summary AS previous
         ON current.family_id = previous.family_id
         AND previous.year = current.year - 1
     SET
-        -- 同比绝对值：如果没有上一年数据，则为NULL（基准年）
+        -- 同比绝对值
         current.yoy_asset_change = IF(previous.id IS NOT NULL, current.total_assets - previous.total_assets, NULL),
         current.yoy_liability_change = IF(previous.id IS NOT NULL, current.total_liabilities - previous.total_liabilities, NULL),
         current.yoy_net_worth_change = IF(previous.id IS NOT NULL, current.net_worth - previous.net_worth, NULL),
-        -- 同比百分比：如果没有上一年数据或上一年为0，则为NULL；限制范围在-999.99到999.99之间
+        -- 同比百分比（限制在 -999.99 到 999.99 之间）
         current.yoy_asset_change_pct = IF(previous.id IS NOT NULL AND previous.total_assets > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.total_assets - previous.total_assets) / previous.total_assets) * 100)),
             NULL),
@@ -1088,12 +1024,14 @@ BEGIN
             LEAST(999.99, GREATEST(-999.99, ((current.net_worth - previous.net_worth) / previous.net_worth) * 100)),
             NULL),
         -- 房产净值同比
-        current.yoy_real_estate_net_worth_change = IF(previous.id IS NOT NULL, current.real_estate_net_worth - previous.real_estate_net_worth, NULL),
+        current.yoy_real_estate_net_worth_change = IF(previous.id IS NOT NULL,
+            current.real_estate_net_worth - previous.real_estate_net_worth, NULL),
         current.yoy_real_estate_net_worth_change_pct = IF(previous.id IS NOT NULL AND previous.real_estate_net_worth > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.real_estate_net_worth - previous.real_estate_net_worth) / previous.real_estate_net_worth) * 100)),
             NULL),
         -- 非房产净值同比
-        current.yoy_non_real_estate_net_worth_change = IF(previous.id IS NOT NULL, current.non_real_estate_net_worth - previous.non_real_estate_net_worth, NULL),
+        current.yoy_non_real_estate_net_worth_change = IF(previous.id IS NOT NULL,
+            current.non_real_estate_net_worth - previous.non_real_estate_net_worth, NULL),
         current.yoy_non_real_estate_net_worth_change_pct = IF(previous.id IS NOT NULL AND previous.non_real_estate_net_worth > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.non_real_estate_net_worth - previous.non_real_estate_net_worth) / previous.non_real_estate_net_worth) * 100)),
             NULL),
