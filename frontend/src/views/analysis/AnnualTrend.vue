@@ -764,6 +764,8 @@ const renderCharts = () => {
   const assets = sortedData.map(s => convertAmount(s.totalAssets, s.year))
   const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities, s.year))
   const netWorths = sortedData.map(s => convertAmount(s.netWorth, s.year))
+  const realEstateAssets = sortedData.map(s => convertAmount(s.realEstateAssets || 0, s.year))
+  const nonRealEstateAssets = sortedData.map(s => convertAmount(s.totalAssets, s.year) - convertAmount(s.realEstateAssets || 0, s.year))
   // 使用基于显示货币重新计算的同比百分比
   const assetGrowths = sortedData.map(s => s.displayYoyAssetChangePct || 0)
   const liabilityGrowths = sortedData.map(s => s.displayYoyLiabilityChangePct || 0)
@@ -786,6 +788,24 @@ const renderCharts = () => {
             backgroundColor: 'rgba(34, 197, 94, 0.1)',
             fill: true,
             tension: 0.4
+          },
+          {
+            label: '房产总值',
+            data: realEstateAssets,
+            borderColor: 'rgb(168, 85, 247)',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderDash: [5, 5]
+          },
+          {
+            label: '非房产资产',
+            data: nonRealEstateAssets,
+            borderColor: 'rgb(234, 179, 8)',
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderDash: [5, 5]
           },
           {
             label: '总负债',
