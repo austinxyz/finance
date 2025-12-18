@@ -175,7 +175,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.displayYoyAssetChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.displayYoyAssetChange)" class="font-medium">
-                          {{ formatChange(summary.displayYoyAssetChange, null) }}
+                          {{ formatConvertedChange(summary.displayYoyAssetChange) }}
                         </div>
                         <div :class="getChangeColor(summary.displayYoyAssetChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.displayYoyAssetChangePct) }})
@@ -189,7 +189,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.displayYoyLiabilityChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.displayYoyLiabilityChange, true)" class="font-medium">
-                          {{ formatChange(summary.displayYoyLiabilityChange, null) }}
+                          {{ formatConvertedChange(summary.displayYoyLiabilityChange) }}
                         </div>
                         <div :class="getChangeColor(summary.displayYoyLiabilityChangePct, true)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.displayYoyLiabilityChangePct) }})
@@ -203,7 +203,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.displayYoyNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.displayYoyNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.displayYoyNetWorthChange, null) }}
+                          {{ formatConvertedChange(summary.displayYoyNetWorthChange) }}
                         </div>
                         <div :class="getChangeColor(summary.displayYoyNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.displayYoyNetWorthChangePct) }})
@@ -214,7 +214,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.displayYoyRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.displayYoyRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.displayYoyRealEstateNetWorthChange, null) }}
+                          {{ formatConvertedChange(summary.displayYoyRealEstateNetWorthChange) }}
                         </div>
                         <div :class="getChangeColor(summary.displayYoyRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.displayYoyRealEstateNetWorthChangePct) }})
@@ -225,7 +225,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.displayYoyNonRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.displayYoyNonRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.displayYoyNonRealEstateNetWorthChange, null) }}
+                          {{ formatConvertedChange(summary.displayYoyNonRealEstateNetWorthChange) }}
                         </div>
                         <div :class="getChangeColor(summary.displayYoyNonRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.displayYoyNonRealEstateNetWorthChangePct) }})
@@ -326,7 +326,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNetWorthChange)" class="font-bold">
-                        {{ formatChange(cumulativeNetWorthChange, null) }}
+                        {{ formatConvertedChange(cumulativeNetWorthChange) }}
                       </div>
                       <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageAnnualGrowthRate) }})
@@ -336,7 +336,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeRealEstateChange, null) }}
+                        {{ formatConvertedChange(cumulativeRealEstateChange) }}
                       </div>
                       <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageRealEstateGrowthRate) }})
@@ -346,7 +346,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNonRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeNonRealEstateChange, null) }}
+                        {{ formatConvertedChange(cumulativeNonRealEstateChange) }}
                       </div>
                       <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageNonRealEstateGrowthRate) }})
@@ -1307,6 +1307,23 @@ const formatChange = (amount, year = null) => {
   const prefix = amount > 0 ? '+' : ''
   const symbol = getCurrencySymbol(selectedCurrency.value)
   return prefix + symbol + formatAmount(Math.abs(amount), year)
+}
+
+// 格式化已转换的金额（不再进行汇率转换）
+const formatConvertedAmount = (amount) => {
+  if (!amount && amount !== 0) return '0.00'
+  return Number(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+// 格式化已转换的变化金额（不再进行汇率转换）
+const formatConvertedChange = (amount) => {
+  if (!amount && amount !== 0) return '-'
+  const prefix = amount > 0 ? '+' : ''
+  const symbol = getCurrencySymbol(selectedCurrency.value)
+  return prefix + symbol + formatConvertedAmount(Math.abs(amount))
 }
 
 // 格式化百分比
