@@ -23,6 +23,15 @@ export const exchangeRateAPI = {
   },
 
   /**
+   * 获取特定日期的货币汇率（便捷方法）
+   * @param {String} currency - 货币代码 (如 CNY, EUR, GBP)
+   * @param {String} date - 日期 (格式: YYYY-MM-DD)
+   */
+  getRateByDate(currency, date) {
+    return this.getRate(currency, date)
+  },
+
+  /**
    * 获取所有汇率（包括停用的）
    */
   getAll() {

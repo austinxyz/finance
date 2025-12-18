@@ -170,12 +170,12 @@
                       </div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets) }}</div>
+                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.yoyAssetChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyAssetChange)" class="font-medium">
-                          {{ formatChange(summary.yoyAssetChange) }}
+                          {{ formatChange(summary.yoyAssetChange, summary.year) }}
                         </div>
                         <div :class="getChangeColor(summary.yoyAssetChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyAssetChangePct) }})
@@ -184,12 +184,12 @@
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities) }}</div>
+                      <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.yoyLiabilityChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyLiabilityChange, true)" class="font-medium">
-                          {{ formatChange(summary.yoyLiabilityChange) }}
+                          {{ formatChange(summary.yoyLiabilityChange, summary.year) }}
                         </div>
                         <div :class="getChangeColor(summary.yoyLiabilityChangePct, true)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyLiabilityChangePct) }})
@@ -198,12 +198,12 @@
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div class="text-[10px] md:text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth) }}</div>
+                      <div class="text-[10px] md:text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.yoyNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyNetWorthChange) }}
+                          {{ formatChange(summary.yoyNetWorthChange, summary.year) }}
                         </div>
                         <div :class="getChangeColor(summary.yoyNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyNetWorthChangePct) }})
@@ -214,7 +214,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.yoyRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyRealEstateNetWorthChange) }}
+                          {{ formatChange(summary.yoyRealEstateNetWorthChange, summary.year) }}
                         </div>
                         <div :class="getChangeColor(summary.yoyRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyRealEstateNetWorthChangePct) }})
@@ -225,7 +225,7 @@
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
                       <div v-if="summary.yoyNonRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
                         <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyNonRealEstateNetWorthChange) }}
+                          {{ formatChange(summary.yoyNonRealEstateNetWorthChange, summary.year) }}
                         </div>
                         <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
                           ({{ formatPercent(summary.yoyNonRealEstateNetWorthChangePct) }})
@@ -256,7 +256,7 @@
                             <div v-for="(value, category) in summary.assetBreakdown" :key="category"
                                  class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
-                              <span class="font-medium text-green-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
+                              <span class="font-medium text-green-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value, summary.year) }}</span>
                             </div>
                           </div>
                         </div>
@@ -272,7 +272,7 @@
                             <div v-for="(value, category) in summary.liabilityBreakdown" :key="category"
                                  class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
-                              <span class="font-medium text-red-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}</span>
+                              <span class="font-medium text-red-700">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value, summary.year) }}</span>
                             </div>
                           </div>
                         </div>
@@ -289,7 +289,7 @@
                                  class="flex justify-between items-center text-xs md:text-sm">
                               <span class="text-gray-600">{{ getCategoryDisplayName(category) }}</span>
                               <span class="font-medium" :class="value >= 0 ? 'text-blue-700' : 'text-red-700'">
-                                {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value) }}
+                                {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(value, summary.year) }}
                               </span>
                             </div>
                           </div>
@@ -326,7 +326,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNetWorthChange)" class="font-bold">
-                        {{ formatChange(cumulativeNetWorthChange) }}
+                        {{ formatChange(cumulativeNetWorthChange, summaries.length > 0 ? summaries[0].year : null) }}
                       </div>
                       <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageAnnualGrowthRate) }})
@@ -336,7 +336,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeRealEstateChange) }}
+                        {{ formatChange(cumulativeRealEstateChange, summaries.length > 0 ? summaries[0].year : null) }}
                       </div>
                       <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageRealEstateGrowthRate) }})
@@ -346,7 +346,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNonRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeNonRealEstateChange) }}
+                        {{ formatChange(cumulativeNonRealEstateChange, summaries.length > 0 ? summaries[0].year : null) }}
                       </div>
                       <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageNonRealEstateGrowthRate) }})
@@ -421,6 +421,7 @@ const expandedYears = ref(new Set())
 const selectedCurrency = ref('USD')
 const baseCurrency = ref('USD')
 const exchangeRate = ref(1)
+const exchangeRatesByYear = ref({}) // 每一年的汇率映射
 
 // Tabs 配置
 const tabs = [
@@ -579,8 +580,8 @@ const fetchData = async () => {
       }
     }
 
-    // 获取汇率
-    await fetchExchangeRate()
+    // 获取所有年度的汇率
+    await fetchExchangeRatesForAllYears()
 
     await nextTick()
     renderCharts()
@@ -591,42 +592,71 @@ const fetchData = async () => {
   }
 }
 
-// 获取汇率
-const fetchExchangeRate = async () => {
+// 获取特定日期的汇率
+const fetchExchangeRateForDate = async (date) => {
+  if (selectedCurrency.value === baseCurrency.value) {
+    return 1
+  }
+
+  try {
+    const response = await exchangeRateAPI.getRateByDate(selectedCurrency.value, date)
+    if (response.success && response.data) {
+      // 数据库存储的是该货币对USD的汇率
+      if (baseCurrency.value === 'USD') {
+        return 1 / response.data.rateToUsd
+      } else {
+        // 如果基础货币不是USD，需要先获取基础货币的汇率
+        const baseRateResponse = await exchangeRateAPI.getRateByDate(baseCurrency.value, date)
+        if (baseRateResponse.success && baseRateResponse.data) {
+          // 计算相对汇率: baseCurrency -> USD -> selectedCurrency
+          return baseRateResponse.data.rateToUsd / response.data.rateToUsd
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`获取${date}的汇率失败:`, error)
+  }
+  return 1
+}
+
+// 为所有年度获取汇率
+const fetchExchangeRatesForAllYears = async () => {
   if (selectedCurrency.value === baseCurrency.value) {
     exchangeRate.value = 1
+    // 为所有年份设置汇率为1
+    summaries.value.forEach(summary => {
+      exchangeRatesByYear.value[summary.year] = 1
+    })
     return
   }
 
   try {
-    const response = await exchangeRateAPI.getRate(selectedCurrency.value)
-    if (response.success && response.data) {
-      // 数据库存储的是该货币对USD的汇率
-      // 如果基础货币是USD，直接使用
-      if (baseCurrency.value === 'USD') {
-        exchangeRate.value = 1 / response.data.rateToUsd
-      } else {
-        // 如果基础货币不是USD，需要先获取基础货币的汇率
-        const baseRateResponse = await exchangeRateAPI.getRate(baseCurrency.value)
-        if (baseRateResponse.success && baseRateResponse.data) {
-          // 计算相对汇率: baseCurrency -> USD -> selectedCurrency
-          exchangeRate.value = baseRateResponse.data.rateToUsd / response.data.rateToUsd
-        } else {
-          exchangeRate.value = 1
-        }
-      }
-    } else {
-      exchangeRate.value = 1
+    // 为每一年获取该年最晚日期的汇率
+    const ratePromises = summaries.value.map(async (summary) => {
+      const rate = await fetchExchangeRateForDate(summary.summaryDate)
+      return { year: summary.year, rate }
+    })
+
+    const rates = await Promise.all(ratePromises)
+
+    // 构建年份到汇率的映射
+    rates.forEach(({ year, rate }) => {
+      exchangeRatesByYear.value[year] = rate
+    })
+
+    // 设置默认汇率为最新年份的汇率（用于当前日期）
+    if (summaries.value.length > 0) {
+      exchangeRate.value = exchangeRatesByYear.value[summaries.value[0].year] || 1
     }
   } catch (error) {
-    console.error('获取汇率失败:', error)
+    console.error('获取年度汇率失败:', error)
     exchangeRate.value = 1
   }
 }
 
 // 货币切换处理
 const onCurrencyChange = async () => {
-  await fetchExchangeRate()
+  await fetchExchangeRatesForAllYears()
   await nextTick()
   renderCharts()
 }
@@ -661,9 +691,10 @@ const renderCharts = () => {
 
   const sortedData = [...summaries.value].reverse() // 从旧到新排序
   const years = sortedData.map(s => s.year)
-  const assets = sortedData.map(s => convertAmount(s.totalAssets))
-  const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities))
-  const netWorths = sortedData.map(s => convertAmount(s.netWorth))
+  // 使用每年各自的汇率进行转换
+  const assets = sortedData.map(s => convertAmount(s.totalAssets, s.year))
+  const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities, s.year))
+  const netWorths = sortedData.map(s => convertAmount(s.netWorth, s.year))
   const assetGrowths = sortedData.map(s => s.yoyAssetChangePct || 0)
   const liabilityGrowths = sortedData.map(s => s.yoyLiabilityChangePct || 0)
   const netWorthGrowths = sortedData.map(s => s.yoyNetWorthChangePct || 0)
@@ -1171,16 +1202,18 @@ const getCurrencySymbol = (currency) => {
   return symbols[currency] || currency
 }
 
-// 应用汇率转换
-const convertAmount = (amount) => {
+// 应用汇率转换（支持指定年份的汇率）
+const convertAmount = (amount, year = null) => {
   if (!amount && amount !== 0) return 0
-  return Number(amount) * exchangeRate.value
+  // 如果指定了年份，使用该年份的汇率；否则使用默认汇率
+  const rate = year !== null ? (exchangeRatesByYear.value[year] || 1) : exchangeRate.value
+  return Number(amount) * rate
 }
 
-// 格式化金额
-const formatAmount = (amount) => {
+// 格式化金额（支持指定年份的汇率）
+const formatAmount = (amount, year = null) => {
   if (!amount && amount !== 0) return '0.00'
-  const converted = convertAmount(amount)
+  const converted = convertAmount(amount, year)
   return Number(converted).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -1198,12 +1231,12 @@ const formatAmountShort = (amount) => {
   return converted.toFixed(0)
 }
 
-// 格式化变化金额
-const formatChange = (amount) => {
+// 格式化变化金额（支持指定年份的汇率）
+const formatChange = (amount, year = null) => {
   if (!amount && amount !== 0) return '-'
   const prefix = amount > 0 ? '+' : ''
   const symbol = getCurrencySymbol(selectedCurrency.value)
-  return prefix + symbol + formatAmount(Math.abs(amount))
+  return prefix + symbol + formatAmount(Math.abs(amount), year)
 }
 
 // 格式化百分比
