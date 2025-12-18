@@ -221,4 +221,29 @@ public class ExpenseAnalysisController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * 获取年度汇总表（返回USD基准货币数据，前端根据选中货币换算）
+     * GET /expenses/analysis/annual/summary-table?familyId=1&limit=5
+     */
+    @GetMapping("/annual/summary-table")
+    public ResponseEntity<Map<String, Object>> getAnnualSummaryTable(
+            @RequestParam Long familyId,
+            @RequestParam(defaultValue = "5") Integer limit) {
+        try {
+            // 始终返回USD基准货币数据
+            Map<String, Object> result = expenseAnalysisService
+                    .getAnnualSummaryTable(familyId, limit);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", result);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "查询年度汇总表失败: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

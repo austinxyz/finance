@@ -475,6 +475,7 @@ public class ExpenseAnalysisService {
             dto.setMinorCategoryName(null);
 
             dto.setBaseExpenseAmount(summary.getBaseExpenseAmount());
+            dto.setSpecialExpense(summary.getSpecialExpenseAmount());
             dto.setAssetAdjustment(summary.getAssetAdjustment());
             dto.setLiabilityAdjustment(summary.getLiabilityAdjustment());
             dto.setActualExpenseAmount(summary.getActualExpenseAmount());
@@ -497,6 +498,7 @@ public class ExpenseAnalysisService {
                 totalDTO.setMajorCategoryIcon(null);
                 totalDTO.setMajorCategoryCode("TOTAL");
                 totalDTO.setBaseExpenseAmount(totalSummary.getBaseExpenseAmount());
+                totalDTO.setSpecialExpense(totalSummary.getSpecialExpenseAmount());
                 totalDTO.setAssetAdjustment(totalSummary.getAssetAdjustment());
                 totalDTO.setLiabilityAdjustment(totalSummary.getLiabilityAdjustment());
                 totalDTO.setActualExpenseAmount(totalSummary.getActualExpenseAmount());
@@ -516,8 +518,8 @@ public class ExpenseAnalysisService {
     @Transactional
     public void calculateAnnualExpenseSummary(Long familyId, Integer year) {
         try {
-            // 调用存储过程 calculate_annual_expense_summary_v2
-            entityManager.createNativeQuery("CALL calculate_annual_expense_summary_v2(:familyId, :year)")
+            // 调用存储过程 calculate_annual_expense_summary_v3
+            entityManager.createNativeQuery("CALL calculate_annual_expense_summary_v3(:familyId, :year)")
                     .setParameter("familyId", familyId)
                     .setParameter("year", year)
                     .executeUpdate();
@@ -570,17 +572,31 @@ public class ExpenseAnalysisService {
 
             // 转换货币
             BigDecimal baseExpense = summary.getBaseExpenseAmount();
+            BigDecimal specialExpense = summary.getSpecialExpenseAmount();
+            BigDecimal assetAdjustment = summary.getAssetAdjustment();
+            BigDecimal liabilityAdjustment = summary.getLiabilityAdjustment();
             BigDecimal actualExpense = summary.getActualExpenseAmount();
 
             if (!currency.equals(summary.getCurrency())) {
                 Map<String, BigDecimal> rates = exchangeRatesByYear.get(summary.getSummaryYear());
                 baseExpense = convertCurrency(baseExpense, summary.getCurrency(), currency, rates);
+                specialExpense = convertCurrency(specialExpense, summary.getCurrency(), currency, rates);
+                assetAdjustment = convertCurrency(assetAdjustment, summary.getCurrency(), currency, rates);
+                liabilityAdjustment = convertCurrency(liabilityAdjustment, summary.getCurrency(), currency, rates);
                 actualExpense = convertCurrency(actualExpense, summary.getCurrency(), currency, rates);
             }
+
+            // 计算总调整值（资产调整 + 负债调整）
+            BigDecimal totalAdjustment = (assetAdjustment != null ? assetAdjustment : BigDecimal.ZERO)
+                    .add(liabilityAdjustment != null ? liabilityAdjustment : BigDecimal.ZERO);
 
             // 基本信息
             yearData.put("year", summary.getSummaryYear());
             yearData.put("baseExpense", baseExpense);
+            yearData.put("specialExpense", specialExpense != null ? specialExpense : BigDecimal.ZERO);
+            yearData.put("assetAdjustment", assetAdjustment != null ? assetAdjustment : BigDecimal.ZERO);
+            yearData.put("liabilityAdjustment", liabilityAdjustment != null ? liabilityAdjustment : BigDecimal.ZERO);
+            yearData.put("totalAdjustment", totalAdjustment);
             yearData.put("actualExpense", actualExpense);
             yearData.put("currency", currency);
 
@@ -728,6 +744,213 @@ public class ExpenseAnalysisService {
             Long idB = (Long) b.get("majorCategoryId");
             return idA.compareTo(idB);
         });
+
+        return result;
+    }
+
+    /**
+     * 获取年度汇总表（返回USD基准货币数据）
+     * 横坐标：年份
+     * 纵坐标：大类支出项 + 总计
+     * 数据格式：实际支出（基础支出），同比为实际百分比（基础百分比）
+     */
+    public Map<String, Object> getAnnualSummaryTable(Long familyId, Integer limit) {
+        // 始终返回USD基准货币数据
+        String currency = "USD";
+        // 1. 获取所有大类
+        List<ExpenseCategoryMajor> majorCategories = majorCategoryRepository.findAll();
+
+        // 2. 获取年度汇总数据，只获取指定货币的数据
+        List<AnnualExpenseSummary> allSummaries = annualExpenseSummaryRepository
+                .findByFamilyIdAndCurrency(familyId, currency);
+
+        if (allSummaries.isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("years", new ArrayList<>());
+            result.put("categories", new ArrayList<>());
+            result.put("rows", new ArrayList<>());
+            return result;
+        }
+
+        // 3. 获取年份列表（最近N年，降序）
+        List<Integer> years = allSummaries.stream()
+                .map(AnnualExpenseSummary::getSummaryYear)
+                .distinct()
+                .sorted((a, b) -> b - a) // 降序
+                .limit(limit != null && limit > 0 ? limit : 999)
+                .collect(Collectors.toList());
+
+        // 4. 构建大类列表（按display_order排序）
+        List<Map<String, Object>> categories = majorCategories.stream()
+                .sorted(Comparator.comparing(ExpenseCategoryMajor::getSortOrder))
+                .map(cat -> {
+                    Map<String, Object> categoryMap = new HashMap<>();
+                    categoryMap.put("id", cat.getId());
+                    categoryMap.put("name", cat.getName());
+                    categoryMap.put("icon", cat.getIcon());
+                    categoryMap.put("code", cat.getCode());
+                    categoryMap.put("color", cat.getColor());
+                    return categoryMap;
+                })
+                .collect(Collectors.toList());
+
+        // 5. 构建数据行（每年一行）
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        for (int i = 0; i < years.size(); i++) {
+            Integer currentYear = years.get(i);
+            Integer previousYear = i < years.size() - 1 ? years.get(i + 1) : null;
+
+            Map<String, Object> row = new HashMap<>();
+            row.put("year", currentYear);
+
+            // 该年总计数据
+            AnnualExpenseSummary totalSummary = allSummaries.stream()
+                    .filter(s -> s.getSummaryYear().equals(currentYear) && s.getMajorCategoryId() == 0)
+                    .findFirst()
+                    .orElse(null);
+
+            // 上一年总计数据（用于计算同比）
+            AnnualExpenseSummary previousTotalSummary = null;
+            if (previousYear != null) {
+                previousTotalSummary = allSummaries.stream()
+                        .filter(s -> s.getSummaryYear().equals(previousYear) && s.getMajorCategoryId() == 0)
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            // 构建各大类数据
+            Map<String, Map<String, Object>> categoryDataMap = new HashMap<>();
+            for (ExpenseCategoryMajor category : majorCategories) {
+                AnnualExpenseSummary currentCategorySummary = allSummaries.stream()
+                        .filter(s -> s.getSummaryYear().equals(currentYear) &&
+                                    s.getMajorCategoryId().equals(category.getId()))
+                        .findFirst()
+                        .orElse(null);
+
+                AnnualExpenseSummary previousCategorySummary = null;
+                if (previousYear != null) {
+                    previousCategorySummary = allSummaries.stream()
+                            .filter(s -> s.getSummaryYear().equals(previousYear) &&
+                                        s.getMajorCategoryId().equals(category.getId()))
+                            .findFirst()
+                            .orElse(null);
+                }
+
+                Map<String, Object> categoryData = new HashMap<>();
+
+                if (currentCategorySummary != null) {
+                    categoryData.put("actualExpense", currentCategorySummary.getActualExpenseAmount());
+                    categoryData.put("baseExpense", currentCategorySummary.getBaseExpenseAmount());
+                    categoryData.put("specialExpense", currentCategorySummary.getSpecialExpenseAmount());
+                    categoryData.put("specialExpenseDetails", currentCategorySummary.getSpecialExpenseDetails());
+                    categoryData.put("assetAdjustment", currentCategorySummary.getAssetAdjustment());
+                    categoryData.put("liabilityAdjustment", currentCategorySummary.getLiabilityAdjustment());
+
+                    // 计算同比
+                    if (previousCategorySummary != null &&
+                        previousCategorySummary.getActualExpenseAmount() != null &&
+                        previousCategorySummary.getActualExpenseAmount().compareTo(BigDecimal.ZERO) != 0) {
+
+                        BigDecimal actualChange = currentCategorySummary.getActualExpenseAmount()
+                                .subtract(previousCategorySummary.getActualExpenseAmount());
+                        BigDecimal actualChangePct = actualChange
+                                .divide(previousCategorySummary.getActualExpenseAmount(), 4, BigDecimal.ROUND_HALF_UP)
+                                .multiply(new BigDecimal("100"));
+
+                        categoryData.put("actualChangePct", actualChangePct);
+
+                        // 基础支出同比：检查除数是否为零
+                        if (previousCategorySummary.getBaseExpenseAmount() != null &&
+                            previousCategorySummary.getBaseExpenseAmount().compareTo(BigDecimal.ZERO) != 0) {
+                            BigDecimal baseChange = currentCategorySummary.getBaseExpenseAmount()
+                                    .subtract(previousCategorySummary.getBaseExpenseAmount());
+                            BigDecimal baseChangePct = baseChange
+                                    .divide(previousCategorySummary.getBaseExpenseAmount(), 4, BigDecimal.ROUND_HALF_UP)
+                                    .multiply(new BigDecimal("100"));
+                            categoryData.put("baseChangePct", baseChangePct);
+                        } else {
+                            categoryData.put("baseChangePct", null);
+                        }
+                    } else {
+                        categoryData.put("actualChangePct", null);
+                        categoryData.put("baseChangePct", null);
+                    }
+                } else {
+                    categoryData.put("actualExpense", BigDecimal.ZERO);
+                    categoryData.put("baseExpense", BigDecimal.ZERO);
+                    categoryData.put("specialExpense", BigDecimal.ZERO);
+                    categoryData.put("specialExpenseDetails", null);
+                    categoryData.put("assetAdjustment", BigDecimal.ZERO);
+                    categoryData.put("liabilityAdjustment", BigDecimal.ZERO);
+                    categoryData.put("actualChangePct", null);
+                    categoryData.put("baseChangePct", null);
+                }
+
+                categoryDataMap.put(category.getCode(), categoryData);
+            }
+
+            row.put("categoryData", categoryDataMap);
+
+            // 总计数据
+            Map<String, Object> totalData = new HashMap<>();
+            if (totalSummary != null) {
+                totalData.put("actualExpense", totalSummary.getActualExpenseAmount());
+                totalData.put("baseExpense", totalSummary.getBaseExpenseAmount());
+                totalData.put("specialExpense", totalSummary.getSpecialExpenseAmount());
+                totalData.put("assetAdjustment", totalSummary.getAssetAdjustment());
+                totalData.put("liabilityAdjustment", totalSummary.getLiabilityAdjustment());
+                totalData.put("adjustmentDetails", totalSummary.getAdjustmentDetails());
+
+                if (previousTotalSummary != null &&
+                    previousTotalSummary.getActualExpenseAmount() != null &&
+                    previousTotalSummary.getActualExpenseAmount().compareTo(BigDecimal.ZERO) != 0) {
+
+                    BigDecimal actualChange = totalSummary.getActualExpenseAmount()
+                            .subtract(previousTotalSummary.getActualExpenseAmount());
+                    BigDecimal actualChangePct = actualChange
+                            .divide(previousTotalSummary.getActualExpenseAmount(), 4, BigDecimal.ROUND_HALF_UP)
+                            .multiply(new BigDecimal("100"));
+
+                    totalData.put("actualChangePct", actualChangePct);
+
+                    // 基础支出同比：检查除数是否为零
+                    if (previousTotalSummary.getBaseExpenseAmount() != null &&
+                        previousTotalSummary.getBaseExpenseAmount().compareTo(BigDecimal.ZERO) != 0) {
+                        BigDecimal baseChange = totalSummary.getBaseExpenseAmount()
+                                .subtract(previousTotalSummary.getBaseExpenseAmount());
+                        BigDecimal baseChangePct = baseChange
+                                .divide(previousTotalSummary.getBaseExpenseAmount(), 4, BigDecimal.ROUND_HALF_UP)
+                                .multiply(new BigDecimal("100"));
+                        totalData.put("baseChangePct", baseChangePct);
+                    } else {
+                        totalData.put("baseChangePct", null);
+                    }
+                } else {
+                    totalData.put("actualChangePct", null);
+                    totalData.put("baseChangePct", null);
+                }
+            } else {
+                totalData.put("actualExpense", BigDecimal.ZERO);
+                totalData.put("baseExpense", BigDecimal.ZERO);
+                totalData.put("specialExpense", BigDecimal.ZERO);
+                totalData.put("assetAdjustment", BigDecimal.ZERO);
+                totalData.put("liabilityAdjustment", BigDecimal.ZERO);
+                totalData.put("adjustmentDetails", null);
+                totalData.put("actualChangePct", null);
+                totalData.put("baseChangePct", null);
+            }
+
+            row.put("total", totalData);
+            rows.add(row);
+        }
+
+        // 6. 组装结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("years", years);
+        result.put("categories", categories);
+        result.put("rows", rows);
+        result.put("currency", currency);
 
         return result;
     }

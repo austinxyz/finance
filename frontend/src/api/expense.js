@@ -116,5 +116,12 @@ export const expenseAnalysisAPI = {
     return request.get('/expenses/analysis/annual/category-trend', {
       params: { familyId, limit, currency }
     })
+  },
+
+  // 获取年度汇总表（返回USD基准货币数据）
+  getAnnualSummaryTable(familyId, limit = 5) {
+    return request.get('/expenses/analysis/annual/summary-table', {
+      params: { familyId, limit }
+    })
   }
 }

@@ -112,4 +112,12 @@ public interface AnnualExpenseSummaryRepository extends JpaRepository<AnnualExpe
     List<AnnualExpenseSummary> findByFamilyIdAndMajorCategoryIdNot(
             @Param("familyId") Long familyId,
             @Param("majorCategoryId") Long majorCategoryId);
+
+    /**
+     * 查询家庭指定货币的所有年度汇总记录
+     * @param familyId 家庭ID
+     * @param currency 货币
+     * @return 年度汇总记录列表
+     */
+    List<AnnualExpenseSummary> findByFamilyIdAndCurrency(Long familyId, String currency);
 }

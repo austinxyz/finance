@@ -73,6 +73,19 @@ public class AnnualExpenseSummary {
     private BigDecimal baseExpenseAmount = BigDecimal.ZERO;
 
     /**
+     * 特殊支出金额（单笔>=10000 USD）
+     */
+    @Column(name = "special_expense_amount", precision = 18, scale = 2)
+    private BigDecimal specialExpenseAmount = BigDecimal.ZERO;
+
+    /**
+     * 特殊支出详情 (JSON格式)
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "special_expense_details", columnDefinition = "JSON")
+    private String specialExpenseDetails;
+
+    /**
      * 资产调整金额
      */
     @Column(name = "asset_adjustment", precision = 18, scale = 2)

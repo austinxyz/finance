@@ -17,6 +17,7 @@ public class AnnualExpenseSummaryDTO {
 
     // 金额字段
     private BigDecimal baseExpenseAmount;        // 基础支出（未调整）
+    private BigDecimal specialExpense;           // 特殊支出（单笔>=10000）
     private BigDecimal assetAdjustment;          // 资产调整
     private BigDecimal liabilityAdjustment;      // 负债调整
     private BigDecimal actualExpenseAmount;      // 实际支出（调整后）
@@ -114,6 +115,14 @@ public class AnnualExpenseSummaryDTO {
 
     public void setBaseExpenseAmount(BigDecimal baseExpenseAmount) {
         this.baseExpenseAmount = baseExpenseAmount;
+    }
+
+    public BigDecimal getSpecialExpense() {
+        return specialExpense;
+    }
+
+    public void setSpecialExpense(BigDecimal specialExpense) {
+        this.specialExpense = specialExpense;
     }
 
     public BigDecimal getAssetAdjustment() {

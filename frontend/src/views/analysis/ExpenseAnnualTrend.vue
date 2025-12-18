@@ -54,115 +54,304 @@
       </div>
     </div>
 
-    <!-- 内容区域 -->
-    <div v-else-if="trendData.length > 0" class="space-y-4">
-      <!-- 图表和表格并列显示 -->
-      <div class="flex flex-col lg:flex-row gap-4">
-        <!-- 左侧：趋势图表 -->
-        <div class="bg-white rounded-lg shadow p-3 md:p-6 flex-1 lg:w-1/2">
-          <div class="mb-3 md:mb-4">
-            <h2 class="text-base md:text-lg font-semibold text-gray-900">年度支出趋势</h2>
-            <p class="text-xs md:text-sm text-gray-500 mt-1">基础支出和实际支出年度变化及同比增长率</p>
-          </div>
-          <div class="h-96 md:h-[500px] w-full">
-            <canvas ref="trendChartCanvas" class="w-full h-full"></canvas>
-          </div>
-        </div>
-
-        <!-- 右侧：数据表格 -->
-        <div class="bg-white rounded-lg shadow p-3 md:p-6 flex-1 lg:w-1/2">
-          <div class="mb-3 md:mb-4">
-            <h2 class="text-base md:text-lg font-semibold text-gray-900">年度汇总表</h2>
-            <p class="text-xs md:text-sm text-gray-500 mt-1">各年度支出数据对比</p>
-          </div>
-          <div class="overflow-y-auto max-h-96 md:max-h-[500px]">
-            <table class="w-full border-separate border-spacing-0">
-              <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
-                <tr>
-                  <th class="px-2 md:px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase">年份</th>
-                  <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">基础支出</th>
-                  <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">基础同比</th>
-                  <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">实际支出</th>
-                  <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">实际同比</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white">
-                <tr v-for="item in convertedTrendData" :key="item.year" class="hover:bg-gray-50 border-b border-gray-200">
-                  <td class="px-2 md:px-3 py-2 whitespace-nowrap">
-                    <div class="text-xs md:text-sm font-medium text-gray-900">{{ item.year }}</div>
-                  </td>
-                  <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
-                    <div class="text-xs md:text-sm font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(item.baseExpense) }}</div>
-                  </td>
-                  <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
-                    <div v-if="item.yoyBaseChange !== null" class="text-xs md:text-sm">
-                      <div :class="getChangeColor(item.yoyBaseChange)" class="font-medium">
-                        {{ formatChange(item.yoyBaseChange) }}
-                      </div>
-                      <div :class="getChangeColor(item.yoyBaseChangePct)" class="text-[10px] md:text-xs">
-                        ({{ formatPercent(item.yoyBaseChangePct) }})
-                      </div>
-                    </div>
-                    <div v-else class="text-xs md:text-sm text-gray-400">基准年</div>
-                  </td>
-                  <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
-                    <div class="text-xs md:text-sm font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(item.actualExpense) }}</div>
-                  </td>
-                  <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
-                    <div v-if="item.yoyActualChange !== null" class="text-xs md:text-sm">
-                      <div :class="getChangeColor(item.yoyActualChange)" class="font-medium">
-                        {{ formatChange(item.yoyActualChange) }}
-                      </div>
-                      <div :class="getChangeColor(item.yoyActualChangePct)" class="text-[10px] md:text-xs">
-                        ({{ formatPercent(item.yoyActualChangePct) }})
-                      </div>
-                    </div>
-                    <div v-else class="text-xs md:text-sm text-gray-400">基准年</div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+    <!-- Tab选项卡 -->
+    <div v-else-if="trendData.length > 0" class="bg-white rounded-lg shadow">
+      <!-- Tab头部 -->
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
+          <button
+            @click="activeTab = 'trend'"
+            :class="[
+              'px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-medium border-b-2 transition-colors',
+              activeTab === 'trend'
+                ? 'border-primary text-primary bg-primary/5'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]">
+            年度趋势图
+          </button>
+          <button
+            @click="activeTab = 'table'"
+            :class="[
+              'px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-medium border-b-2 transition-colors',
+              activeTab === 'table'
+                ? 'border-primary text-primary bg-primary/5'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]">
+            年度汇总表
+          </button>
+        </nav>
       </div>
 
-      <!-- 大类趋势图 -->
-      <div v-if="categoryData.length > 0" class="bg-white rounded-lg shadow p-3 md:p-6">
-        <div class="mb-3 md:mb-4">
-          <h2 class="text-base md:text-lg font-semibold text-gray-900">各大类支出趋势</h2>
-          <p class="text-xs md:text-sm text-gray-500 mt-1">各支出大类实际支出年度变化对比（已调整资产负债）</p>
-
-          <!-- 大类过滤选择器 -->
-          <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs md:text-sm font-medium text-gray-700">显示大类：</span>
-              <div class="flex gap-2">
-                <button @click="selectAllCategories"
-                        class="text-xs px-2 py-1 text-primary hover:bg-primary/10 rounded">
-                  全选
-                </button>
-                <button @click="deselectAllCategories"
-                        class="text-xs px-2 py-1 text-gray-600 hover:bg-gray-200 rounded">
-                  清空
-                </button>
+      <!-- Tab内容 -->
+      <div class="p-3 md:p-6">
+        <!-- 年度趋势图 Tab -->
+        <div v-show="activeTab === 'trend'" class="space-y-4">
+          <!-- 图表和表格并列显示 -->
+          <div class="flex flex-col lg:flex-row gap-4">
+            <!-- 左侧：趋势图表 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-3 md:p-6 flex-1 lg:w-1/2">
+              <div class="mb-3 md:mb-4">
+                <h2 class="text-base md:text-lg font-semibold text-gray-900">年度支出趋势</h2>
+                <p class="text-xs md:text-sm text-gray-500 mt-1">基础支出和实际支出年度变化及同比增长率</p>
+              </div>
+              <div class="h-96 md:h-[500px] w-full">
+                <canvas ref="trendChartCanvas" class="w-full h-full"></canvas>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-              <label v-for="category in categoryData" :key="category.majorCategoryId"
-                     class="inline-flex items-center gap-1.5 px-2 md:px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer text-xs md:text-sm">
-                <input type="checkbox"
-                       :value="category.majorCategoryId"
-                       v-model="selectedCategories"
-                       @change="onCategoryFilterChange"
-                       class="w-3 h-3 md:w-4 md:h-4 text-primary focus:ring-2 focus:ring-primary rounded">
-                <span class="text-base">{{ category.majorCategoryIcon }}</span>
-                <span class="text-gray-700">{{ category.majorCategoryName }}</span>
-              </label>
+
+            <!-- 右侧：数据表格 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-3 md:p-6 flex-1 lg:w-1/2">
+              <div class="mb-3 md:mb-4">
+                <h2 class="text-base md:text-lg font-semibold text-gray-900">年度汇总表</h2>
+                <p class="text-xs md:text-sm text-gray-500 mt-1">各年度支出数据对比</p>
+              </div>
+              <div class="overflow-y-auto max-h-96 md:max-h-[500px]">
+                <table class="w-full border-separate border-spacing-0">
+                  <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+                    <tr>
+                      <th class="px-2 md:px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase">年份</th>
+                      <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">基础支出</th>
+                      <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">特殊支出</th>
+                      <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">调整值</th>
+                      <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">实际支出</th>
+                      <th class="px-2 md:px-3 py-2 text-right text-xs md:text-sm font-medium text-gray-500 uppercase">实际同比</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white">
+                    <tr v-for="item in convertedTrendData" :key="item.year" class="hover:bg-gray-50 border-b border-gray-200">
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap">
+                        <div class="text-xs md:text-sm font-medium text-gray-900">{{ item.year }}</div>
+                      </td>
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
+                        <div class="text-xs md:text-sm font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(item.baseExpense) }}</div>
+                      </td>
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
+                        <div class="text-xs md:text-sm font-medium text-orange-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(item.specialExpense || 0) }}</div>
+                      </td>
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
+                        <div class="text-xs md:text-sm font-medium" :class="getTotalAdjustmentColor(item.assetAdjustment, item.liabilityAdjustment)">
+                          {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(getTotalAdjustment(item.assetAdjustment || 0, item.liabilityAdjustment || 0)) }}
+                        </div>
+                      </td>
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
+                        <div class="text-xs md:text-sm font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(item.actualExpense) }}</div>
+                      </td>
+                      <td class="px-2 md:px-3 py-2 whitespace-nowrap text-right">
+                        <div v-if="item.yoyActualChange !== null" class="text-xs md:text-sm">
+                          <div :class="getChangeColor(item.yoyActualChange)" class="font-medium">
+                            {{ formatChange(item.yoyActualChange) }}
+                          </div>
+                          <div :class="getChangeColor(item.yoyActualChangePct)" class="text-[10px] md:text-xs">
+                            ({{ formatPercent(item.yoyActualChangePct) }})
+                          </div>
+                        </div>
+                        <div v-else class="text-xs md:text-sm text-gray-400">基准年</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 大类趋势图 -->
+          <div v-if="categoryData.length > 0" class="bg-white rounded-lg border border-gray-200 p-3 md:p-6">
+            <div class="mb-3 md:mb-4">
+              <h2 class="text-base md:text-lg font-semibold text-gray-900">各大类支出趋势</h2>
+              <p class="text-xs md:text-sm text-gray-500 mt-1">各支出大类实际支出年度变化对比（已调整资产负债）</p>
+
+              <!-- 大类过滤选择器 -->
+              <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs md:text-sm font-medium text-gray-700">显示大类：</span>
+                  <div class="flex gap-2">
+                    <button @click="selectAllCategories"
+                            class="text-xs px-2 py-1 text-primary hover:bg-primary/10 rounded">
+                      全选
+                    </button>
+                    <button @click="deselectAllCategories"
+                            class="text-xs px-2 py-1 text-gray-600 hover:bg-gray-200 rounded">
+                      清空
+                    </button>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <label v-for="category in categoryData" :key="category.majorCategoryId"
+                         class="inline-flex items-center gap-1.5 px-2 md:px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer text-xs md:text-sm">
+                    <input type="checkbox"
+                           :value="category.majorCategoryId"
+                           v-model="selectedCategories"
+                           @change="onCategoryFilterChange"
+                           class="w-3 h-3 md:w-4 md:h-4 text-primary focus:ring-2 focus:ring-primary rounded">
+                    <span class="text-base">{{ category.majorCategoryIcon }}</span>
+                    <span class="text-gray-700">{{ category.majorCategoryName }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="h-96 md:h-[500px] w-full">
+              <canvas ref="categoryTrendChartCanvas" class="w-full h-full"></canvas>
             </div>
           </div>
         </div>
-        <div class="h-96 md:h-[500px] w-full">
-          <canvas ref="categoryTrendChartCanvas" class="w-full h-full"></canvas>
+
+        <!-- 年度汇总表 Tab（转置表格：年份为列，大类为行） -->
+        <div v-show="activeTab === 'table'">
+          <div v-if="summaryTableLoading" class="flex flex-col items-center justify-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p class="text-gray-600 mt-4">加载汇总表...</p>
+          </div>
+          <div v-else-if="summaryTableData.rows && summaryTableData.rows.length > 0">
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse text-xs md:text-sm">
+                <thead>
+                  <tr class="bg-gray-100 border-b-2 border-gray-300">
+                    <th class="px-2 md:px-4 py-2 md:py-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-100 z-10 border-r border-gray-300">大类</th>
+                    <!-- 年份列（横坐标） -->
+                    <th v-for="year in summaryTableData.years" :key="year"
+                        class="px-2 md:px-3 py-2 md:py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[140px]">
+                      {{ year }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- 各大类行（纵坐标） -->
+                  <tr v-for="(category, catIndex) in summaryTableData.categories" :key="category.code"
+                      :class="catIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
+                      class="border-b border-gray-200 hover:bg-blue-50">
+                    <!-- 大类名称 -->
+                    <td class="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r border-gray-300">
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">{{ category.icon }}</span>
+                        <span>{{ category.name }}</span>
+                      </div>
+                    </td>
+                    <!-- 各年份数据 -->
+                    <td v-for="row in summaryTableData.rows" :key="row.year"
+                        class="px-2 md:px-3 py-2 md:py-3 text-right border-r border-gray-200">
+                      <div v-if="row.categoryData[category.code]" class="space-y-1">
+                        <!-- 实际支出（基础支出） -->
+                        <div class="font-semibold text-gray-900">
+                          {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(row.categoryData[category.code].actualExpense, row.year)) }}
+                          <span class="text-[10px] text-gray-500">({{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(row.categoryData[category.code].baseExpense, row.year)) }})</span>
+                        </div>
+
+                        <!-- 实际同比（基础同比） -->
+                        <div v-if="row.categoryData[category.code].actualChangePct !== null" class="text-[10px] md:text-xs">
+                          <span :class="getChangeColor(row.categoryData[category.code].actualChangePct)">
+                            {{ formatPercent(row.categoryData[category.code].actualChangePct) }}
+                          </span>
+                          <span class="text-gray-500">
+                            ({{ formatPercent(row.categoryData[category.code].baseChangePct) }})
+                          </span>
+                        </div>
+                        <div v-else class="text-[10px] text-gray-400">基准年</div>
+                      </div>
+                      <div v-else class="text-gray-400">-</div>
+                    </td>
+                  </tr>
+                  <!-- 特殊支出汇总行 -->
+                  <tr class="bg-orange-50 border-t-2 border-orange-200">
+                    <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 sticky left-0 bg-orange-50 z-10 border-r border-gray-300">
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">⚠️</span>
+                        <span class="font-semibold">特殊支出</span>
+                      </div>
+                    </td>
+                    <td v-for="row in summaryTableData.rows" :key="`special-${row.year}`"
+                        class="px-2 md:px-3 py-2 md:py-3 text-right border-r border-gray-200">
+                      <div v-if="row.total && row.total.specialExpense && row.total.specialExpense > 0" class="space-y-1">
+                        <!-- 特殊支出金额 -->
+                        <div class="font-semibold text-orange-700">
+                          {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(row.total.specialExpense, row.year)) }}
+                        </div>
+                        <!-- 特殊支出详情 -->
+                        <div class="text-[9px] text-gray-600">
+                          <div v-for="(detail, idx) in getSpecialExpenseDetailsSummary(row)" :key="idx">
+                            {{ detail.categoryName }}: {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(detail.amount, row.year)) }}
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="text-gray-400">-</div>
+                    </td>
+                  </tr>
+
+                  <!-- 调整值汇总行 -->
+                  <tr class="bg-purple-50 border-t border-purple-200">
+                    <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 sticky left-0 bg-purple-50 z-10 border-r border-gray-300">
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">⚖️</span>
+                        <span class="font-semibold">调整值</span>
+                      </div>
+                    </td>
+                    <td v-for="row in summaryTableData.rows" :key="`adjustment-${row.year}`"
+                        class="px-2 md:px-3 py-2 md:py-3 text-right border-r border-gray-200">
+                      <div v-if="row.total" class="space-y-1">
+                        <!-- 总调整值（资产+负债） -->
+                        <div class="font-semibold" :class="getTotalAdjustmentColor(row.total.assetAdjustment, row.total.liabilityAdjustment)">
+                          {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(getTotalAdjustment(row.total.assetAdjustment, row.total.liabilityAdjustment), row.year)) }}
+                        </div>
+                        <!-- 调整值详情（按资产/负债类型显示） -->
+                        <div v-if="row.total.adjustmentDetails" class="text-[9px] text-gray-600">
+                          <div v-for="(detail, idx) in parseAdjustmentDetails(row.total.adjustmentDetails)" :key="idx">
+                            {{ detail.icon }} {{ detail.typeName }}: {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(detail.amount, row.year)) }}
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="text-gray-400">-</div>
+                    </td>
+                  </tr>
+
+                  <!-- 总计行 -->
+                  <tr class="bg-blue-50 border-t-2 border-blue-300 font-bold">
+                    <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 sticky left-0 bg-blue-50 z-10 border-r border-gray-300">
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg">💰</span>
+                        <span>总计</span>
+                      </div>
+                    </td>
+                    <td v-for="row in summaryTableData.rows" :key="row.year"
+                        class="px-2 md:px-3 py-2 md:py-3 text-right border-r border-gray-200">
+                      <div v-if="row.total" class="space-y-1">
+                        <!-- 实际支出（基础支出 + 特殊支出） -->
+                        <div class="text-blue-900">
+                          {{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency(row.total.actualExpense, row.year)) }}
+                          <div class="text-[10px] text-blue-700">
+                            ({{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(convertCurrency((row.total.baseExpense || 0) + (row.total.specialExpense || 0), row.year)) }})
+                          </div>
+                        </div>
+
+                        <!-- 实际同比（基础同比） -->
+                        <div v-if="row.total.actualChangePct !== null" class="text-[10px] md:text-xs">
+                          <span :class="getChangeColor(row.total.actualChangePct)" class="font-semibold">
+                            {{ formatPercent(row.total.actualChangePct) }}
+                          </span>
+                          <span class="text-blue-700">
+                            ({{ formatPercent(row.total.baseChangePct) }})
+                          </span>
+                        </div>
+                        <div v-else class="text-[10px] text-gray-400">基准年</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
+              <p><strong>说明：</strong></p>
+              <ul class="list-disc list-inside mt-1 space-y-1">
+                <li>数据格式：<strong>实际支出</strong>（基础支出）</li>
+                <li>同比格式：<strong>实际同比%</strong>（基础同比%）</li>
+                <li>实际支出 = 基础支出 + 特殊支出 + 资产/负债调整</li>
+                <li>⚠️ 特殊支出：单笔 ≥ $10,000 的支出，显示橙色标记及明细</li>
+                <li>红色表示支出增加，绿色表示支出减少</li>
+                <li>后端数据为USD基准货币，前端根据选中货币和各年份年末汇率换算显示</li>
+              </ul>
+            </div>
+          </div>
+          <div v-else class="text-center py-12 text-gray-500">
+            暂无汇总表数据
+          </div>
         </div>
       </div>
     </div>
@@ -193,13 +382,16 @@ Chart.register(...registerables)
 // 数据
 const trendData = ref([])
 const categoryData = ref([])
+const summaryTableData = ref({ years: [], categories: [], rows: [] })
 const families = ref([])
 const loading = ref(false)
+const summaryTableLoading = ref(false)
 const displayYears = ref(5)
 const familyId = ref(null)
 const selectedCurrency = ref('USD')
 const selectedCategories = ref([])
 const exchangeRates = ref([]) // 汇率数据
+const activeTab = ref('trend') // 当前激活的tab
 
 // 图表引用
 const trendChartCanvas = ref(null)
@@ -209,14 +401,17 @@ const categoryTrendChartCanvas = ref(null)
 let trendChart = null
 let categoryTrendChart = null
 
-// 计算属性：转换后的趋势数据（用于表格显示）
+// 计算属性：转换后的趋势数据（用于表格显示，使用各年份的汇率）
 const convertedTrendData = computed(() => {
   return trendData.value.map(item => ({
     ...item,
-    baseExpense: convertCurrency(item.baseExpense),
-    actualExpense: convertCurrency(item.actualExpense),
-    yoyBaseChange: item.yoyBaseChange ? convertCurrency(item.yoyBaseChange) : null,
-    yoyActualChange: item.yoyActualChange ? convertCurrency(item.yoyActualChange) : null
+    baseExpense: convertCurrency(item.baseExpense, item.year),
+    specialExpense: convertCurrency(item.specialExpense || 0, item.year),
+    assetAdjustment: convertCurrency(item.assetAdjustment || 0, item.year),
+    liabilityAdjustment: convertCurrency(item.liabilityAdjustment || 0, item.year),
+    actualExpense: convertCurrency(item.actualExpense, item.year),
+    yoyBaseChange: item.yoyBaseChange ? convertCurrency(item.yoyBaseChange, item.year) : null,
+    yoyActualChange: item.yoyActualChange ? convertCurrency(item.yoyActualChange, item.year) : null
   }))
 })
 
@@ -255,14 +450,15 @@ const onFamilyChange = () => {
 // 货币切换事件
 const onCurrencyChange = () => {
   // 货币切换时只需要重新渲染图表，不需要重新获取数据
+  // 汇总表数据已经是USD基准货币，前端根据选中货币换算显示，无需重新获取
   renderChart()
   renderCategoryTrendChart()
 }
 
-// 获取汇率数据
+// 获取汇率数据（获取所有历史汇率）
 const fetchExchangeRates = async () => {
   try {
-    const response = await exchangeRateAPI.getAllActive()
+    const response = await exchangeRateAPI.getAll()
     if (response.success && response.data) {
       exchangeRates.value = response.data
     } else if (response.data && Array.isArray(response.data)) {
@@ -274,25 +470,49 @@ const fetchExchangeRates = async () => {
   }
 }
 
-// 获取指定货币的汇率（USD为基准）
-const getExchangeRate = (currency) => {
+// 获取指定货币和年份的年末汇率（USD为基准）
+const getExchangeRateForYear = (currency, year) => {
   if (currency === 'USD') return 1
-  const rate = exchangeRates.value.find(r => r.currency === currency)
-  return rate ? rate.rateToUsd : 1
+
+  // 查找该年份12-31或之前最近的汇率
+  const yearEndDate = `${year}-12-31`
+
+  const applicableRates = exchangeRates.value
+    .filter(r => r.currency === currency && r.effectiveDate <= yearEndDate)
+    .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))
+
+  if (applicableRates.length > 0) {
+    return applicableRates[0].rateToUsd
+  }
+
+  // 如果找不到，返回默认值
+  return 1
 }
 
-// 将USD金额转换为选中货币
-const convertCurrency = (usdAmount) => {
+// 将USD金额转换为选中货币（根据年份使用不同汇率）
+const convertCurrency = (usdAmount, year = null) => {
   if (!usdAmount) return 0
-  const rate = getExchangeRate(selectedCurrency.value)
+
   if (selectedCurrency.value === 'USD') {
     return Number(usdAmount)
   }
+
+  // 如果没有提供年份，使用最新汇率
+  let rate
+  if (year) {
+    rate = getExchangeRateForYear(selectedCurrency.value, year)
+  } else {
+    const latestRate = exchangeRates.value
+      .filter(r => r.currency === selectedCurrency.value && r.isActive)
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0]
+    rate = latestRate ? latestRate.rateToUsd : 1
+  }
+
   // USD转其他货币：USD金额 / 汇率
   return Number(usdAmount) / rate
 }
 
-// 获取数据
+// 获取趋势图数据
 const fetchData = async () => {
   if (!familyId.value) return
 
@@ -321,6 +541,11 @@ const fetchData = async () => {
       // 默认全选所有大类
       selectedCategories.value = categoryResponse.data.map(cat => cat.majorCategoryId)
     }
+
+    // 如果当前在汇总表tab，也获取汇总表数据
+    if (activeTab.value === 'table') {
+      await fetchSummaryTable()
+    }
   } catch (error) {
     console.error('获取年度支出趋势数据失败:', error)
   } finally {
@@ -328,15 +553,44 @@ const fetchData = async () => {
   }
 }
 
+// 获取年度汇总表数据（获取USD基准货币数据）
+const fetchSummaryTable = async () => {
+  if (!familyId.value) return
+
+  summaryTableLoading.value = true
+  try {
+    const response = await expenseAnalysisAPI.getAnnualSummaryTable(
+      familyId.value,
+      displayYears.value
+    )
+
+    if (response.success && response.data) {
+      summaryTableData.value = response.data
+    }
+  } catch (error) {
+    console.error('获取年度汇总表失败:', error)
+  } finally {
+    summaryTableLoading.value = false
+  }
+}
+
+// 监听tab切换，切换到汇总表时加载数据
+watch(activeTab, (newTab) => {
+  if (newTab === 'table' && summaryTableData.value.rows.length === 0) {
+    fetchSummaryTable()
+  }
+})
+
 // 渲染图表
 const renderChart = () => {
   if (trendData.value.length === 0) return
 
   const sortedData = [...trendData.value].reverse() // 从旧到新排序
   const years = sortedData.map(d => d.year)
-  // 将USD金额转换为选中货币
-  const baseExpenses = sortedData.map(d => convertCurrency(d.baseExpense))
-  const actualExpenses = sortedData.map(d => convertCurrency(d.actualExpense))
+  // 将USD金额转换为选中货币（使用各年份的汇率）
+  const baseExpenses = sortedData.map(d => convertCurrency(d.baseExpense, d.year))
+  const specialExpenses = sortedData.map(d => convertCurrency(d.specialExpense || 0, d.year))
+  const actualExpenses = sortedData.map(d => convertCurrency(d.actualExpense, d.year))
   const baseGrowths = sortedData.map(d => d.yoyBaseChangePct ? Number(d.yoyBaseChangePct) : 0)
   const actualGrowths = sortedData.map(d => d.yoyActualChangePct ? Number(d.yoyActualChangePct) : 0)
 
@@ -359,6 +613,14 @@ const renderChart = () => {
             data: baseExpenses,
             backgroundColor: 'rgba(99, 102, 241, 0.7)',
             borderColor: 'rgb(99, 102, 241)',
+            borderWidth: 1,
+            yAxisID: 'y'
+          },
+          {
+            label: '特殊支出',
+            data: specialExpenses,
+            backgroundColor: 'rgba(251, 146, 60, 0.7)',
+            borderColor: 'rgb(251, 146, 60)',
             borderWidth: 1,
             yAxisID: 'y'
           },
@@ -533,10 +795,10 @@ const renderCategoryTrendChart = () => {
 
   // 为每个选中的大类创建数据集
   const datasets = filteredCategories.map((category, index) => {
-    // 创建年份到金额的映射（并转换为选中货币）
+    // 创建年份到金额的映射（并转换为选中货币，使用各年份的汇率）
     const yearToExpense = {}
     category.yearlyData.forEach(item => {
-      yearToExpense[item.year] = convertCurrency(item.actualExpense)
+      yearToExpense[item.year] = convertCurrency(item.actualExpense, item.year)
     })
 
     // 按所有年份创建数据数组
@@ -679,6 +941,128 @@ const getChangeColor = (value) => {
   if (!value && value !== 0) return 'text-gray-400'
   // 对于支出，增加是不好的（红色），减少是好的（绿色）
   return value > 0 ? 'text-red-600' : 'text-green-600'
+}
+
+// 解析特殊支出详情JSON
+const parseSpecialExpenseDetails = (detailsJson) => {
+  if (!detailsJson) return []
+  try {
+    // detailsJson可能是字符串或已解析的对象
+    const details = typeof detailsJson === 'string' ? JSON.parse(detailsJson) : detailsJson
+    return Array.isArray(details) ? details : []
+  } catch (error) {
+    console.error('解析特殊支出详情失败:', error)
+    return []
+  }
+}
+
+// 汇总所有大类的特殊支出详情
+const getSpecialExpenseDetailsSummary = (row) => {
+  const allDetails = []
+
+  // 遍历所有大类
+  if (row.categoryData && summaryTableData.value.categories) {
+    summaryTableData.value.categories.forEach(category => {
+      const categoryCode = category.code
+      const categoryDataItem = row.categoryData[categoryCode]
+
+      if (categoryDataItem && categoryDataItem.specialExpenseDetails) {
+        const details = parseSpecialExpenseDetails(categoryDataItem.specialExpenseDetails)
+        details.forEach(detail => {
+          allDetails.push({
+            categoryName: detail.minorCategoryName,
+            amount: detail.amount
+          })
+        })
+      }
+    })
+  }
+
+  return allDetails
+}
+
+// 资产类型中文名称映射
+const assetTypeNames = {
+  'CASH': '现金类',
+  'CRYPTOCURRENCY': '数字货币',
+  'INSURANCE': '保险',
+  'OTHER': '其他',
+  'PRECIOUS_METALS': '贵金属',
+  'REAL_ESTATE': '房地产',
+  'RETIREMENT_FUND': '退休基金',
+  'STOCKS': '股票投资'
+}
+
+// 负债类型中文名称映射
+const liabilityTypeNames = {
+  'AUTO_LOAN': '车贷',
+  'CREDIT_CARD': '信用卡',
+  'MORTGAGE': '房贷',
+  'OTHER': '其他负债',
+  'PERSONAL_LOAN': '个人贷款',
+  'STUDENT_LOAN': '学生贷款'
+}
+
+// 解析调整值详情JSON并转换为可读格式
+const parseAdjustmentDetails = (adjustmentDetailsJson) => {
+  if (!adjustmentDetailsJson) return []
+  try {
+    // adjustmentDetailsJson可能是字符串或已解析的对象
+    const details = typeof adjustmentDetailsJson === 'string' ? JSON.parse(adjustmentDetailsJson) : adjustmentDetailsJson
+    if (!Array.isArray(details)) return []
+
+    // 转换每个详情项
+    return details.map(detail => {
+      const type = detail.type
+      const code = detail.code
+      const amount = detail.amount
+      const direction = detail.direction // ASSET类型可能有direction
+
+      let typeName = ''
+      let icon = ''
+
+      if (type === 'ASSET') {
+        typeName = assetTypeNames[code] || code
+        icon = '📈'
+        // ASSET调整：direction=SUBTRACT表示资产减少（负调整），否则资产增加（正调整）
+        // 但amount已经是正确的符号了
+      } else if (type === 'LIABILITY') {
+        typeName = liabilityTypeNames[code] || code
+        icon = '📉'
+        // LIABILITY调整：正值表示负债减少
+      } else if (type === 'PROPERTY_PURCHASE') {
+        typeName = '房产购买'
+        icon = '🏠'
+      }
+
+      return {
+        type,
+        code,
+        typeName,
+        icon,
+        amount,
+        direction
+      }
+    })
+  } catch (error) {
+    console.error('解析调整值详情失败:', error)
+    return []
+  }
+}
+
+// 计算总调整值（资产 + 负债）
+const getTotalAdjustment = (assetAdjustment, liabilityAdjustment) => {
+  const asset = assetAdjustment || 0
+  const liability = liabilityAdjustment || 0
+  return Number(asset) + Number(liability)
+}
+
+// 获取调整值颜色
+const getTotalAdjustmentColor = (assetAdjustment, liabilityAdjustment) => {
+  const total = getTotalAdjustment(assetAdjustment, liabilityAdjustment)
+  if (total === 0) return 'text-gray-600'
+  // 调整值为正表示支出增加（红色），为负表示支出减少（绿色）
+  return total > 0 ? 'text-red-600' : 'text-green-600'
 }
 
 // 全选所有大类

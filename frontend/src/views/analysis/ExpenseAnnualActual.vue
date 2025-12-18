@@ -47,10 +47,14 @@
     <!-- 支出总览汇总卡片 -->
     <div v-else-if="totalRow" class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow border border-blue-200 p-4 md:p-6">
       <h3 class="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">年度支出总计</h3>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 md:gap-4">
         <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
           <div class="text-xs text-gray-600 mb-1">基础支出</div>
           <div class="text-lg md:text-xl font-bold text-gray-900">{{ formatCurrency(totalRow.baseExpenseAmount) }}</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
+          <div class="text-xs text-gray-600 mb-1">特殊支出</div>
+          <div class="text-lg md:text-xl font-bold text-orange-600">{{ formatCurrency(totalRow.specialExpense || 0) }}</div>
         </div>
         <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm">
           <div class="text-xs text-gray-600 mb-1">资产调整</div>
@@ -100,6 +104,7 @@
               <tr>
                 <th class="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">分类</th>
                 <th class="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">基础支出</th>
+                <th class="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">特殊支出</th>
                 <th class="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">资产调整</th>
                 <th class="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">负债调整</th>
                 <th class="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">实际支出</th>
@@ -118,6 +123,9 @@
                 </td>
                 <td class="px-2 py-1.5 text-right text-xs">
                   {{ formatCurrency(item.baseExpenseAmount) }}
+                </td>
+                <td class="px-2 py-1.5 text-right text-xs text-orange-600">
+                  {{ formatCurrency(item.specialExpense || 0) }}
                 </td>
                 <td class="px-2 py-1.5 text-right text-xs" :class="item.assetAdjustment > 0 ? 'text-red-600' : 'text-gray-600'">
                   {{ item.assetAdjustment > 0 ? '-' : '' }}{{ formatCurrency(Math.abs(item.assetAdjustment)) }}
@@ -140,6 +148,9 @@
                 </td>
                 <td class="px-2 py-1.5 text-right text-xs">
                   {{ formatCurrency(totalRow.baseExpenseAmount) }}
+                </td>
+                <td class="px-2 py-1.5 text-right text-xs text-orange-600">
+                  {{ formatCurrency(totalRow.specialExpense || 0) }}
                 </td>
                 <td class="px-2 py-1.5 text-right text-xs text-red-600">
                   {{ totalRow.assetAdjustment > 0 ? '-' : '' }}{{ formatCurrency(Math.abs(totalRow.assetAdjustment)) }}
@@ -165,9 +176,10 @@
       <p class="font-semibold mb-2">💡 说明：</p>
       <ul class="list-disc list-inside space-y-1">
         <li><strong>基础支出</strong>：从支出记录直接汇总的年度支出金额</li>
+        <li><strong>特殊支出</strong>：单笔 ≥ $10,000 的大额支出（橙色标记）</li>
         <li><strong>资产调整</strong>：当年度资产增加部分（如保险现金价值增加），应从支出中扣除</li>
         <li><strong>负债调整</strong>：当年度负债减少部分（如房贷本金偿还），应从支出中扣除</li>
-        <li><strong>实际支出</strong>：基础支出 - 资产调整 - 负债调整 = 真实消费金额</li>
+        <li><strong>实际支出</strong>：基础支出 + 特殊支出 - 资产调整 - 负债调整 = 真实消费金额</li>
       </ul>
     </div>
   </div>
