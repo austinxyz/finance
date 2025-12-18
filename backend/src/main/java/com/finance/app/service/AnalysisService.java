@@ -1545,21 +1545,39 @@ public class AnalysisService {
             metrics.setLiquidityRatio(BigDecimal.ZERO);
         }
 
-        // 月度变化（已废弃，但保留计算逻辑）
+        // 月度变化
         LocalDate previousMonth = targetDate.minusMonths(1);
         metrics.setPreviousMonthDate(previousMonth);
         AssetSummaryDTO previousMonthSummary = getAssetSummary(userId, familyId, previousMonth);
         metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
         BigDecimal monthlyChange = currentSummary.getNetWorth().subtract(previousMonthSummary.getNetWorth());
         metrics.setMonthlyChange(monthlyChange);
-        metrics.setMonthlyChangeRate(BigDecimal.ZERO);
 
-        // 年度变化（已废弃，但保留计算逻辑）
+        // 计算月度变化率
+        if (previousMonthSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal monthlyChangeRate = monthlyChange
+                .divide(previousMonthSummary.getNetWorth(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setMonthlyChangeRate(monthlyChangeRate);
+        } else {
+            metrics.setMonthlyChangeRate(BigDecimal.ZERO);
+        }
+
+        // 年度变化
         metrics.setPreviousYearDate(lastYearEndDate);
         metrics.setPreviousYearNetWorth(lastYearSummary.getNetWorth());
         BigDecimal yearlyChange = currentSummary.getNetWorth().subtract(lastYearSummary.getNetWorth());
         metrics.setYearlyChange(yearlyChange);
-        metrics.setYearlyChangeRate(BigDecimal.ZERO);
+
+        // 计算年度变化率
+        if (lastYearSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal yearlyChangeRate = yearlyChange
+                .divide(lastYearSummary.getNetWorth(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setYearlyChangeRate(yearlyChangeRate);
+        } else {
+            metrics.setYearlyChangeRate(BigDecimal.ZERO);
+        }
 
         return metrics;
     }
