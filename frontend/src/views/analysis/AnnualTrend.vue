@@ -173,12 +173,12 @@
                       <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalAssets, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyAssetChange !== null" class="text-[10px] md:text-xs">
-                        <div :class="getChangeColor(summary.yoyAssetChange)" class="font-medium">
-                          {{ formatChange(summary.yoyAssetChange, summary.year) }}
+                      <div v-if="summary.displayYoyAssetChange !== null" class="text-[10px] md:text-xs">
+                        <div :class="getChangeColor(summary.displayYoyAssetChange)" class="font-medium">
+                          {{ formatChange(summary.displayYoyAssetChange, null) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyAssetChangePct)" class="text-[9px] md:text-xs">
-                          ({{ formatPercent(summary.yoyAssetChangePct) }})
+                        <div :class="getChangeColor(summary.displayYoyAssetChangePct)" class="text-[9px] md:text-xs">
+                          ({{ formatPercent(summary.displayYoyAssetChangePct) }})
                         </div>
                       </div>
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
@@ -187,12 +187,12 @@
                       <div class="text-[10px] md:text-xs font-medium text-gray-900">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.totalLiabilities, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyLiabilityChange !== null" class="text-[10px] md:text-xs">
-                        <div :class="getChangeColor(summary.yoyLiabilityChange, true)" class="font-medium">
-                          {{ formatChange(summary.yoyLiabilityChange, summary.year) }}
+                      <div v-if="summary.displayYoyLiabilityChange !== null" class="text-[10px] md:text-xs">
+                        <div :class="getChangeColor(summary.displayYoyLiabilityChange, true)" class="font-medium">
+                          {{ formatChange(summary.displayYoyLiabilityChange, null) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyLiabilityChangePct, true)" class="text-[9px] md:text-xs">
-                          ({{ formatPercent(summary.yoyLiabilityChangePct) }})
+                        <div :class="getChangeColor(summary.displayYoyLiabilityChangePct, true)" class="text-[9px] md:text-xs">
+                          ({{ formatPercent(summary.displayYoyLiabilityChangePct) }})
                         </div>
                       </div>
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
@@ -201,34 +201,34 @@
                       <div class="text-[10px] md:text-xs font-bold text-blue-600">{{ getCurrencySymbol(selectedCurrency) }}{{ formatAmount(summary.netWorth, summary.year) }}</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyNetWorthChange !== null" class="text-[10px] md:text-xs">
-                        <div :class="getChangeColor(summary.yoyNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyNetWorthChange, summary.year) }}
+                      <div v-if="summary.displayYoyNetWorthChange !== null" class="text-[10px] md:text-xs">
+                        <div :class="getChangeColor(summary.displayYoyNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.displayYoyNetWorthChange, null) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyNetWorthChangePct)" class="text-[9px] md:text-xs">
-                          ({{ formatPercent(summary.yoyNetWorthChangePct) }})
+                        <div :class="getChangeColor(summary.displayYoyNetWorthChangePct)" class="text-[9px] md:text-xs">
+                          ({{ formatPercent(summary.displayYoyNetWorthChangePct) }})
                         </div>
                       </div>
                       <div v-else class="text-[10px] md:text-xs text-gray-400">基准年</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
-                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyRealEstateNetWorthChange, summary.year) }}
+                      <div v-if="summary.displayYoyRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
+                        <div :class="getChangeColor(summary.displayYoyRealEstateNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.displayYoyRealEstateNetWorthChange, null) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
-                          ({{ formatPercent(summary.yoyRealEstateNetWorthChangePct) }})
+                        <div :class="getChangeColor(summary.displayYoyRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
+                          ({{ formatPercent(summary.displayYoyRealEstateNetWorthChangePct) }})
                         </div>
                       </div>
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
                     </td>
                     <td class="px-1 md:px-2 py-1.5 md:py-2 whitespace-nowrap text-right">
-                      <div v-if="summary.yoyNonRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
-                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChange)" class="font-medium">
-                          {{ formatChange(summary.yoyNonRealEstateNetWorthChange, summary.year) }}
+                      <div v-if="summary.displayYoyNonRealEstateNetWorthChange !== null" class="text-[10px] md:text-xs">
+                        <div :class="getChangeColor(summary.displayYoyNonRealEstateNetWorthChange)" class="font-medium">
+                          {{ formatChange(summary.displayYoyNonRealEstateNetWorthChange, null) }}
                         </div>
-                        <div :class="getChangeColor(summary.yoyNonRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
-                          ({{ formatPercent(summary.yoyNonRealEstateNetWorthChangePct) }})
+                        <div :class="getChangeColor(summary.displayYoyNonRealEstateNetWorthChangePct)" class="text-[9px] md:text-xs">
+                          ({{ formatPercent(summary.displayYoyNonRealEstateNetWorthChangePct) }})
                         </div>
                       </div>
                       <div v-else class="text-[10px] md:text-xs text-gray-400">-</div>
@@ -326,7 +326,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNetWorthChange)" class="font-bold">
-                        {{ formatChange(cumulativeNetWorthChange, summaries.length > 0 ? summaries[0].year : null) }}
+                        {{ formatChange(cumulativeNetWorthChange, null) }}
                       </div>
                       <div :class="getChangeColor(averageAnnualGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageAnnualGrowthRate) }})
@@ -336,7 +336,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeRealEstateChange, summaries.length > 0 ? summaries[0].year : null) }}
+                        {{ formatChange(cumulativeRealEstateChange, null) }}
                       </div>
                       <div :class="getChangeColor(averageRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageRealEstateGrowthRate) }})
@@ -346,7 +346,7 @@
                   <td class="px-1 md:px-2 py-2 md:py-3 whitespace-nowrap text-right">
                     <div class="text-[10px] md:text-xs">
                       <div :class="getChangeColor(cumulativeNonRealEstateChange)" class="font-bold">
-                        {{ formatChange(cumulativeNonRealEstateChange, summaries.length > 0 ? summaries[0].year : null) }}
+                        {{ formatChange(cumulativeNonRealEstateChange, null) }}
                       </div>
                       <div :class="getChangeColor(averageNonRealEstateGrowthRate)" class="text-[9px] md:text-xs">
                         ({{ formatPercent(averageNonRealEstateGrowthRate) }})
@@ -444,82 +444,92 @@ let netWorthChart = null
 let assetChart = null
 let liabilityChart = null
 
-// 累计数据计算
+// 累计数据计算（基于显示货币）
 // 累计净资产变化（从基准年到最新年份的总变化）
 const cumulativeNetWorthChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0] // 最新年份（summaries已按年份降序排列）
   const earliest = summaries.value[summaries.value.length - 1] // 最早年份（基准年）
-  return latest.netWorth - earliest.netWorth
+  // 使用各自年份的汇率转换
+  return convertAmount(latest.netWorth, latest.year) - convertAmount(earliest.netWorth, earliest.year)
 })
 
-// 平均年化增长率（净资产）- CAGR从基准年开始计算
+// 平均年化增长率（净资产）- CAGR从基准年开始计算（基于显示货币）
 const averageAnnualGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
-  if (years === 0 || earliest.netWorth <= 0) return 0
+  // 转换为显示货币
+  const latestValue = convertAmount(latest.netWorth, latest.year)
+  const earliestValue = convertAmount(earliest.netWorth, earliest.year)
+  if (years === 0 || earliestValue <= 0) return 0
   // CAGR = (最新值/基准值)^(1/年数) - 1
-  return (Math.pow(latest.netWorth / earliest.netWorth, 1 / years) - 1) * 100
+  return (Math.pow(latestValue / earliestValue, 1 / years) - 1) * 100
 })
 
-// 累计房产净值变化（从基准年到最新年份的总变化）
+// 累计房产净值变化（从基准年到最新年份的总变化，基于显示货币）
 const cumulativeRealEstateChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1]
 
-  // 直接使用后端计算好的房产净值字段
   const latestRealEstateNetWorth = latest.realEstateNetWorth || 0
   const earliestRealEstateNetWorth = earliest.realEstateNetWorth || 0
 
-  return latestRealEstateNetWorth - earliestRealEstateNetWorth
+  // 使用各自年份的汇率转换
+  return convertAmount(latestRealEstateNetWorth, latest.year) - convertAmount(earliestRealEstateNetWorth, earliest.year)
 })
 
-// 平均年化增长率（房产净值）- CAGR从基准年开始计算
+// 平均年化增长率（房产净值）- CAGR从基准年开始计算（基于显示货币）
 const averageRealEstateGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
 
-  // 直接使用后端计算好的房产净值字段
   const latestRealEstateNetWorth = latest.realEstateNetWorth || 0
   const earliestRealEstateNetWorth = earliest.realEstateNetWorth || 0
 
-  if (years === 0 || earliestRealEstateNetWorth <= 0) return 0
+  // 转换为显示货币
+  const latestValue = convertAmount(latestRealEstateNetWorth, latest.year)
+  const earliestValue = convertAmount(earliestRealEstateNetWorth, earliest.year)
+
+  if (years === 0 || earliestValue <= 0) return 0
   // CAGR = (最新值/基准值)^(1/年数) - 1
-  return (Math.pow(latestRealEstateNetWorth / earliestRealEstateNetWorth, 1 / years) - 1) * 100
+  return (Math.pow(latestValue / earliestValue, 1 / years) - 1) * 100
 })
 
-// 累计非房产净值变化（从基准年到最新年份的总变化）
+// 累计非房产净值变化（从基准年到最新年份的总变化，基于显示货币）
 const cumulativeNonRealEstateChange = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1]
 
-  // 直接使用后端计算好的非房产净值字段
   const latestNonRealEstateNetWorth = latest.nonRealEstateNetWorth || 0
   const earliestNonRealEstateNetWorth = earliest.nonRealEstateNetWorth || 0
 
-  return latestNonRealEstateNetWorth - earliestNonRealEstateNetWorth
+  // 使用各自年份的汇率转换
+  return convertAmount(latestNonRealEstateNetWorth, latest.year) - convertAmount(earliestNonRealEstateNetWorth, earliest.year)
 })
 
-// 平均年化增长率（非房产净值）- CAGR从基准年开始计算
+// 平均年化增长率（非房产净值）- CAGR从基准年开始计算（基于显示货币）
 const averageNonRealEstateGrowthRate = computed(() => {
   if (summaries.value.length < 2) return 0
   const latest = summaries.value[0]
   const earliest = summaries.value[summaries.value.length - 1] // 基准年
   const years = latest.year - earliest.year
 
-  // 直接使用后端计算好的非房产净值字段
   const latestNonRealEstateNetWorth = latest.nonRealEstateNetWorth || 0
   const earliestNonRealEstateNetWorth = earliest.nonRealEstateNetWorth || 0
 
-  if (years === 0 || earliestNonRealEstateNetWorth <= 0) return 0
+  // 转换为显示货币
+  const latestValue = convertAmount(latestNonRealEstateNetWorth, latest.year)
+  const earliestValue = convertAmount(earliestNonRealEstateNetWorth, earliest.year)
+
+  if (years === 0 || earliestValue <= 0) return 0
   // CAGR = (最新值/基准值)^(1/年数) - 1
-  return (Math.pow(latestNonRealEstateNetWorth / earliestNonRealEstateNetWorth, 1 / years) - 1) * 100
+  return (Math.pow(latestValue / earliestValue, 1 / years) - 1) * 100
 })
 
 // 年份范围
@@ -563,6 +573,60 @@ const onFamilyChange = () => {
   fetchData()
 }
 
+// 计算基于显示货币的同比数据
+const recalculateYoYMetrics = () => {
+  if (summaries.value.length < 2) return
+
+  // 从旧到新排序以便计算同比
+  const sortedSummaries = [...summaries.value].sort((a, b) => a.year - b.year)
+
+  for (let i = 1; i < sortedSummaries.length; i++) {
+    const current = sortedSummaries[i]
+    const previous = sortedSummaries[i - 1]
+
+    // 转换为显示货币后的金额
+    const currentAssets = convertAmount(current.totalAssets, current.year)
+    const previousAssets = convertAmount(previous.totalAssets, previous.year)
+    const currentLiabilities = convertAmount(current.totalLiabilities, current.year)
+    const previousLiabilities = convertAmount(previous.totalLiabilities, previous.year)
+    const currentNetWorth = convertAmount(current.netWorth, current.year)
+    const previousNetWorth = convertAmount(previous.netWorth, previous.year)
+    const currentRealEstateNetWorth = convertAmount(current.realEstateNetWorth, current.year)
+    const previousRealEstateNetWorth = convertAmount(previous.realEstateNetWorth, previous.year)
+    const currentNonRealEstateNetWorth = convertAmount(current.nonRealEstateNetWorth, current.year)
+    const previousNonRealEstateNetWorth = convertAmount(previous.nonRealEstateNetWorth, previous.year)
+
+    // 重新计算同比变化和百分比
+    current.displayYoyAssetChange = currentAssets - previousAssets
+    current.displayYoyAssetChangePct = previousAssets > 0 ? ((currentAssets - previousAssets) / previousAssets) * 100 : 0
+
+    current.displayYoyLiabilityChange = currentLiabilities - previousLiabilities
+    current.displayYoyLiabilityChangePct = previousLiabilities > 0 ? ((currentLiabilities - previousLiabilities) / previousLiabilities) * 100 : 0
+
+    current.displayYoyNetWorthChange = currentNetWorth - previousNetWorth
+    current.displayYoyNetWorthChangePct = previousNetWorth > 0 ? ((currentNetWorth - previousNetWorth) / previousNetWorth) * 100 : 0
+
+    current.displayYoyRealEstateNetWorthChange = currentRealEstateNetWorth - previousRealEstateNetWorth
+    current.displayYoyRealEstateNetWorthChangePct = previousRealEstateNetWorth > 0 ? ((currentRealEstateNetWorth - previousRealEstateNetWorth) / previousRealEstateNetWorth) * 100 : 0
+
+    current.displayYoyNonRealEstateNetWorthChange = currentNonRealEstateNetWorth - previousNonRealEstateNetWorth
+    current.displayYoyNonRealEstateNetWorthChangePct = previousNonRealEstateNetWorth > 0 ? ((currentNonRealEstateNetWorth - previousNonRealEstateNetWorth) / previousNonRealEstateNetWorth) * 100 : 0
+  }
+
+  // 第一年（最早年份）没有同比数据
+  const earliest = sortedSummaries[0]
+  earliest.displayYoyAssetChange = null
+  earliest.displayYoyAssetChangePct = null
+  earliest.displayYoyLiabilityChange = null
+  earliest.displayYoyLiabilityChangePct = null
+  earliest.displayYoyNetWorthChange = null
+  earliest.displayYoyNetWorthChangePct = null
+  earliest.displayYoyRealEstateNetWorthChange = null
+  earliest.displayYoyRealEstateNetWorthChangePct = null
+  earliest.displayYoyNonRealEstateNetWorthChange = null
+  earliest.displayYoyNonRealEstateNetWorthChangePct = null
+}
+
 // 获取数据
 const fetchData = async () => {
   if (!familyId.value) return
@@ -582,6 +646,9 @@ const fetchData = async () => {
 
     // 获取所有年度的汇率
     await fetchExchangeRatesForAllYears()
+
+    // 重新计算基于显示货币的同比数据
+    recalculateYoYMetrics()
 
     await nextTick()
     renderCharts()
@@ -657,6 +724,8 @@ const fetchExchangeRatesForAllYears = async () => {
 // 货币切换处理
 const onCurrencyChange = async () => {
   await fetchExchangeRatesForAllYears()
+  // 重新计算基于显示货币的同比数据
+  recalculateYoYMetrics()
   await nextTick()
   renderCharts()
 }
@@ -695,9 +764,10 @@ const renderCharts = () => {
   const assets = sortedData.map(s => convertAmount(s.totalAssets, s.year))
   const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities, s.year))
   const netWorths = sortedData.map(s => convertAmount(s.netWorth, s.year))
-  const assetGrowths = sortedData.map(s => s.yoyAssetChangePct || 0)
-  const liabilityGrowths = sortedData.map(s => s.yoyLiabilityChangePct || 0)
-  const netWorthGrowths = sortedData.map(s => s.yoyNetWorthChangePct || 0)
+  // 使用基于显示货币重新计算的同比百分比
+  const assetGrowths = sortedData.map(s => s.displayYoyAssetChangePct || 0)
+  const liabilityGrowths = sortedData.map(s => s.displayYoyLiabilityChangePct || 0)
+  const netWorthGrowths = sortedData.map(s => s.displayYoyNetWorthChangePct || 0)
 
   const currencySymbol = getCurrencySymbol(selectedCurrency.value)
 
