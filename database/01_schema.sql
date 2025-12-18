@@ -8,14 +8,13 @@
 -- 2. 外键约束：确保数据完整性
 -- 3. 索引优化：常用查询字段建立索引
 --
--- 生成时间: 2025-12-16 23:37:10
+-- 生成时间: $(date '+%Y-%m-%d %H:%M:%S')
 -- ============================================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 
-DROP TABLE IF EXISTS `annual_expense_summary`;
 CREATE TABLE `annual_expense_summary` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `family_id` bigint NOT NULL COMMENT '家庭ID',
@@ -24,6 +23,8 @@ CREATE TABLE `annual_expense_summary` (
   `major_category_id` bigint NOT NULL COMMENT '大类ID (0表示总计)',
   `minor_category_id` bigint DEFAULT NULL COMMENT '小类ID (NULL表示大类汇总)',
   `base_expense_amount` decimal(18,2) NOT NULL DEFAULT '0.00' COMMENT '基础支出(expense_records汇总)',
+  `special_expense_amount` decimal(18,2) DEFAULT '0.00',
+  `special_expense_details` json DEFAULT NULL,
   `asset_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '资产调整额 (资产增加为正, 减少为负)',
   `liability_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '负债调整额 (负债减少为正, 增加为负)',
   `adjustment_details` json DEFAULT NULL COMMENT '调整详情 [{type, code, amount, direction}]',
@@ -41,8 +42,7 @@ CREATE TABLE `annual_expense_summary` (
   CONSTRAINT `FKa90vvqugnalabpwnnm7lxeyhv` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`),
   CONSTRAINT `FKpcpx3osphoy7ddoix5gr1w2wx` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKq9pso6cftpfcu93817e5lmbt` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1487 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度支出汇总表 (通用可配置版本)';
-DROP TABLE IF EXISTS `annual_financial_summary`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度支出汇总表 (通用可配置版本)';
 CREATE TABLE `annual_financial_summary` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `family_id` bigint NOT NULL COMMENT '家庭ID',
@@ -79,8 +79,7 @@ CREATE TABLE `annual_financial_summary` (
   KEY `idx_family_year` (`family_id`,`year` DESC),
   KEY `idx_summary_date` (`summary_date`),
   CONSTRAINT `annual_financial_summary_ibfk_1` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=676 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度财务摘要表';
-DROP TABLE IF EXISTS `asset_accounts`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年度财务摘要表';
 CREATE TABLE `asset_accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -104,8 +103,7 @@ CREATE TABLE `asset_accounts` (
   CONSTRAINT `asset_accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `FKj7mfyj7r2qas62ibdt715gkr` FOREIGN KEY (`linked_liability_account_id`) REFERENCES `liability_accounts` (`id`),
   CONSTRAINT `FKlsfoe2fmtq95j3guuljpp09rx` FOREIGN KEY (`asset_type_id`) REFERENCES `asset_type` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产账户表';
-DROP TABLE IF EXISTS `asset_liability_type_mappings`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产账户表';
 CREATE TABLE `asset_liability_type_mappings` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `asset_type` varchar(50) NOT NULL,
@@ -115,7 +113,6 @@ CREATE TABLE `asset_liability_type_mappings` (
   `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `asset_records`;
 CREATE TABLE `asset_records` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -135,8 +132,7 @@ CREATE TABLE `asset_records` (
   KEY `idx_account_date` (`account_id`,`record_date`),
   CONSTRAINT `asset_records_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `asset_records_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `asset_accounts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=935 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产记录表';
-DROP TABLE IF EXISTS `asset_type`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资产记录表';
 CREATE TABLE `asset_type` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `chinese_name` varchar(100) NOT NULL,
@@ -151,8 +147,7 @@ CREATE TABLE `asset_type` (
   `updated_at` datetime(6) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_p5n9lu0p3b85c122x2xet49dq` (`type`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `exchange_rates`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `exchange_rates` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `currency` varchar(10) NOT NULL,
@@ -166,8 +161,7 @@ CREATE TABLE `exchange_rates` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_currency_date` (`currency`,`effective_date`),
   UNIQUE KEY `UKicuvr10gmn700mnd6uxf19ftq` (`currency`,`effective_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `expense_budgets`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `expense_budgets` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `family_id` bigint NOT NULL COMMENT '家庭ID',
@@ -184,8 +178,7 @@ CREATE TABLE `expense_budgets` (
   KEY `idx_minor_category` (`minor_category_id`),
   CONSTRAINT `fk_budget_family` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`),
   CONSTRAINT `fk_budget_minor_category` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=445 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出年度预算表';
-DROP TABLE IF EXISTS `expense_categories_major`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出年度预算表';
 CREATE TABLE `expense_categories_major` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `code` varchar(50) NOT NULL COMMENT '大类编码（CHILDREN, CLOTHING等）',
@@ -201,8 +194,7 @@ CREATE TABLE `expense_categories_major` (
   UNIQUE KEY `code` (`code`),
   KEY `idx_is_active` (`is_active`),
   KEY `idx_sort_order` (`sort_order`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出大类表';
-DROP TABLE IF EXISTS `expense_categories_minor`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出大类表';
 CREATE TABLE `expense_categories_minor` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `major_category_id` bigint NOT NULL COMMENT '所属大类ID',
@@ -219,8 +211,7 @@ CREATE TABLE `expense_categories_minor` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_major_category` (`major_category_id`),
   CONSTRAINT `expense_categories_minor_ibfk_1` FOREIGN KEY (`major_category_id`) REFERENCES `expense_categories_major` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出子分类表';
-DROP TABLE IF EXISTS `expense_category_adjustment_config`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出子分类表';
 CREATE TABLE `expense_category_adjustment_config` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `major_category_id` bigint NOT NULL COMMENT '支出大类ID',
@@ -237,8 +228,7 @@ CREATE TABLE `expense_category_adjustment_config` (
   KEY `idx_major_category` (`major_category_id`),
   KEY `idx_asset_type` (`asset_type_code`),
   KEY `idx_liability_type` (`liability_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出类别调整配置表';
-DROP TABLE IF EXISTS `expense_records`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出类别调整配置表';
 CREATE TABLE `expense_records` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `family_id` bigint NOT NULL COMMENT '家庭ID',
@@ -267,8 +257,7 @@ CREATE TABLE `expense_records` (
   CONSTRAINT `expense_records_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `expense_records_ibfk_3` FOREIGN KEY (`major_category_id`) REFERENCES `expense_categories_major` (`id`),
   CONSTRAINT `expense_records_ibfk_4` FOREIGN KEY (`minor_category_id`) REFERENCES `expense_categories_minor` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1565 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出记录表';
-DROP TABLE IF EXISTS `families`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='支出记录表';
 CREATE TABLE `families` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `annual_expenses` decimal(15,2) DEFAULT NULL,
@@ -280,8 +269,7 @@ CREATE TABLE `families` (
   `updated_at` datetime(6) DEFAULT NULL,
   `expenses_currency` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `investment_transactions`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `investment_transactions` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `account_id` bigint NOT NULL COMMENT '资产账户ID',
@@ -297,8 +285,7 @@ CREATE TABLE `investment_transactions` (
   KEY `idx_period` (`transaction_period`),
   KEY `idx_transaction_type` (`transaction_type`),
   CONSTRAINT `investment_transactions_ibfk_1` FOREIGN KEY (`account_id`) REFERENCES `asset_accounts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='投资交易记录表';
-DROP TABLE IF EXISTS `liability_accounts`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='投资交易记录表';
 CREATE TABLE `liability_accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -325,8 +312,7 @@ CREATE TABLE `liability_accounts` (
   CONSTRAINT `FK836kbt4vlm2dti8p6uynx9mnw` FOREIGN KEY (`linked_asset_account_id`) REFERENCES `asset_accounts` (`id`),
   CONSTRAINT `fk_liability_accounts_liability_type` FOREIGN KEY (`liability_type_id`) REFERENCES `liability_type` (`id`),
   CONSTRAINT `liability_accounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债账户表';
-DROP TABLE IF EXISTS `liability_records`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债账户表';
 CREATE TABLE `liability_records` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -346,8 +332,7 @@ CREATE TABLE `liability_records` (
   KEY `idx_account_date` (`account_id`,`record_date`),
   CONSTRAINT `liability_records_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `liability_records_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `liability_accounts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债记录表';
-DROP TABLE IF EXISTS `liability_type`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债记录表';
 CREATE TABLE `liability_type` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `type` varchar(50) NOT NULL COMMENT '负债类型代码 (MORTGAGE, AUTO_LOAN, CREDIT_CARD, etc.)',
@@ -361,8 +346,7 @@ CREATE TABLE `liability_type` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `type` (`type`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债类型表';
-DROP TABLE IF EXISTS `net_asset_categories`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='负债类型表';
 CREATE TABLE `net_asset_categories` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `code` varchar(50) NOT NULL,
@@ -374,24 +358,21 @@ CREATE TABLE `net_asset_categories` (
   `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_7h5bspx87836vsma5rlpxei1v` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `net_asset_category_asset_type_mappings`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `net_asset_category_asset_type_mappings` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `asset_type` varchar(50) NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `net_asset_category_id` bigint NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `net_asset_category_liability_type_mappings`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `net_asset_category_liability_type_mappings` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
   `liability_type` varchar(50) NOT NULL,
   `net_asset_category_id` bigint NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `property_records`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `property_records` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `asset_account_id` bigint NOT NULL,
@@ -406,8 +387,7 @@ CREATE TABLE `property_records` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_cchqyjkt7e7iij221vq64aiw8` (`asset_account_id`),
   CONSTRAINT `FK1gxy56fcojjnuco2enjkgvrvr` FOREIGN KEY (`asset_account_id`) REFERENCES `asset_accounts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `transaction_categories`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `transaction_categories` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -425,8 +405,7 @@ CREATE TABLE `transaction_categories` (
   KEY `idx_user_type` (`user_id`,`type`),
   CONSTRAINT `transaction_categories_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `transaction_categories_ibfk_2` FOREIGN KEY (`parent_id`) REFERENCES `transaction_categories` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='交易类别表';
-DROP TABLE IF EXISTS `user_preferences`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='交易类别表';
 CREATE TABLE `user_preferences` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL COMMENT '用户ID',
@@ -442,8 +421,7 @@ CREATE TABLE `user_preferences` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   CONSTRAINT `user_preferences_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户偏好设置';
-DROP TABLE IF EXISTS `user_profiles`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户偏好设置';
 CREATE TABLE `user_profiles` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -456,7 +434,6 @@ CREATE TABLE `user_profiles` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_e5h89rk3ijvdmaiig4srogdc6` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL COMMENT '用户名',
@@ -480,8 +457,7 @@ CREATE TABLE `users` (
   KEY `idx_email` (`email`),
   KEY `idx_username` (`username`),
   KEY `idx_family_id` (`family_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
-DROP TABLE IF EXISTS `v_annual_financial_trend`;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
 SET @saved_cs_client     = @@character_set_client;
  1 AS `family_id`,
  1 AS `year`,
@@ -502,7 +478,5 @@ SET @saved_cs_client     = @@character_set_client;
  1 AS `mom_liability_change`,
  1 AS `mom_net_worth_change`*/;
 SET character_set_client = @saved_cs_client;
-
-
 
 SET FOREIGN_KEY_CHECKS = 1;
