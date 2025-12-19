@@ -1,200 +1,161 @@
-# CLAUDE.md
+# Finance App - Claude Code Guide
 
-Claude Code 工作指南 - 家庭理财管理系统
+> **Context Recovery**: When resuming sessions, read this file first.
+> **Project Root**: `/Users/yanzxu/claude/finance/`
 
-> **重要提示**:
-> - 项目根目录: `/Users/yanzxu/claude/finance/`
-> - 会话重置后，先读取此文件恢复上下文
+## Stack
 
-## 项目概览
+Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
 
-**技术栈**: Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
-**架构**: 前后端分离 + RESTful API + 时序数据模型
+## Critical Guardrails
 
-## 环境配置
+### Environment Setup
 
-### 1. Java 环境
+**ALWAYS run `/setup-java` at session start** - It configures Java 17, loads DB credentials from `backend/.env`, and exports required environment variables.
 
-**必须使用 Java 17**，运行setup-java技能自动配置：
+**NEVER commit `backend/.env`** - Contains DB credentials. Already in `.gitignore`.
+
+### Backend Development
+
+**ALWAYS use Maven wrapper** - `./mvnw` instead of `mvn` for consistency.
+
+**NEVER modify JPA entities without checking existing records** - `ddl-auto=update` auto-migrates schema. For breaking changes, write migration SQL first.
+
+**NEVER use `SELECT *`** - Specify columns in JPA queries. Database has 50+ columns across tables.
+
+**ALWAYS use TimeService.getCurrentTimestamp()** - Ensures consistent timezone handling across time-series data.
+
+### Frontend Development
+
+**ALWAYS use Composition API** - No Options API. All new components use `<script setup>`.
+
+**NEVER use inline styles** - Use Tailwind classes or CSS variables. See `docs/frontend-best-practices.md` for theme system.
+
+**ALWAYS format currency with symbols** - Use `formatCurrency(value, currency)` helper. Never display raw numbers.
+
+**NEVER hardcode colors** - Use CSS variables (`--primary`, `--secondary`) for theme support.
+
+### Database Operations
+
+**Use `/mysql-exec` skill for all DB operations**:
+```bash
+/mysql-exec path/to/script.sql    # Execute SQL file
+/mysql-exec "SELECT ..."          # Quick query
+/mysql-exec                       # Interactive shell
+```
+
+**NEVER run raw `mysql` commands** - The skill handles credentials and connection.
+
+**ALWAYS create new time-series records** - Never UPDATE existing asset/liability records. Create new records with new timestamps.
+
+### Git Workflow
+
+**Use `/git-commit-push` skill** - Stages, commits, and pushes in one step. Follows conventional commits format.
+
+**NEVER force push** - This is a personal project but maintain clean history.
+
+**ALWAYS run tests before commit** - Backend: `./mvnw test`, Frontend: `npm test` (when tests exist).
+
+## Common Anti-Patterns
+
+❌ **Don't**: Create comprehensive documentation in CLAUDE.md for every feature
+✅ **Do**: Document what Claude gets wrong. Point to external docs for details.
+
+❌ **Don't**: Write "Never use feature X" without alternatives
+✅ **Do**: Write "Never use X, prefer Y because [reason]"
+
+❌ **Don't**: Execute complex multi-step operations manually
+✅ **Do**: Use skills or write simple bash scripts
+
+❌ **Don't**: Update CLAUDE.md with temporary workarounds
+✅ **Do**: Fix the underlying issue and document the pattern
+
+## Architecture Quick Reference
+
+```
+backend/
+  src/main/java/com/finance/app/
+    controller/     # REST endpoints
+    service/        # Business logic
+    repository/     # Data access (Spring Data JPA)
+    model/          # JPA entities
+    dto/            # Data transfer objects
+    config/         # Spring configuration
+
+frontend/
+  src/
+    components/     # Reusable UI components
+    views/          # Page components (lazy-loaded routes)
+    router/         # Vue Router config
+    api/            # Axios client + API calls
+```
+
+**Time-Series Data Model**: Asset/Liability accounts have multiple records with timestamps. Never update - always create new records.
+
+**Multi-Currency**: All amounts stored in original currency + converted to USD. Use `ExchangeRateService` for conversions.
+
+## Development Workflow
 
 ```bash
+# 1. Start session
 /setup-java
-```
 
-自动完成：设置JAVA_HOME、加载数据库凭证、导出环境变量
-
-### 2. 数据库配置
-
-凭证存储在 `backend/.env`（不提交到git）：
-
-```bash
-DB_URL=jdbc:mysql://host:port/finance?useSSL=false&serverTimezone=UTC
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-```
-
-## 开发命令
-
-### 后端（Spring Boot）
-
-```bash
+# 2. Backend development
 cd backend
-mvn clean install          # 构建项目
-mvn spring-boot:run        # 启动（支持热重载）
-mvn test                   # 运行测试
-```
+./mvnw spring-boot:run          # Auto-reload with DevTools
 
-**热重载**: Spring Boot DevTools自动重启
-
-### 前端（Vue 3 + Vite）
-
-```bash
+# 3. Frontend development
 cd frontend
-npm install                # 安装依赖
-npm run dev                # 开发服务器（端口3000，HMR）
-npm run build              # 生产构建
+npm run dev                     # HMR at localhost:3000
+
+# 4. Database changes
+/mysql-exec path/to/migration.sql
+
+# 5. Commit changes
+/git-commit-push
 ```
 
-**热重载**: Vite HMR自动更新
+## When Things Go Wrong
 
-### 数据库操作
+**"No Java compiler available"** → Run `/setup-java` to set JAVA_HOME
 
-使用 `/mysql-exec` 技能：
+**JPA schema mismatch** → Check `backend/.env` credentials. You may be pointing to wrong DB.
 
-```bash
-/mysql-exec path/to/script.sql    # 执行SQL文件
-/mysql-exec "SHOW TABLES;"        # 快速查询
-/mysql-exec                       # 交互式shell
-```
+**Frontend proxy errors** → Ensure backend is running on port 8080. Check `vite.config.js` proxy settings.
 
-## 架构设计
+**Currency conversion errors** → Verify exchange rate exists for the date. Use `ExchangeRateService.getOrFetchRate()`.
 
-### 后端分层（com.finance.app）
+**Tests failing** → Check if time-series logic creates records instead of updating. Common mistake.
 
-```
-controller/    # REST API端点
-service/       # 业务逻辑
-repository/    # 数据访问（Spring Data JPA）
-model/         # JPA实体
-dto/           # 数据传输对象
-config/        # 配置（CORS等）
-```
+## External Documentation
 
-**关键技术**:
-- JPA配置: `ddl-auto=update`（自动更新schema）
-- 连接池: Tomcat JDBC
-- 数据库: MySQL 8.0 dialect
+For detailed information not covered by these guardrails:
 
-### 前端组件（Vue 3 Composition API）
+- **Feature requirements**: `requirement/需求说明.md`
+- **API contracts**: `requirement/API文档.md`
+- **Frontend patterns**: `docs/frontend-best-practices.md`
+- **API explorer**: http://localhost:8080/api/swagger-ui/index.html (when backend running)
 
-```
-components/    # 可复用组件
-  MainLayout.vue    # 主布局
-  Sidebar.vue       # 导航侧边栏
-  ui/               # shadcn风格组件
-views/         # 页面组件
-  assets/           # 资产管理
-  liabilities/      # 负债管理
-  analysis/         # 数据分析
-router/        # 路由配置（懒加载）
-api/           # Axios API客户端
-```
+## Skills Available
 
-**样式系统**:
-- Tailwind CSS + CSS变量主题
-- shadcn/ui组件模式（基于radix-vue）
-- `cn()`工具: 合并类名（clsx + tailwind-merge）
-- 深色模式支持
+- `/setup-java` - Configure environment + load DB credentials
+- `/mysql-exec` - Database operations (SQL files/queries/shell)
+- `/git-commit-push` - Atomic git workflow
+- `/docker-build-push` - Multi-arch Docker images (amd64/arm64)
+- `/catchup` - Resume session by reading changed files (after `/clear`)
 
-**最佳实践** (详见 `docs/frontend-best-practices.md`):
-- Chart.js饼图: 标签格式"名称-百分比%"，5%可见阈值
-- 货币显示: 统一格式化，带货币符号
-- 响应式布局: 图表-表格50/50分割
+## Context Management
 
-### 数据模型
+**Session getting slow?** Use this workflow:
 
-**核心实体**:
-- Users（用户）
-- Asset Categories/Accounts/Records（资产类别/账户/记录）
-- Liability Categories/Accounts/Records（负债类别/账户/记录）
-- Expense Categories/Budgets/Records（支出类别/预算/记录）
+1. `/clear` - Clear conversation history
+2. `/catchup` - Auto-reads all changed files in current git branch
+3. Continue working
 
-**时序数据模式**:
-账户使用基于记录的时序方法，每个账户可有多条带时间戳的价值记录，用于趋势分析。
+**For complex multi-day features**:
 
-**类型定义表**:
-- `asset_type` - 8种资产类型
-- `liability_type` - 7种负债类型
-- `net_asset_categories` - 净资产分类
-- `expense_categories_major` - 支出主类别
-- `expense_categories_minor` - 支出子类别
+1. Ask Claude to document progress in `docs/wip/[feature-name].md`
+2. `/clear` to reset
+3. Tell Claude to read the WIP doc and continue
 
-## API 接口
-
-**基础路径**: `http://localhost:8080/api`
-
-**端点**:
-- `/assets/*` - 资产CRUD
-- `/liabilities/*` - 负债CRUD
-- `/expenses/*` - 支出管理
-- `/analysis/*` - 财务分析
-- `/family` - 家庭管理
-
-**前后端集成**:
-- 前端开发服务器（3000端口）代理`/api`到后端（8080端口）
-- CORS配置: 开发环境允许所有来源
-- API客户端: `src/api/request.js`中的Axios实例
-
-## 业务逻辑
-
-**财务计算**:
-```
-总资产 = 所有资产账户最新时间戳的值总和
-总负债 = 所有负债账户最新时间戳的值总和
-净资产 = 总资产 - 总负债
-资产配置 = 各类别资产百分比分布
-负债比率 = 总负债 / 总资产
-```
-
-**多币种支持**: 数据录入支持多币种，自动转换为基础货币（USD）
-
-## 可用技能（Slash Commands）
-
-- `/setup-java` - 配置Java 17 + 加载数据库凭证
-- `/mysql-exec` - 执行MySQL命令（SQL文件/查询/交互shell）
-- `/git-commit-push` - 暂存、提交、推送到GitHub
-- `/docker-build-push` - 构建多架构Docker镜像（amd64/arm64）
-
-## 典型工作流
-
-```bash
-# 1. 启动开发
-/setup-java              # 配置环境
-cd backend && mvn spring-boot:run
-
-# 2. 数据库操作
-/mysql-exec              # 交互shell
-
-# 3. 代码修改
-# 保存Java/Vue文件 → 自动重载
-
-# 4. 提交代码
-git add .
-git commit -m "feat: new feature"
-git push
-```
-
-## 重要提示
-
-- JPA `ddl-auto=update` 会自动应用schema变更，生产环境需谨慎
-- 与zjutennis项目共享MySQL服务器，但使用独立的`finance`数据库
-- 路由懒加载：除Dashboard外所有路由均懒加载
-- 导航界面为中文（仪表盘、资产管理等）
-- 时序数据记录是核心模式：创建新时间戳记录，而非更新现有值
-
-## 参考文档
-
-- `requirement/需求说明.md` - 功能详细规划
-- `requirement/API文档.md` - 接口说明
-- `docs/frontend-best-practices.md` - 前端实现指南
-- Swagger UI: http://localhost:8080/api/swagger-ui/index.html
+**Never use `/compact`** - It's opaque and error-prone. Use `/clear` + `/catchup` instead.
