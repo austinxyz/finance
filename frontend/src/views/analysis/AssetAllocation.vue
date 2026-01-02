@@ -42,6 +42,7 @@
             >
               <option value="USD">美元 (USD)</option>
               <option value="CNY">人民币 (CNY)</option>
+              <option value="All">All (折算为USD)</option>
             </select>
           </div>
         </div>
@@ -581,14 +582,19 @@ const getItemValue = (item) => {
 
 // 货币符号
 const currencySymbol = computed(() => {
+  // All模式显示美元符号（因为All会折算为USD）
+  if (selectedCurrency.value === 'All') return '$'
   return selectedCurrency.value === 'CNY' ? '¥' : '$'
 })
 
 // 转换金额
 const convertValue = (valueInUSD) => {
-  if (selectedCurrency.value === 'CNY') {
-    return valueInUSD * exchangeRate.value
+  // All模式：后端已经筛选并折算，直接返回
+  if (selectedCurrency.value === 'All') {
+    return valueInUSD
   }
+  // CNY模式：后端返回人民币账户的原始金额，不需要转换
+  // USD模式：后端返回美元账户的原始金额，不需要转换
   return valueInUSD
 }
 
@@ -603,8 +609,20 @@ const convertedSummary = computed(() => {
 
 // 货币切换处理
 const onCurrencyChange = () => {
-  // 货币切换时不需要重新加载数据，只需要重新计算显示值
-  // 数据转换通过 convertValue 函数和 computed 属性自动处理
+  // 货币切换时需要重新加载数据，因为后端API需要根据currency参数筛选数据
+  loadSummary()
+  // 重新加载当前激活的 tab 数据
+  if (activeTab.value === 'net') {
+    loadNetAllocation()
+    // 税收状态、成员和货币分布不受货币选择影响
+    // loadTaxStatusAllocation()
+    // loadMemberAllocation()
+    // loadCurrencyAllocation()
+  } else if (activeTab.value === 'asset') {
+    loadAssetAllocation()
+  } else if (activeTab.value === 'liability') {
+    loadLiabilityAllocation()
+  }
 }
 
 // 当前激活的配置数据
@@ -1092,7 +1110,7 @@ const formatDate = (dateString) => {
 // 加载资产总览
 const loadSummary = async () => {
   try {
-    const response = await analysisAPI.getSummary(null, selectedFamilyId.value, selectedDate.value || null)
+    const response = await analysisAPI.getSummary(null, selectedFamilyId.value, selectedDate.value || null, selectedCurrency.value)
     if (response.success) {
       summary.value = response.data
       // 设置实际数据日期
@@ -1109,7 +1127,7 @@ const loadSummary = async () => {
 const loadNetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getNetAssetAllocation(null, selectedFamilyId.value, selectedDate.value || null)
+    const response = await analysisAPI.getNetAssetAllocation(null, selectedFamilyId.value, selectedDate.value || null, selectedCurrency.value)
     if (response.success) {
       netAllocation.value = response.data
     }
@@ -1124,8 +1142,7 @@ const loadNetAllocation = async () => {
 const loadAssetAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getAllocationByType(null, selectedFamilyId.value, selectedDate.value || null)
-    console.log('Asset allocation response:', response)
+    const response = await analysisAPI.getAllocationByType(null, selectedFamilyId.value, selectedDate.value || null, selectedCurrency.value)
     if (response.success) {
       assetAllocation.value = response.data
     }
@@ -1140,7 +1157,7 @@ const loadAssetAllocation = async () => {
 const loadLiabilityAllocation = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getLiabilityAllocation(null, selectedFamilyId.value, selectedDate.value || null)
+    const response = await analysisAPI.getLiabilityAllocation(null, selectedFamilyId.value, selectedDate.value || null, selectedCurrency.value)
     console.log('Liability allocation response:', response)
     if (response.success) {
       liabilityAllocation.value = response.data

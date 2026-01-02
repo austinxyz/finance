@@ -71,6 +71,11 @@ public class AnalysisService {
 
     // 获取指定日期的资产总览（可选择是否包含自住房）
     public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence) {
+        return getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence, "All");
+    }
+
+    // 获取指定日期的资产总览（支持货币筛选）
+    public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence, String currency) {
         // 优先级：familyId > userId > 所有账户
         List<AssetAccount> accounts;
         if (familyId != null) {
@@ -82,6 +87,13 @@ public class AnalysisService {
         } else {
             // 获取所有活跃账户
             accounts = accountRepository.findByIsActiveTrue();
+        }
+
+        // 货币筛选：如果不是"All"，则只包含指定货币的账户
+        if (!"All".equalsIgnoreCase(currency)) {
+            accounts = accounts.stream()
+                .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
+                .collect(java.util.stream.Collectors.toList());
         }
 
         BigDecimal totalAssets = BigDecimal.ZERO;
@@ -100,11 +112,18 @@ public class AnalysisService {
             if (record.isPresent()) {
                 // 使用查询日期的汇率重新计算金额，而不是使用记录时的amountInBaseCurrency
                 AssetRecord assetRecord = record.get();
-                BigDecimal amount = convertToUSD(
-                    assetRecord.getAmount(),
-                    assetRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : assetRecord.getRecordDate()
-                );
+                BigDecimal amount;
+                if ("All".equalsIgnoreCase(currency)) {
+                    // All模式：转换为USD
+                    amount = convertToUSD(
+                        assetRecord.getAmount(),
+                        assetRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                    );
+                } else {
+                    // 单货币模式：使用原始金额，不转换
+                    amount = assetRecord.getAmount();
+                }
                 totalAssets = totalAssets.add(amount);
 
                 // 追踪实际使用的最新数据日期
@@ -138,17 +157,31 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
+        // 货币筛选：如果不是"All"，则只包含指定货币的负债账户
+        if (!"All".equalsIgnoreCase(currency)) {
+            liabilityAccounts = liabilityAccounts.stream()
+                .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
+                .collect(java.util.stream.Collectors.toList());
+        }
+
         BigDecimal totalLiabilities = BigDecimal.ZERO;
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
                 // 使用查询日期的汇率重新计算金额，而不是使用记录时的balanceInBaseCurrency
                 LiabilityRecord liabilityRecord = record.get();
-                BigDecimal balance = convertToUSD(
-                    liabilityRecord.getOutstandingBalance(),
-                    liabilityRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
-                );
+                BigDecimal balance;
+                if ("All".equalsIgnoreCase(currency)) {
+                    // All模式：转换为USD
+                    balance = convertToUSD(
+                        liabilityRecord.getOutstandingBalance(),
+                        liabilityRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                    );
+                } else {
+                    // 单货币模式：使用原始金额，不转换
+                    balance = liabilityRecord.getOutstandingBalance();
+                }
                 totalLiabilities = totalLiabilities.add(balance);
 
                 // 追踪实际使用的最新数据日期
@@ -349,17 +382,22 @@ public class AnalysisService {
 
     // 获取按类型的资产配置
     public Map<String, Object> getAssetAllocationByType(Long userId) {
-        return getAssetAllocationByType(userId, null, null);
+        return getAssetAllocationByType(userId, null, null, "All");
     }
 
     // 获取指定日期的按类型的资产配置
     public Map<String, Object> getAssetAllocationByType(Long userId, LocalDate asOfDate) {
-        return getAssetAllocationByType(userId, null, asOfDate);
+        return getAssetAllocationByType(userId, null, asOfDate, "All");
     }
 
     // 获取指定家庭和日期的按类型的资产配置
     public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate);
+        return getAssetAllocationByType(userId, familyId, asOfDate, "All");
+    }
+
+    // 获取指定家庭、日期和货币的按类型的资产配置
+    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
+        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate, false, currency);
         Map<String, BigDecimal> assetsByType = summary.getAssetsByType();
 
         List<Map<String, Object>> data = new ArrayList<>();
@@ -407,25 +445,30 @@ public class AnalysisService {
 
     // 获取净资产配置（资产减去对应负债）
     public Map<String, Object> getNetAssetAllocation(Long userId) {
-        return getNetAssetAllocation(userId, null, null);
+        return getNetAssetAllocation(userId, null, null, "All");
     }
 
     // 获取指定日期的净资产配置
     public Map<String, Object> getNetAssetAllocation(Long userId, LocalDate asOfDate) {
-        return getNetAssetAllocation(userId, null, asOfDate);
+        return getNetAssetAllocation(userId, null, asOfDate, "All");
     }
 
     // 获取指定日期的净资产配置（支持familyId）
     public Map<String, Object> getNetAssetAllocation(Long userId, Long familyId, LocalDate asOfDate) {
+        return getNetAssetAllocation(userId, familyId, asOfDate, "All");
+    }
+
+    // 获取指定日期的净资产配置（支持familyId和货币筛选）
+    public Map<String, Object> getNetAssetAllocation(Long userId, Long familyId, LocalDate asOfDate, String currency) {
         // 获取所有净资产类别
         List<NetAssetCategory> netAssetCategories = netAssetCategoryRepository.findAllByOrderByDisplayOrderAsc();
 
-        // 获取资产和负债数据（支持familyId）
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate);
+        // 获取资产和负债数据（支持familyId和货币筛选）
+        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate, false, currency);
         Map<String, BigDecimal> assetsByType = summary.getAssetsByType();
 
-        // 计算每个负债类型的总额（支持familyId）
-        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate);
+        // 计算每个负债类型的总额（支持familyId和货币筛选）
+        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate, currency);
 
         List<Map<String, Object>> data = new ArrayList<>();
         BigDecimal totalNetAssets = BigDecimal.ZERO;
@@ -496,17 +539,22 @@ public class AnalysisService {
 
     // 获取按类型的负债配置
     public Map<String, Object> getLiabilityAllocationByType(Long userId) {
-        return getLiabilityAllocationByType(userId, null, null);
+        return getLiabilityAllocationByType(userId, null, null, "All");
     }
 
     // 获取指定日期的按类型的负债配置
     public Map<String, Object> getLiabilityAllocationByType(Long userId, LocalDate asOfDate) {
-        return getLiabilityAllocationByType(userId, null, asOfDate);
+        return getLiabilityAllocationByType(userId, null, asOfDate, "All");
     }
 
     // 获取指定家庭和日期的按类型的负债配置
     public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate);
+        return getLiabilityAllocationByType(userId, familyId, asOfDate, "All");
+    }
+
+    // 获取指定家庭、日期和货币的按类型的负债配置
+    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
+        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate, currency);
 
         List<Map<String, Object>> data = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
@@ -556,16 +604,21 @@ public class AnalysisService {
 
     // 计算每个负债类型的总额
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId) {
-        return calculateLiabilitiesByType(userId, null, null);
+        return calculateLiabilitiesByType(userId, null, null, "All");
     }
 
     // 计算指定日期的每个负债类型的总额
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, LocalDate asOfDate) {
-        return calculateLiabilitiesByType(userId, null, asOfDate);
+        return calculateLiabilitiesByType(userId, null, asOfDate, "All");
     }
 
     // 计算指定日期的每个负债类型的总额（支持familyId）
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, Long familyId, LocalDate asOfDate) {
+        return calculateLiabilitiesByType(userId, familyId, asOfDate, "All");
+    }
+
+    // 计算指定日期的每个负债类型的总额（支持familyId和货币筛选）
+    private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
         List<LiabilityAccount> liabilityAccounts;
         // 优先级：familyId > userId > 所有账户
         if (familyId != null) {
@@ -576,17 +629,31 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
+        // 货币筛选：如果不是"All"，则只包含指定货币的账户
+        if (!"All".equalsIgnoreCase(currency)) {
+            liabilityAccounts = liabilityAccounts.stream()
+                .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
+                .collect(java.util.stream.Collectors.toList());
+        }
+
         Map<String, BigDecimal> liabilitiesByType = new HashMap<>();
 
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
                 LiabilityRecord liabilityRecord = record.get();
-                BigDecimal balance = convertToUSD(
-                    liabilityRecord.getOutstandingBalance(),
-                    liabilityRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
-                );
+                BigDecimal balance;
+                if ("All".equalsIgnoreCase(currency)) {
+                    // All模式：转换为USD
+                    balance = convertToUSD(
+                        liabilityRecord.getOutstandingBalance(),
+                        liabilityRecord.getCurrency(),
+                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                    );
+                } else {
+                    // 单货币模式：使用原始金额，不转换
+                    balance = liabilityRecord.getOutstandingBalance();
+                }
 
                 String typeName = account.getLiabilityType() != null ?
                     account.getLiabilityType().getType() : "OTHER";

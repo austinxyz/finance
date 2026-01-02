@@ -48,6 +48,10 @@ public class InvestmentAnalysisService {
 
     /**
      * 获取年度大类投资分析
+     * @param currency 货币筛选条件：
+     *                 - "USD": 只显示美元账户
+     *                 - "CNY": 只显示人民币账户
+     *                 - "All": 显示所有账户，并折算为美元
      */
     public List<InvestmentCategoryAnalysisDTO> getAnnualByCategory(Long familyId, Integer year, String currency) {
         // 获取所有投资类别
@@ -73,16 +77,25 @@ public class InvestmentAnalysisService {
 
         // 统计每个大类的投入和取出
         for (InvestmentTransaction tx : transactions) {
+            String accountCurrency = tx.getAccount().getCurrency();
+
+            // 货币筛选：如果不是"All"，则只统计指定货币的账户
+            if (!"All".equalsIgnoreCase(currency) && !accountCurrency.equalsIgnoreCase(currency)) {
+                continue; // 跳过不匹配的货币账户
+            }
+
             Long assetTypeId = tx.getAccount().getAssetTypeId();
             InvestmentCategoryAnalysisDTO dto = categoryMap.get(assetTypeId);
 
             if (dto != null) {
                 BigDecimal amount = tx.getAmount();
 
-                // 货币转换到目标货币
-                String accountCurrency = tx.getAccount().getCurrency();
-                LocalDate transactionDate = LocalDate.parse(tx.getTransactionPeriod() + "-01");
-                amount = convertCurrency(amount, accountCurrency, currency, transactionDate);
+                // 只有选择"All"时才进行货币转换（折算为USD）
+                if ("All".equalsIgnoreCase(currency)) {
+                    LocalDate transactionDate = LocalDate.parse(tx.getTransactionPeriod() + "-01");
+                    amount = convertCurrency(amount, accountCurrency, "USD", transactionDate);
+                }
+                // 选择单一货币时，使用原始金额（不转换）
 
                 if (InvestmentTransaction.TransactionType.DEPOSIT.equals(tx.getTransactionType())) {
                     dto.setTotalDeposits(dto.getTotalDeposits().add(amount));
@@ -112,6 +125,7 @@ public class InvestmentAnalysisService {
     /**
      * 计算投资回报率
      * 回报率 = (当前资产 - 去年年底资产 - 净投入) / (去年年底资产 + 净投入)
+     * @param targetCurrency 货币筛选条件："USD", "CNY", 或 "All"
      */
     private void calculateReturnRates(Long familyId, Integer year, String targetCurrency, Map<Long, InvestmentCategoryAnalysisDTO> categoryMap) {
         // 获取选中年份年底日期和去年年底日期
@@ -128,8 +142,11 @@ public class InvestmentAnalysisService {
         List<AssetAccount> accounts = assetAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
 
         // 按资产类型分组账户（保留完整账户对象以获取货币信息）
+        // 并根据货币筛选条件过滤账户
         Map<Long, List<AssetAccount>> accountsByAssetType = accounts.stream()
             .filter(acc -> acc.getAssetType() != null && acc.getAssetType().getIsInvestment())
+            // 货币筛选：如果不是"All"，则只包含指定货币的账户
+            .filter(acc -> "All".equalsIgnoreCase(targetCurrency) || acc.getCurrency().equalsIgnoreCase(targetCurrency))
             .collect(Collectors.groupingBy(AssetAccount::getAssetTypeId));
 
         // 为每个大类计算资产数据和回报率
@@ -170,7 +187,10 @@ public class InvestmentAnalysisService {
 
                         // 计算当前净资产
                         BigDecimal currentNetWorth = currentRealEstateValue.subtract(currentMortgage);
-                        currentNetWorth = convertCurrency(currentNetWorth, account.getCurrency(), targetCurrency, currentDate);
+                        // 只有选择"All"时才转换为USD
+                        if ("All".equalsIgnoreCase(targetCurrency)) {
+                            currentNetWorth = convertCurrency(currentNetWorth, account.getCurrency(), "USD", currentDate);
+                        }
                         currentAssets = currentAssets.add(currentNetWorth);
 
                         // 查询去年年底房产价值
@@ -184,12 +204,18 @@ public class InvestmentAnalysisService {
 
                         // 计算去年净资产
                         BigDecimal lastYearNetWorth = lastYearRealEstateValue.subtract(lastYearMortgage);
-                        lastYearNetWorth = convertCurrency(lastYearNetWorth, account.getCurrency(), targetCurrency, lastYearEndDate);
+                        // 只有选择"All"时才转换为USD
+                        if ("All".equalsIgnoreCase(targetCurrency)) {
+                            lastYearNetWorth = convertCurrency(lastYearNetWorth, account.getCurrency(), "USD", lastYearEndDate);
+                        }
                         lastYearEndAssets = lastYearEndAssets.add(lastYearNetWorth);
 
                         // 计算本金还款（负债减少部分）= 去年房贷 - 今年房贷
                         BigDecimal principalPayment = lastYearMortgage.subtract(currentMortgage);
-                        principalPayment = convertCurrency(principalPayment, mortgageAccount.getCurrency(), targetCurrency, currentDate);
+                        // 只有选择"All"时才转换为USD
+                        if ("All".equalsIgnoreCase(targetCurrency)) {
+                            principalPayment = convertCurrency(principalPayment, mortgageAccount.getCurrency(), "USD", currentDate);
+                        }
                         totalPrincipalPayment = totalPrincipalPayment.add(principalPayment);
                     }
                 } else {
@@ -197,16 +223,20 @@ public class InvestmentAnalysisService {
                     // 修复：使用指定日期的资产记录，而不是最新记录
                     BigDecimal accountCurrentAsset = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(account.getId()), currentDate);
                     if (accountCurrentAsset != null && accountCurrentAsset.compareTo(BigDecimal.ZERO) > 0) {
-                        // 货币转换到目标货币
-                        BigDecimal convertedAmount = convertCurrency(accountCurrentAsset, account.getCurrency(), targetCurrency, currentDate);
+                        // 只有选择"All"时才转换为USD
+                        BigDecimal convertedAmount = "All".equalsIgnoreCase(targetCurrency)
+                            ? convertCurrency(accountCurrentAsset, account.getCurrency(), "USD", currentDate)
+                            : accountCurrentAsset;
                         currentAssets = currentAssets.add(convertedAmount);
                     }
 
                     // 查询去年年底资产
                     BigDecimal accountLastYearAsset = assetRecordRepository.sumAmountByAccountIdsAsOfDate(List.of(account.getId()), lastYearEndDate);
                     if (accountLastYearAsset != null && accountLastYearAsset.compareTo(BigDecimal.ZERO) > 0) {
-                        // 货币转换到目标货币
-                        BigDecimal convertedAmount = convertCurrency(accountLastYearAsset, account.getCurrency(), targetCurrency, lastYearEndDate);
+                        // 只有选择"All"时才转换为USD
+                        BigDecimal convertedAmount = "All".equalsIgnoreCase(targetCurrency)
+                            ? convertCurrency(accountLastYearAsset, account.getCurrency(), "USD", lastYearEndDate)
+                            : accountLastYearAsset;
                         lastYearEndAssets = lastYearEndAssets.add(convertedAmount);
                     }
                 }
@@ -284,6 +314,7 @@ public class InvestmentAnalysisService {
 
     /**
      * 获取年度账户投资分析（按大类筛选）
+     * @param currency 货币筛选条件："USD", "CNY", 或 "All"
      */
     public List<InvestmentAccountAnalysisDTO> getAnnualByAccount(Long familyId, Integer year, Long assetTypeId, String currency) {
         // 获取该家庭的所有用户ID
@@ -292,16 +323,20 @@ public class InvestmentAnalysisService {
             return new ArrayList<>();
         }
 
-        // 获取所有投资账户（筛选条件：家庭用户 + 可选的资产类型）
+        // 获取所有投资账户（筛选条件：家庭用户 + 可选的资产类型 + 货币筛选）
         List<AssetAccount> accounts;
         if (assetTypeId != null) {
             accounts = assetAccountRepository.findByUserIdInAndIsActiveTrue(userIds).stream()
                 .filter(acc -> acc.getAssetType() != null && acc.getAssetType().getIsInvestment())
                 .filter(acc -> assetTypeId.equals(acc.getAssetTypeId()))
+                // 货币筛选：如果不是"All"，则只包含指定货币的账户
+                .filter(acc -> "All".equalsIgnoreCase(currency) || acc.getCurrency().equalsIgnoreCase(currency))
                 .collect(Collectors.toList());
         } else {
             accounts = assetAccountRepository.findByUserIdInAndIsActiveTrue(userIds).stream()
                 .filter(acc -> acc.getAssetType() != null && acc.getAssetType().getIsInvestment())
+                // 货币筛选：如果不是"All"，则只包含指定货币的账户
+                .filter(acc -> "All".equalsIgnoreCase(currency) || acc.getCurrency().equalsIgnoreCase(currency))
                 .collect(Collectors.toList());
         }
 
@@ -341,10 +376,13 @@ public class InvestmentAnalysisService {
             if (dto != null) {
                 BigDecimal amount = tx.getAmount();
 
-                // 货币转换到目标货币
+                // 只有选择"All"时才进行货币转换（折算为USD）
                 String accountCurrency = tx.getAccount().getCurrency();
-                LocalDate transactionDate = LocalDate.parse(tx.getTransactionPeriod() + "-01");
-                amount = convertCurrency(amount, accountCurrency, currency, transactionDate);
+                if ("All".equalsIgnoreCase(currency)) {
+                    LocalDate transactionDate = LocalDate.parse(tx.getTransactionPeriod() + "-01");
+                    amount = convertCurrency(amount, accountCurrency, "USD", transactionDate);
+                }
+                // 选择单一货币时，使用原始金额（不转换）
 
                 if (InvestmentTransaction.TransactionType.DEPOSIT.equals(tx.getTransactionType())) {
                     dto.setTotalDeposits(dto.getTotalDeposits().add(amount));
@@ -414,19 +452,23 @@ public class InvestmentAnalysisService {
                     lastYearEndAssetsOriginal = BigDecimal.ZERO;
                 }
 
-                // 转换为目标货币
-                BigDecimal currentAssets = convertCurrency(currentAssetsOriginal, account.getCurrency(), targetCurrency, currentDate);
-                BigDecimal lastYearEndAssets = convertCurrency(lastYearEndAssetsOriginal, account.getCurrency(), targetCurrency, lastYearEndDate);
+                // 只有选择"All"时才转换为USD
+                BigDecimal currentAssets = "All".equalsIgnoreCase(targetCurrency)
+                    ? convertCurrency(currentAssetsOriginal, account.getCurrency(), "USD", currentDate)
+                    : currentAssetsOriginal;
+                BigDecimal lastYearEndAssets = "All".equalsIgnoreCase(targetCurrency)
+                    ? convertCurrency(lastYearEndAssetsOriginal, account.getCurrency(), "USD", lastYearEndDate)
+                    : lastYearEndAssetsOriginal;
 
                 dto.setCurrentAssets(currentAssets);
                 dto.setLastYearEndAssets(lastYearEndAssets);
 
-                // 计算投资回报（目标货币）
+                // 计算投资回报（使用选择的货币或原始货币）
                 BigDecimal netDeposits = dto.getNetDeposits();
                 BigDecimal returns = currentAssets.subtract(lastYearEndAssets).subtract(netDeposits);
                 dto.setReturns(returns);
 
-                // 为了兼容性，将目标货币的值也存储到USD字段（用于总计）
+                // 为了兼容性，将当前货币的值也存储到USD字段（用于总计）
                 dto.setCurrentAssetsUsd(currentAssets);
                 dto.setLastYearEndAssetsUsd(lastYearEndAssets);
                 dto.setNetDepositsUsd(netDeposits);

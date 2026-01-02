@@ -37,6 +37,7 @@
         >
           <option value="USD">USD</option>
           <option value="CNY">CNY</option>
+          <option value="All">All (折算为USD)</option>
         </select>
       </div>
     </div>
@@ -195,16 +196,16 @@
                     </div>
                   </td>
                   <td class="px-2 py-1 text-right text-gray-700 whitespace-nowrap">
-                    {{ formatCurrency(item.lastYearEndAssets, item.currency) }}
+                    {{ formatCurrency(item.lastYearEndAssets, selectedCurrency === 'All' ? 'USD' : item.currency) }}
                   </td>
                   <td class="px-2 py-1 text-right font-medium text-gray-900 whitespace-nowrap">
-                    {{ formatCurrency(item.currentAssets, item.currency) }}
+                    {{ formatCurrency(item.currentAssets, selectedCurrency === 'All' ? 'USD' : item.currency) }}
                   </td>
                   <td class="px-2 py-1 text-right text-gray-600 whitespace-nowrap">
-                    {{ formatCurrency(item.netDeposits, item.currency) }}
+                    {{ formatCurrency(item.netDeposits, selectedCurrency === 'All' ? 'USD' : item.currency) }}
                   </td>
                   <td class="px-2 py-1 text-right font-medium whitespace-nowrap" :class="item.returns >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(item.returns, item.currency) }}
+                    {{ formatCurrency(item.returns, selectedCurrency === 'All' ? 'USD' : item.currency) }}
                   </td>
                   <td class="px-2 py-1 text-right font-semibold whitespace-nowrap" :class="item.returnRate >= 0 ? 'text-green-600' : 'text-red-600'">
                     {{ item.returnRate != null ? item.returnRate.toFixed(2) + '%' : 'N/A' }}
@@ -248,20 +249,20 @@
         <div class="grid grid-cols-5 gap-2 mb-3 text-xs">
           <div class="bg-gray-50 px-2 py-1.5 rounded">
             <div class="text-gray-600">上一年值</div>
-            <div class="font-medium text-gray-900">{{ formatCurrency(accountSummary.lastYearEndAssets || 0, accountSummary.currency) }}</div>
+            <div class="font-medium text-gray-900">{{ formatCurrency(accountSummary.lastYearEndAssets || 0, selectedCurrency === 'All' ? 'USD' : accountSummary.currency) }}</div>
           </div>
           <div class="bg-gray-50 px-2 py-1.5 rounded">
             <div class="text-gray-600">当前年值</div>
-            <div class="font-medium text-gray-900">{{ formatCurrency(accountSummary.currentAssets || 0, accountSummary.currency) }}</div>
+            <div class="font-medium text-gray-900">{{ formatCurrency(accountSummary.currentAssets || 0, selectedCurrency === 'All' ? 'USD' : accountSummary.currency) }}</div>
           </div>
           <div class="bg-gray-50 px-2 py-1.5 rounded">
             <div class="text-gray-600">净投入</div>
-            <div class="font-medium text-gray-600">{{ formatCurrency(accountSummary.netDeposits || 0, accountSummary.currency) }}</div>
+            <div class="font-medium text-gray-600">{{ formatCurrency(accountSummary.netDeposits || 0, selectedCurrency === 'All' ? 'USD' : accountSummary.currency) }}</div>
           </div>
           <div class="bg-gray-50 px-2 py-1.5 rounded">
             <div class="text-gray-600">投资回报</div>
             <div class="font-semibold" :class="(accountSummary.returns || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ formatCurrency(accountSummary.returns || 0, accountSummary.currency) }}
+              {{ formatCurrency(accountSummary.returns || 0, selectedCurrency === 'All' ? 'USD' : accountSummary.currency) }}
             </div>
           </div>
           <div class="bg-gray-50 px-2 py-1.5 rounded">
@@ -424,7 +425,8 @@ export default {
     // 数据
     const families = ref([])
     const selectedFamilyId = ref(null)
-    const selectedYear = ref(new Date().getFullYear())
+    // 默认选择去年，因为今年数据可能还不完整
+    const selectedYear = ref(new Date().getFullYear() - 1)
     const selectedCurrency = ref('USD')
     const availableYears = ref([])
 
@@ -521,7 +523,9 @@ export default {
       const curr = currency || selectedCurrency.value
 
       if (!value) {
-        return curr === 'CNY' ? '¥0.00' : '$0.00'
+        // 如果选择All，则显示美元符号（因为All模式下所有金额都折算为USD）
+        const displayCurr = curr === 'All' ? 'USD' : curr
+        return displayCurr === 'CNY' ? '¥0.00' : '$0.00'
       }
 
       const formatted = parseFloat(value).toLocaleString('en-US', {
@@ -530,7 +534,9 @@ export default {
       })
 
       // 根据货币返回不同符号
-      const symbol = curr === 'CNY' ? '¥' : '$'
+      // 如果选择All，则显示美元符号（因为All模式下所有金额都折算为USD）
+      const displayCurr = curr === 'All' ? 'USD' : curr
+      const symbol = displayCurr === 'CNY' ? '¥' : '$'
       return symbol + formatted
     }
 
@@ -551,7 +557,9 @@ export default {
         if (response.success) {
           families.value = response.data
           if (families.value.length > 0) {
-            selectedFamilyId.value = families.value[0].id
+            // 优先选择默认家庭
+            const defaultFamily = families.value.find(f => f.isDefault)
+            selectedFamilyId.value = defaultFamily ? defaultFamily.id : families.value[0].id
             await loadMajorCategoryData()
           }
         }

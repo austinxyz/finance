@@ -31,6 +31,28 @@ This directory contains professional PNG images for all tables in the Medium art
    - Metrics: Time Cost, Password Leak Risk, Repeatability, AI Usability
    - Used in: Part 3, "The Power of Skills" section
 
+### Part 4: Methodology Evolution
+
+5. **part4-table-code-review.png** (2800 x ~700)
+   - Code Review Process Comparison
+   - Compares Traditional vs AI-Assisted code review workflow
+   - Metrics: First-round review time, Detection rate, Fix time, Final quality
+   - Used in: Part 4, "Code Review: New Balance of Human-AI Collaboration" section
+
+6. **part4-table-build-deploy.png** (2800 x ~700)
+   - Build & Deploy Efficiency Comparison
+   - Compares Traditional multi-step commands vs Skills workflow
+   - Tasks: Build+push image, Commit code, Database migration
+   - Used in: Part 4, "Build & Deploy: Simplified Automation Processes" section
+
+### Part 5: Use Cases and Limitations
+
+7. **part5-table-documentation.png** (2800 x ~900)
+   - Documentation and Test Writing Comparison
+   - Compares Traditional vs AI-assisted time and quality
+   - Tasks: Unit tests, Requirement docs, Design docs, Database docs, Architecture diagrams
+   - Used in: Part 5, "Documentation and Test Writing" section
+
 ## Design Features
 
 All images feature:
@@ -51,11 +73,26 @@ All images feature:
    - Table 2: "AI Development Tools Feature Comparison"
    - Table 3: "Architecture Implementation Approaches Comparison"
    - Table 4: "Skills vs Manual Commands Comparison"
+   - Table 5: "Code Review Process Comparison: Traditional vs AI-Assisted"
+   - Table 6: "Build & Deploy Efficiency Comparison"
+   - Table 7: "Documentation and Test Writing Time Comparison"
 
 ## Technical Details
 
 - Format: PNG
 - Resolution: 2800px width (retina-ready)
 - Color depth: 8-bit RGB
-- File sizes: 248KB - 332KB
+- File sizes: 248KB - 501KB
 - Generated using: HTML + Puppeteer (headless Chrome)
+
+## Regenerating Images
+
+To regenerate all table images:
+
+```bash
+cd docs/medium-ready
+npm install  # First time only
+node generate-table.js
+```
+
+The script will generate all table images in the `images/` directory.

@@ -11,13 +11,11 @@ Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
 
 ### Environment Setup
 
-**ALWAYS run `/setup-java` at session start** - It configures Java 17, loads DB credentials from `backend/.env`, and exports required environment variables.
-
 **NEVER commit `backend/.env`** - Contains DB credentials. Already in `.gitignore`.
 
-### Backend Development
+**ALWAYS use `./backend/start.sh` to start backend** - Loads environment variables from `backend/.env` and starts Spring Boot. Works from any directory.
 
-**ALWAYS use Maven wrapper** - `./mvnw` instead of `mvn` for consistency.
+### Backend Development
 
 **NEVER modify JPA entities without checking existing records** - `ddl-auto=update` auto-migrates schema. For breaking changes, write migration SQL first.
 
@@ -54,7 +52,7 @@ Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
 
 **NEVER force push** - This is a personal project but maintain clean history.
 
-**ALWAYS run tests before commit** - Backend: `./mvnw test`, Frontend: `npm test` (when tests exist).
+**ALWAYS run tests before commit** - Backend: `cd backend && mvn test`, Frontend: `npm test` (when tests exist).
 
 ## Common Anti-Patterns
 
@@ -69,6 +67,9 @@ Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
 
 ❌ **Don't**: Update CLAUDE.md with temporary workarounds
 ✅ **Do**: Fix the underlying issue and document the pattern
+
+❌ **Don't**: Run `cd backend && mvn spring-boot:run` directly
+✅ **Do**: Use `./backend/start.sh` which handles environment variables correctly
 
 ## Architecture Quick Reference
 
@@ -97,27 +98,27 @@ frontend/
 ## Development Workflow
 
 ```bash
-# 1. Start session
-/setup-java
+# 1. Backend development
+./backend/start.sh              # Loads .env and starts Spring Boot (auto-reload with DevTools)
 
-# 2. Backend development
-cd backend
-./mvnw spring-boot:run          # Auto-reload with DevTools
-
-# 3. Frontend development
+# 2. Frontend development
 cd frontend
 npm run dev                     # HMR at localhost:3000
 
-# 4. Database changes
+# 3. Database changes
 /mysql-exec path/to/migration.sql
 
-# 5. Commit changes
+# 4. Commit changes
 /git-commit-push
 ```
 
 ## When Things Go Wrong
 
-**"No Java compiler available"** → Run `/setup-java` to set JAVA_HOME
+**"No Java compiler available"** → Ensure Java 17 is installed: `brew install openjdk@17`
+
+**"URL must start with 'jdbc'"** → Environment variables not loaded. Use `./backend/start.sh` instead of running `mvn` directly.
+
+**Backend won't start** → Check `backend/.env` exists and has valid credentials. See example format in `/setup-java` skill docs.
 
 **JPA schema mismatch** → Check `backend/.env` credentials. You may be pointing to wrong DB.
 
@@ -138,11 +139,12 @@ For detailed information not covered by these guardrails:
 
 ## Skills Available
 
-- `/setup-java` - Configure environment + load DB credentials
 - `/mysql-exec` - Database operations (SQL files/queries/shell)
 - `/git-commit-push` - Atomic git workflow
 - `/docker-build-push` - Multi-arch Docker images (amd64/arm64)
 - `/catchup` - Resume session by reading changed files (after `/clear`)
+
+**Note**: `/setup-java` skill exists but is NOT needed for normal development. Use `./backend/start.sh` instead.
 
 ## Context Management
 

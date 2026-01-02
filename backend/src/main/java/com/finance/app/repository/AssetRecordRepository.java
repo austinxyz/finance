@@ -68,4 +68,45 @@ public interface AssetRecordRepository extends JpaRepository<AssetRecord, Long> 
     BigDecimal sumAmountByAccountIdsAsOfDate(
             @Param("accountIds") List<Long> accountIds,
             @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定家庭、资产类型在指定日期的最新总额（USD）
+     */
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM AssetRecord r " +
+           "JOIN r.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND a.assetType.id = :assetTypeId " +
+           "AND a.isActive = true " +
+           "AND r.currency = 'USD' " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate)")
+    Optional<BigDecimal> findLatestTotalByTypeAndDate(
+            @Param("familyId") Long familyId,
+            @Param("assetTypeId") Long assetTypeId,
+            @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定家庭在指定日期的所有最新资产记录
+     */
+    @Query("SELECT r FROM AssetRecord r " +
+           "JOIN r.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND a.isActive = true " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate) " +
+           "ORDER BY a.assetType.displayOrder, a.accountName")
+    List<AssetRecord> findLatestRecordsByFamilyAndDate(
+            @Param("familyId") Long familyId,
+            @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定账户在指定日期的最新记录
+     */
+    @Query("SELECT r FROM AssetRecord r " +
+           "WHERE r.accountId = :accountId " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 " +
+           "                     WHERE r2.accountId = :accountId AND r2.recordDate <= :asOfDate)")
+    Optional<AssetRecord> findLatestByAccountAndDate(
+            @Param("accountId") Long accountId,
+            @Param("asOfDate") LocalDate asOfDate);
 }

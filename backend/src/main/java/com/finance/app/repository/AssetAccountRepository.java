@@ -22,4 +22,30 @@ public interface AssetAccountRepository extends JpaRepository<AssetAccount, Long
 
     @Query("SELECT a FROM AssetAccount a WHERE a.userId = :userId AND a.isActive = true ORDER BY a.createdAt DESC")
     List<AssetAccount> findActiveAccountsByUserId(@Param("userId") Long userId);
+
+    /**
+     * 查询指定家庭的非退休投资账户
+     */
+    @Query("SELECT a FROM AssetAccount a JOIN User u ON a.userId = u.id " +
+           "WHERE u.familyId = :familyId " +
+           "AND a.isActive = true " +
+           "AND a.taxStatus != :taxStatus " +
+           "ORDER BY a.accountName")
+    List<AssetAccount> findByFamilyIdAndIsActiveTrueAndTaxStatusNot(
+        @Param("familyId") Long familyId,
+        @Param("taxStatus") com.finance.app.model.TaxStatus taxStatus
+    );
+
+    /**
+     * 查询指定家庭的退休账户
+     */
+    @Query("SELECT a FROM AssetAccount a JOIN User u ON a.userId = u.id " +
+           "WHERE u.familyId = :familyId " +
+           "AND a.isActive = true " +
+           "AND a.taxStatus = :taxStatus " +
+           "ORDER BY a.accountName")
+    List<AssetAccount> findByFamilyIdAndIsActiveTrueAndTaxStatus(
+        @Param("familyId") Long familyId,
+        @Param("taxStatus") com.finance.app.model.TaxStatus taxStatus
+    );
 }

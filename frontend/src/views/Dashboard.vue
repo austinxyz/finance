@@ -1,6 +1,6 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- Welcome Section with Family Selector -->
+    <!-- Welcome Section with Family Selector and Export Button -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">财务概览</h1>
@@ -8,17 +8,41 @@
           欢迎使用个人理财管理系统
         </p>
       </div>
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
-        <select
-          v-model="familyId"
-          @change="onFamilyChange"
-          class="flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
+          <select
+            v-model="familyId"
+            @change="onFamilyChange"
+            class="flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option v-for="family in families" :key="family.id" :value="family.id">
+              {{ family.familyName }}
+            </option>
+          </select>
+        </div>
+        <!-- Excel导出功能 -->
+        <div class="flex items-center gap-2">
+          <select
+            v-model="exportYear"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+          >
+            <option v-for="year in availableYears" :key="year" :value="year">
+              {{ year }}年
+            </option>
+          </select>
+          <button
+            @click="exportAnnualReport"
+            :disabled="isExporting"
+            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg v-if="isExporting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ isExporting ? '导出中...' : '导出Excel' }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -37,19 +61,19 @@
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">本年度实际支出</div>
+        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年实际支出</div>
         <div class="text-2xl font-bold text-orange-600">${{ formatAmount(financialMetrics.annualExpense) }}</div>
         <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Expense</p>
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">本年度投资回报</div>
+        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年投资回报</div>
         <div class="text-2xl font-bold" :class="getReturnColor(financialMetrics.annualInvestmentReturn)">${{ formatAmountWithSign(financialMetrics.annualInvestmentReturn) }}</div>
         <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Investment Return</p>
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">本年度工作收入</div>
+        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年工作收入</div>
         <div class="text-2xl font-bold text-green-600">${{ formatAmount(financialMetrics.annualWorkIncome) }}</div>
         <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Work Income</p>
       </div>
@@ -89,10 +113,10 @@
         </div>
       </div>
 
-      <!-- 本年度实际支出分布 -->
+      <!-- 年度实际支出分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">本年度实际支出</h2>
+          <h2 class="text-lg font-semibold text-gray-900">{{ currentYear }}年实际支出</h2>
           <p class="text-xs text-gray-500 mt-1">{{ currentYear }}年 · 实际支出金额</p>
         </div>
         <div class="p-6">
@@ -535,8 +559,22 @@ let netWorthChartInstance = null
 let annualNetWorthChartInstance = null
 let expenseChartInstance = null
 
+// 使用当前年份
 const currentYear = ref(new Date().getFullYear())
 const annualExpenseSummary = ref([])
+
+// Excel导出相关
+const isExporting = ref(false)
+const exportYear = ref(new Date().getFullYear())
+const availableYears = computed(() => {
+  const years = []
+  const startYear = 2020
+  const endYear = new Date().getFullYear()
+  for (let year = endYear; year >= startYear; year--) {
+    years.push(year)
+  }
+  return years
+})
 
 const selectedTimeRange = ref('3y')
 const timeRanges = [
@@ -1002,7 +1040,9 @@ function getReturnColor(amount) {
 // 加载财务指标数据
 async function loadFinancialMetrics() {
   try {
+    console.log('开始加载财务指标, familyId:', familyId.value)
     const response = await analysisAPI.getFinancialMetrics(null, familyId.value, null)
+    console.log('财务指标响应:', response)
     if (response.success && response.data) {
       financialMetrics.value = {
         currentNetWorth: response.data.currentNetWorth || 0,
@@ -1012,6 +1052,9 @@ async function loadFinancialMetrics() {
         annualWorkIncome: response.data.annualWorkIncome || 0,
         year: response.data.year || new Date().getFullYear()
       }
+      console.log('财务指标已设置:', financialMetrics.value)
+    } else {
+      console.warn('财务指标响应失败或无数据:', response)
     }
   } catch (error) {
     console.error('加载财务指标失败:', error)
@@ -1029,11 +1072,9 @@ async function loadAccounts() {
       analysisAPI.getNetAssetAllocation(null, familyId.value, null), // userId, familyId, asOfDate - 净资产分布
       analysisAPI.getAllocationByType(null, familyId.value, null), // userId, familyId, asOfDate - 资产分布（按类型）
       analysisAPI.getLiabilityAllocation(null, familyId.value, null), // userId, familyId, asOfDate - 负债分布（按类型）
-      analysisAPI.getSummary(null, familyId.value, null) // userId, familyId, asOfDate
+      analysisAPI.getSummary(null, familyId.value, null), // userId, familyId, asOfDate
+      loadFinancialMetrics() // await财务指标加载
     ])
-
-    // 同时加载财务指标
-    loadFinancialMetrics()
 
     if (assetResponse.success) {
       assetAccounts.value = assetResponse.data
@@ -1255,21 +1296,26 @@ function updateExpenseChart() {
 async function loadAnnualExpenseSummary() {
   loadingExpense.value = true
   try {
+    console.log('开始加载年度支出汇总, familyId:', familyId.value, 'year:', currentYear.value)
     const response = await expenseAnalysisAPI.getAnnualSummary(
       familyId.value,
       currentYear.value,
       'USD',
       true
     )
+    console.log('年度支出响应:', response)
 
     if (response.success) {
       annualExpenseSummary.value = response.data || []
+      console.log('年度支出数据已设置:', annualExpenseSummary.value.length, '条记录')
       // 使用setTimeout确保DOM完全渲染后再更新图表
       setTimeout(() => {
         if (expenseChartCanvas.value && expenseCategories.value.length > 0) {
           updateExpenseChart()
         }
       }, 200)
+    } else {
+      console.warn('年度支出响应失败或无数据:', response)
     }
   } catch (error) {
     console.error('加载年度支出汇总失败:', error)
@@ -1307,27 +1353,37 @@ watch(overallTrendData, async () => {
 // 加载家庭列表
 async function loadFamilies() {
   try {
+    console.log('开始加载家庭列表...')
     const response = await familyAPI.getAll()
+    console.log('家庭列表响应:', response)
     if (response.success) {
       families.value = response.data
+      console.log('已加载家庭列表:', families.value)
 
       // 如果familyId还未设置，获取默认家庭
       if (!familyId.value) {
+        console.log('familyId未设置，尝试获取默认家庭...')
         try {
           const defaultResponse = await familyAPI.getDefault()
+          console.log('默认家庭响应:', defaultResponse)
           if (defaultResponse.success && defaultResponse.data) {
             familyId.value = defaultResponse.data.id
+            console.log('设置默认家庭ID:', familyId.value)
           } else if (families.value.length > 0) {
             // 如果没有默认家庭，选择第一个
             familyId.value = families.value[0].id
+            console.log('使用第一个家庭ID:', familyId.value)
           }
         } catch (err) {
           console.error('获取默认家庭失败:', err)
           // 获取默认家庭失败时，选择第一个
           if (families.value.length > 0) {
             familyId.value = families.value[0].id
+            console.log('失败后使用第一个家庭ID:', familyId.value)
           }
         }
+      } else {
+        console.log('familyId已存在:', familyId.value)
       }
     }
   } catch (error) {
@@ -1341,6 +1397,53 @@ function onFamilyChange() {
   loadAccounts()
   loadOverallTrend()
   loadAnnualExpenseSummary()
+}
+
+// 导出年度Excel报表
+async function exportAnnualReport() {
+  if (!familyId.value || !exportYear.value) {
+    alert('请选择家庭和年份')
+    return
+  }
+
+  isExporting.value = true
+  try {
+    const response = await fetch(
+      `/api/export/annual-report?familyId=${familyId.value}&year=${exportYear.value}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+
+    // 获取文件blob
+    const blob = await response.blob()
+
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `财务报表_${exportYear.value}年_${familyId.value}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+
+    // 清理
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    console.log('Excel导出成功')
+  } catch (error) {
+    console.error('导出Excel失败:', error)
+    alert('导出失败，请稍后重试')
+  } finally {
+    isExporting.value = false
+  }
 }
 
 // 监听支出数据变化，自动更新图表

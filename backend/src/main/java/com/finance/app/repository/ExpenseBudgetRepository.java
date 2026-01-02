@@ -37,4 +37,17 @@ public interface ExpenseBudgetRepository extends JpaRepository<ExpenseBudget, Lo
      */
     void deleteByFamilyIdAndBudgetYearAndCurrency(
         Long familyId, Integer budgetYear, String currency);
+
+    /**
+     * 查询指定家庭、年份、大类的所有预算
+     */
+    @Query("SELECT b FROM ExpenseBudget b " +
+           "WHERE b.familyId = :familyId " +
+           "AND b.budgetYear = :year " +
+           "AND b.minorCategoryId IN (SELECT mc.id FROM ExpenseCategoryMinor mc WHERE mc.majorCategoryId = :majorCategoryId)")
+    List<ExpenseBudget> findByFamilyAndYearAndCategory(
+        @Param("familyId") Long familyId,
+        @Param("year") Integer year,
+        @Param("majorCategoryId") Long majorCategoryId
+    );
 }

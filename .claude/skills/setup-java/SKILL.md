@@ -9,100 +9,96 @@ Automatically configure Java 17 environment and load all necessary environment v
 
 ## Usage
 
-This skill is invoked when the user wants to:
-- Start the backend server
-- Run Maven commands (build, test, compile)
-- Set up the development environment
-- Example: "start the backend"
-- Example: "run mvn spring-boot:run"
-- Example: "setup the environment"
+**IMPORTANT**: Always run this skill at the start of a new session before starting the backend.
+
+This skill should be invoked:
+- **At session start** - Before any backend development
+- When environment variables are not loaded
+- When you see "URL must start with 'jdbc'" error
+- Example: User says "start the backend" or "setup the environment"
 
 ## What This Skill Does
 
-1. **Set JAVA_HOME to Java 17**:
-   - Uses `/usr/libexec/java_home -v 17` to locate Java 17
-   - Exports JAVA_HOME environment variable
+1. **Configures Java 17**:
+   - Locates and sets JAVA_HOME to Java 17
+   - macOS: Uses `/usr/libexec/java_home -v 17`
+   - Linux: Searches common JVM locations
+   - Validates Java 17 is available
 
-2. **Load Database Credentials**:
-   - Reads `backend/.env` file
-   - Exports DB_URL, DB_USERNAME, DB_PASSWORD
+2. **Loads Database Credentials**:
+   - Reads `backend/.env` file line by line
+   - Properly handles special characters in JDBC URLs (&, ?, =)
+   - Exports: DB_URL, DB_USERNAME, DB_PASSWORD, CLAUDE_API_KEY
+   - Masks sensitive values in output
 
-3. **Verify Setup**:
+3. **Validates Setup**:
    - Confirms JAVA_HOME is set correctly
-   - Confirms Java version is 17
-   - Confirms database credentials are loaded
+   - Shows Java version
+   - Lists loaded environment variables (with masked passwords)
 
 ## Implementation
 
-When this skill is invoked:
-
-```bash
-# Execute the setup script
-source ./setup-env.sh
-```
-
-The `setup-env.sh` script performs:
+The skill executes `skill.sh` which sources `setup-env.sh`:
 
 ```bash
 #!/bin/bash
-
-# Set Java 17
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-export PATH=$JAVA_HOME/bin:$PATH
-
-# Load database credentials
-if [ -f backend/.env ]; then
-  source backend/.env
-  echo "✓ Database credentials loaded from backend/.env"
-else
-  echo "⚠️  Warning: backend/.env not found"
-  echo "   Create it with: DB_URL, DB_USERNAME, DB_PASSWORD"
-fi
-
-# Verify setup
-echo "✓ JAVA_HOME: $JAVA_HOME"
-echo "✓ Java version: $(java -version 2>&1 | head -n 1)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+cd "$PROJECT_ROOT"
+source "$SCRIPT_DIR/setup-env.sh"
 ```
 
-## After Setup
+## After Running This Skill
 
-Once the environment is configured, the user can run:
+The current shell session now has all required environment variables. You can:
 
 ```bash
-# Navigate to backend
-cd backend
-
-# Clean build
-mvn clean install
-
-# Run Spring Boot with hot reload
-mvn spring-boot:run
+# Start backend (environment variables are available)
+cd backend && mvn spring-boot:run
 
 # Run tests
-mvn test
+cd backend && mvn test
+
+# Clean build
+cd backend && mvn clean install
+
+# Start frontend
+cd frontend && npm run dev
 ```
 
 ## Important Notes
 
-- **Java 17 Required**: Project uses Spring Boot 3.2.0 which requires Java 17
-- **Always Run First**: Execute this skill before any Maven commands
-- **Project Root**: Must be at project root (`/Users/yanzxu/claude/finance`) when executing
-- **Hot Reload**: Spring Boot DevTools enabled - backend auto-restarts on code changes
+- **Run in Current Session**: This skill exports environment variables to the current shell session
+- **Background Tasks**: For background Maven tasks, use `backend/start.sh` instead which loads .env internally
+- **Java 17 Required**: Spring Boot 3.2.0 requires Java 17
+- **Auto-reload Enabled**: Spring Boot DevTools auto-restarts on code changes
+- **Not Git Tracked**: `backend/.env` is in `.gitignore`
 
 ## Error Handling
 
-- **Java 17 not found**: Suggest installing with `brew install openjdk@17`
-- **backend/.env missing**: Show example .env format and instruct to create it
-- **Wrong directory**: Confirm current directory is project root
+- **Java 17 not found**:
+  - macOS: `brew install openjdk@17`
+  - Linux: `sudo apt install openjdk-17-jdk` or `sudo yum install java-17-openjdk`
 
-## Database Credentials Format
+- **backend/.env missing**: Creates example format:
+  ```bash
+  DB_URL=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC
+  DB_USERNAME=your_username
+  DB_PASSWORD=your_password
+  CLAUDE_API_KEY=
+  ```
 
-The `backend/.env` file should contain:
+## Why This Skill Exists
 
+Direct sourcing of `.env` files often fails with JDBC URLs due to special shell characters (&, ?, =). This skill:
+- Parses .env files line by line
+- Handles special characters correctly
+- Provides clear error messages
+- Validates the setup
+
+## Alternative: backend/start.sh
+
+For background processes that can't inherit environment variables from the skill, use:
 ```bash
-DB_URL=jdbc:mysql://host:port/finance?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
+./backend/start.sh  # Loads .env internally and starts Spring Boot
 ```
-
-**Note**: This file is in `.gitignore` and should never be committed.

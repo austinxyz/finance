@@ -97,4 +97,19 @@ public interface ExpenseRecordRepository extends JpaRepository<ExpenseRecord, Lo
         String expensePeriod,
         Long minorCategoryId
     );
+
+    /**
+     * 查询指定家庭、大类、币种、期间的支出总额
+     */
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM ExpenseRecord r " +
+           "WHERE r.familyId = :familyId " +
+           "AND r.majorCategoryId = :majorCategoryId " +
+           "AND r.currency = :currency " +
+           "AND r.expensePeriod = :period")
+    Optional<java.math.BigDecimal> sumByFamilyAndCategoryAndPeriod(
+        @Param("familyId") Long familyId,
+        @Param("majorCategoryId") Long majorCategoryId,
+        @Param("currency") String currency,
+        @Param("period") String period
+    );
 }

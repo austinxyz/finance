@@ -43,4 +43,34 @@ public interface LiabilityRecordRepository extends JpaRepository<LiabilityRecord
            "LIMIT 1")
     Optional<LiabilityRecord> findLatestByAccountIdBeforeOrOnDate(
             @Param("accountId") Long accountId, @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定家庭、负债类型在指定日期的最新总额（USD）
+     */
+    @Query("SELECT COALESCE(SUM(r.outstandingBalance), 0) FROM LiabilityRecord r " +
+           "JOIN r.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND a.liabilityType.id = :liabilityTypeId " +
+           "AND a.isActive = true " +
+           "AND r.currency = 'USD' " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM LiabilityRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate)")
+    Optional<java.math.BigDecimal> findLatestTotalByTypeAndDate(
+            @Param("familyId") Long familyId,
+            @Param("liabilityTypeId") Long liabilityTypeId,
+            @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 查询指定家庭在指定日期的所有最新负债记录
+     */
+    @Query("SELECT r FROM LiabilityRecord r " +
+           "JOIN r.account a " +
+           "WHERE a.userId IN (SELECT u.id FROM User u WHERE u.familyId = :familyId) " +
+           "AND a.isActive = true " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM LiabilityRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate) " +
+           "ORDER BY a.liabilityType.displayOrder, a.accountName")
+    List<LiabilityRecord> findLatestRecordsByFamilyAndDate(
+            @Param("familyId") Long familyId,
+            @Param("asOfDate") LocalDate asOfDate);
 }

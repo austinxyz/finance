@@ -37,8 +37,9 @@ public class AnalysisController {
     public ApiResponse<AssetSummaryDTO> getAssetSummary(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
-            @RequestParam(required = false) LocalDate asOfDate) {
-        AssetSummaryDTO summary = analysisService.getAssetSummary(userId, familyId, asOfDate);
+            @RequestParam(required = false) LocalDate asOfDate,
+            @RequestParam(defaultValue = "All") String currency) {
+        AssetSummaryDTO summary = analysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
         return ApiResponse.success(summary);
     }
 
@@ -71,8 +72,9 @@ public class AnalysisController {
     public ApiResponse<Map<String, Object>> getAssetAllocationByType(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
-            @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId, familyId, asOfDate);
+            @RequestParam(required = false) LocalDate asOfDate,
+            @RequestParam(defaultValue = "All") String currency) {
+        Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId, familyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -81,8 +83,9 @@ public class AnalysisController {
     public ApiResponse<Map<String, Object>> getNetAssetAllocation(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
-            @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, familyId, asOfDate);
+            @RequestParam(required = false) LocalDate asOfDate,
+            @RequestParam(defaultValue = "All") String currency) {
+        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, familyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -91,8 +94,9 @@ public class AnalysisController {
     public ApiResponse<Map<String, Object>> getLiabilityAllocationByType(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
-            @RequestParam(required = false) LocalDate asOfDate) {
-        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId, familyId, asOfDate);
+            @RequestParam(required = false) LocalDate asOfDate,
+            @RequestParam(defaultValue = "All") String currency) {
+        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId, familyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
