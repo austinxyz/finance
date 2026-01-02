@@ -55,6 +55,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Boot Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Spring Boot DevTools -->
         <!-- DISABLED: Incompatible with Apache POI due to RestartClassLoader issues -->
         <!--

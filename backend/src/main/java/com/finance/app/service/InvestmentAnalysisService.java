@@ -252,16 +252,16 @@ public class InvestmentAnalysisService {
                 dto.setNetDeposits(updatedNetDeposits);
             }
 
-            // 计算投资回报率
-            // 回报率 = (当前资产 - 去年年底资产 - 净投入) / (去年年底资产 + 净投入)
-            BigDecimal netDeposits = dto.getNetDeposits();
-            BigDecimal denominator = lastYearEndAssets.add(netDeposits);
-
             // 计算投资回报
+            BigDecimal netDeposits = dto.getNetDeposits();
             BigDecimal returns = currentAssets.subtract(lastYearEndAssets).subtract(netDeposits);
             dto.setReturns(returns);
 
             // 计算投资回报率
+            // 规则：净投入为正时，分母=期初资产+净投入；净投入为负或0时，分母=期初资产
+            BigDecimal denominator = netDeposits.compareTo(BigDecimal.ZERO) > 0
+                ? lastYearEndAssets.add(netDeposits)  // 增加了本金
+                : lastYearEndAssets;                   // 取出了钱或无变化
             if (denominator.compareTo(BigDecimal.ZERO) != 0) {
                 BigDecimal returnRate = returns.divide(denominator, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100)); // 转换为百分比
@@ -400,9 +400,18 @@ public class InvestmentAnalysisService {
         // 计算投资回报率
         calculateAccountReturnRates(familyId, year, currency, accountMap);
 
-        // 按当前资产排序，只过滤掉当前资产为0的账户
+        // 过滤逻辑：显示有意义的账户
+        // 1. 当前资产 > 0，或
+        // 2. 上一年有值（lastYearEndAssets > 0），或
+        // 3. 本年有交易（netDeposits != 0）
         List<InvestmentAccountAnalysisDTO> result = accountMap.values().stream()
-            .filter(dto -> dto.getCurrentAssets() != null && dto.getCurrentAssets().compareTo(BigDecimal.ZERO) > 0)
+            .filter(dto -> {
+                boolean hasCurrentAssets = dto.getCurrentAssets() != null && dto.getCurrentAssets().compareTo(BigDecimal.ZERO) > 0;
+                boolean hadLastYearAssets = dto.getLastYearEndAssets() != null && dto.getLastYearEndAssets().compareTo(BigDecimal.ZERO) > 0;
+                boolean hasTransactions = dto.getNetDeposits() != null && dto.getNetDeposits().compareTo(BigDecimal.ZERO) != 0;
+
+                return hasCurrentAssets || hadLastYearAssets || hasTransactions;
+            })
             .sorted((a, b) -> b.getCurrentAssets().compareTo(a.getCurrentAssets()))
             .collect(Collectors.toList());
 
@@ -475,7 +484,10 @@ public class InvestmentAnalysisService {
                 dto.setReturnsUsd(returns);
 
                 // 计算投资回报率
-                BigDecimal denominator = lastYearEndAssets.add(netDeposits);
+                // 规则：净投入为正时，分母=期初资产+净投入；净投入为负或0时，分母=期初资产
+                BigDecimal denominator = netDeposits.compareTo(BigDecimal.ZERO) > 0
+                    ? lastYearEndAssets.add(netDeposits)  // 增加了本金
+                    : lastYearEndAssets;                   // 取出了钱或无变化
                 if (denominator.compareTo(BigDecimal.ZERO) != 0) {
                     BigDecimal returnRate = returns.divide(denominator, 4, RoundingMode.HALF_UP)
                         .multiply(BigDecimal.valueOf(100));
