@@ -331,13 +331,17 @@ public class GoogleSheetsExportService {
         List<String> currencies = Arrays.asList("USD", "CNY");
 
         for (String currency : currencies) {
-            // 货币标题
-            rows.add(Arrays.asList(currency + " 资产负债"));
+            // 货币小标题：{货币}资产负债净资产总计（居中）
+            rows.add(Arrays.asList(currency + " 资产负债净资产总计"));
 
-            // 表头
-            rows.add(Arrays.asList("资产类型", "当前年值", "去年年底", "同比%", "", "负债类型", "当前年值", "去年年底", "同比%"));
+            // 表头：资产(4列) + 负债(4列) + 净资产(4列) = 12列
+            rows.add(Arrays.asList(
+                "资产类型", "当前年值", "去年年底", "同比%",
+                "负债类型", "当前年值", "去年年底", "同比%",
+                "净资产类型", "当前年值", "去年年底", "同比%"
+            ));
 
-            // 获取资产和负债数据
+            // 获取资产和负债数据，按类型汇总
             Map<String, BigDecimal> assetTypeCurrentAmounts = new HashMap<>();
             Map<String, BigDecimal> assetTypeLastYearAmounts = new HashMap<>();
             BigDecimal currencyTotalAssetsCurrent = BigDecimal.ZERO;
@@ -392,22 +396,50 @@ public class GoogleSheetsExportService {
                 currencyTotalLiabilitiesLastYear = currencyTotalLiabilitiesLastYear.add(record.getOutstandingBalance());
             }
 
-            // 合并类型并排
-            Set<String> allAssetTypes = new HashSet<>();
-            allAssetTypes.addAll(assetTypeCurrentAmounts.keySet());
-            allAssetTypes.addAll(assetTypeLastYearAmounts.keySet());
-            List<String> assetTypesList = new ArrayList<>(allAssetTypes);
+            // 准备净资产数据（从AnalysisService获取）
+            Map<String, Object> netAllocationCurrent = analysisService.getNetAssetAllocation(null, familyId, asOfDate, currency);
+            List<Map<String, Object>> netCategoriesCurrent = (List<Map<String, Object>>) netAllocationCurrent.get("data");
 
-            Set<String> allLiabilityTypes = new HashSet<>();
-            allLiabilityTypes.addAll(liabilityTypeCurrentAmounts.keySet());
-            allLiabilityTypes.addAll(liabilityTypeLastYearAmounts.keySet());
-            List<String> liabilityTypesList = new ArrayList<>(allLiabilityTypes);
+            Map<String, Object> netAllocationLastYear = analysisService.getNetAssetAllocation(null, familyId, lastYearEndDate, currency);
+            List<Map<String, Object>> netCategoriesLastYear = (List<Map<String, Object>>) netAllocationLastYear.get("data");
 
-            int maxRows = Math.max(assetTypesList.size(), liabilityTypesList.size());
+            // 构建净资产类别的Map
+            Map<String, BigDecimal> netTypeCurrentAmounts = new LinkedHashMap<>();
+            Map<String, BigDecimal> netTypeLastYearAmounts = new LinkedHashMap<>();
+
+            for (Map<String, Object> cat : netCategoriesCurrent) {
+                String catName = (String) cat.get("name");
+                BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
+                netTypeCurrentAmounts.put(catName, netValue);
+            }
+
+            for (Map<String, Object> cat : netCategoriesLastYear) {
+                String catName = (String) cat.get("name");
+                BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
+                netTypeLastYearAmounts.put(catName, netValue);
+            }
+
+            // 获取所有类型列表
+            List<String> assetTypesList = new ArrayList<>(assetTypeCurrentAmounts.keySet());
+            assetTypesList.addAll(assetTypeLastYearAmounts.keySet().stream()
+                .filter(k -> !assetTypesList.contains(k))
+                .collect(Collectors.toList()));
+
+            List<String> liabilityTypesList = new ArrayList<>(liabilityTypeCurrentAmounts.keySet());
+            liabilityTypesList.addAll(liabilityTypeLastYearAmounts.keySet().stream()
+                .filter(k -> !liabilityTypesList.contains(k))
+                .collect(Collectors.toList()));
+
+            List<String> netTypesList = new ArrayList<>(netTypeCurrentAmounts.keySet());
+
+            // 合并三个列表，找到最大行数
+            int maxRows = Math.max(Math.max(assetTypesList.size(), liabilityTypesList.size()), netTypesList.size());
+
+            // 生成数据行（每行12列：资产4列 + 负债4列 + 净资产4列）
             for (int i = 0; i < maxRows; i++) {
                 List<Object> row = new ArrayList<>();
 
-                // 资产列
+                // 资产列（4列）
                 if (i < assetTypesList.size()) {
                     String typeName = assetTypesList.get(i);
                     BigDecimal current = assetTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
@@ -419,7 +451,7 @@ public class GoogleSheetsExportService {
                     row.add(typeName);
                     row.add(current.doubleValue());
                     row.add(lastYear.doubleValue());
-                    row.add(changePct / 100); // 格式化为百分比
+                    row.add(changePct / 100);
                 } else {
                     row.add("");
                     row.add("");
@@ -427,9 +459,7 @@ public class GoogleSheetsExportService {
                     row.add("");
                 }
 
-                row.add(""); // 分隔列
-
-                // 负债列
+                // 负债列（4列）
                 if (i < liabilityTypesList.size()) {
                     String typeName = liabilityTypesList.get(i);
                     BigDecimal current = liabilityTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
@@ -441,7 +471,27 @@ public class GoogleSheetsExportService {
                     row.add(typeName);
                     row.add(current.doubleValue());
                     row.add(lastYear.doubleValue());
-                    row.add(changePct / 100); // 格式化为百分比
+                    row.add(changePct / 100);
+                } else {
+                    row.add("");
+                    row.add("");
+                    row.add("");
+                    row.add("");
+                }
+
+                // 净资产列（4列）
+                if (i < netTypesList.size()) {
+                    String typeName = netTypesList.get(i);
+                    BigDecimal netCurrent = netTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
+                    BigDecimal netLastYear = netTypeLastYearAmounts.getOrDefault(typeName, BigDecimal.ZERO);
+                    double netChangePct = netLastYear.compareTo(BigDecimal.ZERO) != 0
+                        ? netCurrent.subtract(netLastYear).divide(netLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+                        : (netCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
+                    row.add(typeName);
+                    row.add(netCurrent.doubleValue());
+                    row.add(netLastYear.doubleValue());
+                    row.add(netChangePct / 100);
                 } else {
                     row.add("");
                     row.add("");
@@ -452,7 +502,7 @@ public class GoogleSheetsExportService {
                 rows.add(row);
             }
 
-            // 计算小计同比变化
+            // 小计行（资产、负债、净资产的总计）
             double assetChangePct = currencyTotalAssetsLastYear.compareTo(BigDecimal.ZERO) != 0
                 ? currencyTotalAssetsCurrent.subtract(currencyTotalAssetsLastYear)
                     .divide(currencyTotalAssetsLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
@@ -463,20 +513,6 @@ public class GoogleSheetsExportService {
                     .divide(currencyTotalLiabilitiesLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
                 : (currencyTotalLiabilitiesCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
 
-            // 小计行
-            rows.add(Arrays.asList(
-                currency + " 资产小计",
-                currencyTotalAssetsCurrent.doubleValue(),
-                currencyTotalAssetsLastYear.doubleValue(),
-                assetChangePct / 100,
-                "",
-                currency + " 负债小计",
-                currencyTotalLiabilitiesCurrent.doubleValue(),
-                currencyTotalLiabilitiesLastYear.doubleValue(),
-                liabilityChangePct / 100
-            ));
-
-            // 计算净资产同比变化
             BigDecimal currentNetWorth = currencyTotalAssetsCurrent.subtract(currencyTotalLiabilitiesCurrent);
             BigDecimal lastYearNetWorth = currencyTotalAssetsLastYear.subtract(currencyTotalLiabilitiesLastYear);
             double netWorthChangePct = lastYearNetWorth.compareTo(BigDecimal.ZERO) != 0
@@ -484,104 +520,121 @@ public class GoogleSheetsExportService {
                     .divide(lastYearNetWorth, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
                 : (currentNetWorth.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
 
-            // 净资产行
             rows.add(Arrays.asList(
-                currency + " 净资产",
+                currency + " 资产小计",
+                currencyTotalAssetsCurrent.doubleValue(),
+                currencyTotalAssetsLastYear.doubleValue(),
+                assetChangePct / 100,
+                currency + " 负债小计",
+                currencyTotalLiabilitiesCurrent.doubleValue(),
+                currencyTotalLiabilitiesLastYear.doubleValue(),
+                liabilityChangePct / 100,
+                currency + " 净资产总计",
                 currentNetWorth.doubleValue(),
                 lastYearNetWorth.doubleValue(),
                 netWorthChangePct / 100
             ));
 
             rows.add(Arrays.asList()); // 空行
-            rows.add(Arrays.asList()); // 空行
         }
 
-        // 计算USD总计
+        // USD总计部分（折算所有货币到USD）
+        rows.add(Arrays.asList("折算为USD基准货币总计")); // 小标题
+        rows.add(Arrays.asList(
+            "资产类型", "当前年值", "去年年底", "同比%",
+            "负债类型", "当前年值", "去年年底", "同比%",
+            "净资产类型", "当前年值", "去年年底", "同比%"
+        )); // 表头
+
         List<AssetRecord> allCurrentAssetRecords = assetRecordRepository.findLatestRecordsByFamilyAndDate(familyId, asOfDate);
         List<LiabilityRecord> allCurrentLiabilityRecords = liabilityRecordRepository.findLatestRecordsByFamilyAndDate(familyId, asOfDate);
         List<AssetRecord> allLastYearAssetRecords = assetRecordRepository.findLatestRecordsByFamilyAndDate(familyId, lastYearEndDate);
         List<LiabilityRecord> allLastYearLiabilityRecords = liabilityRecordRepository.findLatestRecordsByFamilyAndDate(familyId, lastYearEndDate);
 
-        BigDecimal totalAssetsCurrent = allCurrentAssetRecords.stream()
-            .map(r -> convertToUSD(r.getAmount(), r.getCurrency(), asOfDate))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalAssetsLastYear = allLastYearAssetRecords.stream()
-            .map(r -> convertToUSD(r.getAmount(), r.getCurrency(), lastYearEndDate))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalLiabilitiesCurrent = allCurrentLiabilityRecords.stream()
-            .map(r -> convertToUSD(r.getOutstandingBalance(), r.getCurrency(), asOfDate))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalLiabilitiesLastYear = allLastYearLiabilityRecords.stream()
-            .map(r -> convertToUSD(r.getOutstandingBalance(), r.getCurrency(), lastYearEndDate))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 计算USD总计同比变化
-        double totalAssetChangePct = totalAssetsLastYear.compareTo(BigDecimal.ZERO) != 0
-            ? totalAssetsCurrent.subtract(totalAssetsLastYear)
-                .divide(totalAssetsLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
-            : (totalAssetsCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
-
-        double totalLiabilityChangePct = totalLiabilitiesLastYear.compareTo(BigDecimal.ZERO) != 0
-            ? totalLiabilitiesCurrent.subtract(totalLiabilitiesLastYear)
-                .divide(totalLiabilitiesLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
-            : (totalLiabilitiesCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
-
-        BigDecimal totalNetWorthCurrent = totalAssetsCurrent.subtract(totalLiabilitiesCurrent);
-        BigDecimal totalNetWorthLastYear = totalAssetsLastYear.subtract(totalLiabilitiesLastYear);
-        double totalNetWorthChangePct = totalNetWorthLastYear.compareTo(BigDecimal.ZERO) != 0
-            ? totalNetWorthCurrent.subtract(totalNetWorthLastYear)
-                .divide(totalNetWorthLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
-            : (totalNetWorthCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
-
-        rows.add(Arrays.asList("折算为USD总计"));
-        rows.add(Arrays.asList("资产类型", "当前年值", "去年年底", "同比%", "", "负债类型", "当前年值", "去年年底", "同比%")); // 表头
-
-        // 计算USD总计各类型金额
+        // 按资产类型汇总（折算为USD）
         Map<String, BigDecimal> totalAssetTypeCurrentAmounts = new HashMap<>();
         Map<String, BigDecimal> totalAssetTypeLastYearAmounts = new HashMap<>();
-        Map<String, BigDecimal> totalLiabilityTypeCurrentAmounts = new HashMap<>();
-        Map<String, BigDecimal> totalLiabilityTypeLastYearAmounts = new HashMap<>();
+        BigDecimal totalAssetsCurrent = BigDecimal.ZERO;
+        BigDecimal totalAssetsLastYear = BigDecimal.ZERO;
 
         for (AssetRecord record : allCurrentAssetRecords) {
             String typeName = record.getAccount().getAssetType().getChineseName();
             BigDecimal amountUSD = convertToUSD(record.getAmount(), record.getCurrency(), asOfDate);
             totalAssetTypeCurrentAmounts.merge(typeName, amountUSD, BigDecimal::add);
+            totalAssetsCurrent = totalAssetsCurrent.add(amountUSD);
         }
 
         for (AssetRecord record : allLastYearAssetRecords) {
             String typeName = record.getAccount().getAssetType().getChineseName();
             BigDecimal amountUSD = convertToUSD(record.getAmount(), record.getCurrency(), lastYearEndDate);
             totalAssetTypeLastYearAmounts.merge(typeName, amountUSD, BigDecimal::add);
+            totalAssetsLastYear = totalAssetsLastYear.add(amountUSD);
         }
+
+        // 按负债类型汇总（折算为USD）
+        Map<String, BigDecimal> totalLiabilityTypeCurrentAmounts = new HashMap<>();
+        Map<String, BigDecimal> totalLiabilityTypeLastYearAmounts = new HashMap<>();
+        BigDecimal totalLiabilitiesCurrent = BigDecimal.ZERO;
+        BigDecimal totalLiabilitiesLastYear = BigDecimal.ZERO;
 
         for (LiabilityRecord record : allCurrentLiabilityRecords) {
             String typeName = record.getAccount().getLiabilityType().getChineseName();
             BigDecimal amountUSD = convertToUSD(record.getOutstandingBalance(), record.getCurrency(), asOfDate);
             totalLiabilityTypeCurrentAmounts.merge(typeName, amountUSD, BigDecimal::add);
+            totalLiabilitiesCurrent = totalLiabilitiesCurrent.add(amountUSD);
         }
 
         for (LiabilityRecord record : allLastYearLiabilityRecords) {
             String typeName = record.getAccount().getLiabilityType().getChineseName();
             BigDecimal amountUSD = convertToUSD(record.getOutstandingBalance(), record.getCurrency(), lastYearEndDate);
             totalLiabilityTypeLastYearAmounts.merge(typeName, amountUSD, BigDecimal::add);
+            totalLiabilitiesLastYear = totalLiabilitiesLastYear.add(amountUSD);
         }
 
-        // 合并类型列表
-        Set<String> allTotalAssetTypes = new HashSet<>();
-        allTotalAssetTypes.addAll(totalAssetTypeCurrentAmounts.keySet());
-        allTotalAssetTypes.addAll(totalAssetTypeLastYearAmounts.keySet());
-        List<String> totalAssetTypesList = new ArrayList<>(allTotalAssetTypes);
+        // 净资产类别（折算为USD All货币）
+        Map<String, Object> netAllocationCurrent = analysisService.getNetAssetAllocation(null, familyId, asOfDate, "All");
+        List<Map<String, Object>> netCategoriesCurrent = (List<Map<String, Object>>) netAllocationCurrent.get("data");
 
-        Set<String> allTotalLiabilityTypes = new HashSet<>();
-        allTotalLiabilityTypes.addAll(totalLiabilityTypeCurrentAmounts.keySet());
-        allTotalLiabilityTypes.addAll(totalLiabilityTypeLastYearAmounts.keySet());
-        List<String> totalLiabilityTypesList = new ArrayList<>(allTotalLiabilityTypes);
+        Map<String, Object> netAllocationLastYear = analysisService.getNetAssetAllocation(null, familyId, lastYearEndDate, "All");
+        List<Map<String, Object>> netCategoriesLastYear = (List<Map<String, Object>>) netAllocationLastYear.get("data");
 
-        int maxTotalRows = Math.max(totalAssetTypesList.size(), totalLiabilityTypesList.size());
+        // 构建净资产类别的Map
+        Map<String, BigDecimal> totalNetTypeCurrentAmounts = new LinkedHashMap<>();
+        Map<String, BigDecimal> totalNetTypeLastYearAmounts = new LinkedHashMap<>();
+
+        for (Map<String, Object> cat : netCategoriesCurrent) {
+            String catName = (String) cat.get("name");
+            BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
+            totalNetTypeCurrentAmounts.put(catName, netValue);
+        }
+
+        for (Map<String, Object> cat : netCategoriesLastYear) {
+            String catName = (String) cat.get("name");
+            BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
+            totalNetTypeLastYearAmounts.put(catName, netValue);
+        }
+
+        // 获取所有类型列表
+        List<String> totalAssetTypesList = new ArrayList<>(totalAssetTypeCurrentAmounts.keySet());
+        totalAssetTypesList.addAll(totalAssetTypeLastYearAmounts.keySet().stream()
+            .filter(k -> !totalAssetTypesList.contains(k))
+            .collect(Collectors.toList()));
+
+        List<String> totalLiabilityTypesList = new ArrayList<>(totalLiabilityTypeCurrentAmounts.keySet());
+        totalLiabilityTypesList.addAll(totalLiabilityTypeLastYearAmounts.keySet().stream()
+            .filter(k -> !totalLiabilityTypesList.contains(k))
+            .collect(Collectors.toList()));
+
+        List<String> totalNetTypesList = new ArrayList<>(totalNetTypeCurrentAmounts.keySet());
+
+        // 合并三个列表，找到最大行数
+        int maxTotalRows = Math.max(Math.max(totalAssetTypesList.size(), totalLiabilityTypesList.size()), totalNetTypesList.size());
+
+        // 生成数据行（每行12列：资产4列 + 负债4列 + 净资产4列）
         for (int i = 0; i < maxTotalRows; i++) {
             List<Object> row = new ArrayList<>();
 
-            // 资产列
+            // 资产列（4列）
             if (i < totalAssetTypesList.size()) {
                 String typeName = totalAssetTypesList.get(i);
                 BigDecimal current = totalAssetTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
@@ -601,9 +654,7 @@ public class GoogleSheetsExportService {
                 row.add("");
             }
 
-            row.add(""); // 分隔列
-
-            // 负债列
+            // 负债列（4列）
             if (i < totalLiabilityTypesList.size()) {
                 String typeName = totalLiabilityTypesList.get(i);
                 BigDecimal current = totalLiabilityTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
@@ -623,63 +674,57 @@ public class GoogleSheetsExportService {
                 row.add("");
             }
 
+            // 净资产列（4列）
+            if (i < totalNetTypesList.size()) {
+                String typeName = totalNetTypesList.get(i);
+                BigDecimal netCurrent = totalNetTypeCurrentAmounts.getOrDefault(typeName, BigDecimal.ZERO);
+                BigDecimal netLastYear = totalNetTypeLastYearAmounts.getOrDefault(typeName, BigDecimal.ZERO);
+                double netChangePct = netLastYear.compareTo(BigDecimal.ZERO) != 0
+                    ? netCurrent.subtract(netLastYear).divide(netLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+                    : (netCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
+                row.add(typeName);
+                row.add(netCurrent.doubleValue());
+                row.add(netLastYear.doubleValue());
+                row.add(netChangePct / 100);
+            } else {
+                row.add("");
+                row.add("");
+                row.add("");
+                row.add("");
+            }
+
             rows.add(row);
         }
 
-        // 总计行
+        // 小计行（资产、负债、净资产的总计）
+        double totalAssetChangePct = totalAssetsLastYear.compareTo(BigDecimal.ZERO) != 0
+            ? totalAssetsCurrent.subtract(totalAssetsLastYear)
+                .divide(totalAssetsLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+            : (totalAssetsCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
+        double totalLiabilityChangePct = totalLiabilitiesLastYear.compareTo(BigDecimal.ZERO) != 0
+            ? totalLiabilitiesCurrent.subtract(totalLiabilitiesLastYear)
+                .divide(totalLiabilitiesLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+            : (totalLiabilitiesCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
+        BigDecimal totalNetWorthCurrent = totalAssetsCurrent.subtract(totalLiabilitiesCurrent);
+        BigDecimal totalNetWorthLastYear = totalAssetsLastYear.subtract(totalLiabilitiesLastYear);
+        double totalNetWorthChangePct = totalNetWorthLastYear.compareTo(BigDecimal.ZERO) != 0
+            ? totalNetWorthCurrent.subtract(totalNetWorthLastYear)
+                .divide(totalNetWorthLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+            : (totalNetWorthCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
         rows.add(Arrays.asList(
-            "资产总计 (USD)",
+            "USD 资产小计",
             totalAssetsCurrent.doubleValue(),
             totalAssetsLastYear.doubleValue(),
             totalAssetChangePct / 100,
-            "",
-            "负债总计 (USD)",
+            "USD 负债小计",
             totalLiabilitiesCurrent.doubleValue(),
             totalLiabilitiesLastYear.doubleValue(),
-            totalLiabilityChangePct / 100
-        ));
-
-        rows.add(Arrays.asList()); // 空行
-
-        // 净资产部分：使用AnalysisService的净资产分类逻辑
-        rows.add(Arrays.asList("净资产类别", "当前年值", "去年年底", "同比%"));
-
-        // 获取当前年的净资产分类
-        Map<String, Object> netAllocationCurrent = analysisService.getNetAssetAllocation(null, familyId, asOfDate, "All");
-        List<Map<String, Object>> netCategoriesCurrent = (List<Map<String, Object>>) netAllocationCurrent.get("data");
-
-        // 获取去年年底的净资产分类
-        Map<String, Object> netAllocationLastYear = analysisService.getNetAssetAllocation(null, familyId, lastYearEndDate, "All");
-        List<Map<String, Object>> netCategoriesLastYear = (List<Map<String, Object>>) netAllocationLastYear.get("data");
-
-        // 构建去年数据的Map，方便查找
-        Map<String, BigDecimal> lastYearNetValueByCategory = new HashMap<>();
-        for (Map<String, Object> cat : netCategoriesLastYear) {
-            String catName = (String) cat.get("name");
-            BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
-            lastYearNetValueByCategory.put(catName, netValue);
-        }
-
-        // 显示各净资产类别
-        for (Map<String, Object> cat : netCategoriesCurrent) {
-            String catName = (String) cat.get("name");
-            BigDecimal netCurrent = new BigDecimal(cat.get("netValue").toString());
-            BigDecimal netLastYear = lastYearNetValueByCategory.getOrDefault(catName, BigDecimal.ZERO);
-
-            double netChangePct = netLastYear.compareTo(BigDecimal.ZERO) != 0
-                ? netCurrent.subtract(netLastYear).divide(netLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
-                : (netCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
-
-            rows.add(Arrays.asList(
-                catName,
-                netCurrent.doubleValue(),
-                netLastYear.doubleValue(),
-                netChangePct / 100
-            ));
-        }
-
-        rows.add(Arrays.asList(
-            "净资产总计 (USD)",
+            totalLiabilityChangePct / 100,
+            "USD 净资产总计",
             totalNetWorthCurrent.doubleValue(),
             totalNetWorthLastYear.doubleValue(),
             totalNetWorthChangePct / 100
@@ -691,159 +736,155 @@ public class GoogleSheetsExportService {
         // 应用格式化
         List<Request> formatRequests = new ArrayList<>();
 
-        // 1. 为所有单元格添加边框（新增了同比%列，共9列）
-        formatRequests.add(googleSheetsService.createBordersForAll(sheetId, rows.size(), 9));
+        // 1. 为所有单元格添加边框（12列：资产4列 + 负债4列 + 净资产4列）
+        formatRequests.add(googleSheetsService.createBordersForAll(sheetId, rows.size(), 12));
 
         // 2. 合并并居中主标题行
-        formatRequests.addAll(googleSheetsService.createMergeAndCenterFormat(sheetId, 0, 1, 0, 9));
+        formatRequests.addAll(googleSheetsService.createMergeAndCenterFormat(sheetId, 0, 1, 0, 12));
 
         // 动态查找各个section的行号
         int usdTitleRow = -1;
         int usdHeaderRow = -1;
         int usdSubtotalRow = -1;
-        int usdNetAssetRow = -1;
         int cnyTitleRow = -1;
         int cnyHeaderRow = -1;
         int cnySubtotalRow = -1;
-        int cnyNetAssetRow = -1;
         int totalTitleRow = -1;
         int totalHeaderRow = -1;
-        int totalAssetRow = -1;
-        int netWorthHeaderRow = -1;
-        int totalNetAssetRow = -1;
+        int totalSubtotalRow = -1;
 
         for (int i = 0; i < rows.size(); i++) {
             List<Object> row = rows.get(i);
             if (row.isEmpty()) continue;
             String firstCell = row.get(0).toString();
 
-            if ("USD 资产负债".equals(firstCell)) {
+            if ("USD 资产负债净资产总计".equals(firstCell)) {
                 usdTitleRow = i;
             } else if (usdTitleRow != -1 && usdHeaderRow == -1 && "资产类型".equals(firstCell)) {
                 usdHeaderRow = i;
             } else if (firstCell.startsWith("USD 资产小计")) {
                 usdSubtotalRow = i;
-            } else if (firstCell.startsWith("USD 净资产")) {
-                usdNetAssetRow = i;
-            } else if ("CNY 资产负债".equals(firstCell)) {
+            } else if ("CNY 资产负债净资产总计".equals(firstCell)) {
                 cnyTitleRow = i;
             } else if (cnyTitleRow != -1 && cnyHeaderRow == -1 && "资产类型".equals(firstCell)) {
                 cnyHeaderRow = i;
             } else if (firstCell.startsWith("CNY 资产小计")) {
                 cnySubtotalRow = i;
-            } else if (firstCell.startsWith("CNY 净资产")) {
-                cnyNetAssetRow = i;
-            } else if ("折算为USD总计".equals(firstCell)) {
+            } else if ("折算为USD基准货币总计".equals(firstCell)) {
                 totalTitleRow = i;
             } else if (totalTitleRow != -1 && totalHeaderRow == -1 && "资产类型".equals(firstCell)) {
                 totalHeaderRow = i;
-            } else if (firstCell.startsWith("资产总计")) {
-                totalAssetRow = i;
-            } else if ("净资产类别".equals(firstCell)) {
-                netWorthHeaderRow = i;
-            } else if (firstCell.startsWith("净资产总计")) {
-                totalNetAssetRow = i;
+            } else if (firstCell.startsWith("USD 资产小计")) {
+                // 这是USD总计部分的小计行（区别于USD货币部分的小计行）
+                if (i > totalHeaderRow && totalHeaderRow != -1) {
+                    totalSubtotalRow = i;
+                }
             }
         }
 
         // USD部分格式化
         if (usdTitleRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, usdTitleRow, usdTitleRow + 1, 0, 9)); // USD标题
+            // USD标题行：居中显示"{货币}资产负债净资产总计"
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, usdTitleRow, usdTitleRow + 1, 0, 12));
         }
         if (usdHeaderRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, usdHeaderRow, usdHeaderRow + 1, 0, 9)); // USD表头
+            // USD表头：12列（资产4列 + 负债4列 + 净资产4列）
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, usdHeaderRow, usdHeaderRow + 1, 0, 12));
 
             // 格式化USD数据行（从表头下一行到小计行之前）
             if (usdSubtotalRow != -1) {
+                // 资产部分：列1-3 (当前年值, 去年年底)
                 formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 1, 3, "USD"));
+                // 资产同比%：列3
                 formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 3, 4));
-                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 6, 8, "USD"));
-                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 8, 9));
+                // 负债部分：列5-7 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 5, 7, "USD"));
+                // 负债同比%：列7
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 7, 8));
+                // 净资产部分：列9-11 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 9, 11, "USD"));
+                // 净资产同比%：列11
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdHeaderRow + 1, usdSubtotalRow, 11, 12));
             }
         }
         if (usdSubtotalRow != -1) {
-            // USD小计行 - 不需要header格式化，只需要货币格式
+            // USD小计行：12列数据（资产小计 + 负债小计 + 净资产总计）
             formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 1, 3, "USD"));
             formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 3, 4));
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 6, 8, "USD"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 8, 9));
-        }
-        if (usdNetAssetRow != -1) {
-            // USD净资产行 - 不需要header格式化，只需要货币格式
-            // 先清除第0列的背景色（标签列）
-            formatRequests.add(googleSheetsService.createPlainFormat(sheetId, usdNetAssetRow, usdNetAssetRow + 1, 0, 1));
-            // 然后应用货币和百分比格式
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdNetAssetRow, usdNetAssetRow + 1, 1, 3, "USD"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdNetAssetRow, usdNetAssetRow + 1, 3, 4));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 5, 7, "USD"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 7, 8));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 9, 11, "USD"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, usdSubtotalRow, usdSubtotalRow + 1, 11, 12));
         }
 
         // CNY部分格式化
         if (cnyTitleRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, cnyTitleRow, cnyTitleRow + 1, 0, 9)); // CNY标题
+            // CNY标题行：居中显示"{货币}资产负债净资产总计"
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, cnyTitleRow, cnyTitleRow + 1, 0, 12));
         }
         if (cnyHeaderRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, cnyHeaderRow, cnyHeaderRow + 1, 0, 9)); // CNY表头
+            // CNY表头：12列（资产4列 + 负债4列 + 净资产4列）
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, cnyHeaderRow, cnyHeaderRow + 1, 0, 12));
 
             // 格式化CNY数据行（从表头下一行到小计行之前）
             if (cnySubtotalRow != -1) {
+                // 资产部分：列1-3 (当前年值, 去年年底)
                 formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 1, 3, "CNY"));
+                // 资产同比%：列3
                 formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 3, 4));
-                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 6, 8, "CNY"));
-                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 8, 9));
+                // 负债部分：列5-7 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 5, 7, "CNY"));
+                // 负债同比%：列7
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 7, 8));
+                // 净资产部分：列9-11 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 9, 11, "CNY"));
+                // 净资产同比%：列11
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnyHeaderRow + 1, cnySubtotalRow, 11, 12));
             }
         }
         if (cnySubtotalRow != -1) {
-            // CNY小计行 - 不需要header格式化，只需要货币格式
+            // CNY小计行：12列数据（资产小计 + 负债小计 + 净资产总计）
             formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 1, 3, "CNY"));
             formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 3, 4));
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 6, 8, "CNY"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 8, 9));
-        }
-        if (cnyNetAssetRow != -1) {
-            // CNY净资产行 - 不需要header格式化，只需要货币格式
-            // 先清除第0列的背景色（标签列）
-            formatRequests.add(googleSheetsService.createPlainFormat(sheetId, cnyNetAssetRow, cnyNetAssetRow + 1, 0, 1));
-            // 然后应用货币和百分比格式
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnyNetAssetRow, cnyNetAssetRow + 1, 1, 3, "CNY"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnyNetAssetRow, cnyNetAssetRow + 1, 3, 4));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 5, 7, "CNY"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 7, 8));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 9, 11, "CNY"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, cnySubtotalRow, cnySubtotalRow + 1, 11, 12));
         }
 
         // USD总计部分格式化
         if (totalTitleRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, totalTitleRow, totalTitleRow + 1, 0, 9)); // "折算为USD总计"标题
+            // USD总计标题行：居中显示"折算为USD基准货币总计"
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, totalTitleRow, totalTitleRow + 1, 0, 12));
         }
         if (totalHeaderRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, totalHeaderRow, totalHeaderRow + 1, 0, 9)); // 表头
+            // USD总计表头：12列（资产4列 + 负债4列 + 净资产4列）
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, totalHeaderRow, totalHeaderRow + 1, 0, 12));
 
-            // 格式化USD总计数据行（从表头下一行到总计行之前）
-            if (totalAssetRow != -1) {
-                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalHeaderRow + 1, totalAssetRow, 1, 3, "USD"));
-                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalHeaderRow + 1, totalAssetRow, 3, 4));
-                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalHeaderRow + 1, totalAssetRow, 6, 8, "USD"));
-                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalHeaderRow + 1, totalAssetRow, 8, 9));
+            // 格式化USD总计数据行（从表头下一行到小计行之前）
+            if (totalSubtotalRow != -1) {
+                // 资产部分：列1-3 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 1, 3, "USD"));
+                // 资产同比%：列3
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 3, 4));
+                // 负债部分：列5-7 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 5, 7, "USD"));
+                // 负债同比%：列7
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 7, 8));
+                // 净资产部分：列9-11 (当前年值, 去年年底)
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 9, 11, "USD"));
+                // 净资产同比%：列11
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalHeaderRow + 1, totalSubtotalRow, 11, 12));
             }
         }
-        if (totalAssetRow != -1) {
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalAssetRow, totalAssetRow + 1, 1, 3, "USD"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalAssetRow, totalAssetRow + 1, 3, 4));
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalAssetRow, totalAssetRow + 1, 6, 8, "USD"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalAssetRow, totalAssetRow + 1, 8, 9));
-        }
-
-        // 净资产类别表头
-        if (netWorthHeaderRow != -1) {
-            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, netWorthHeaderRow, netWorthHeaderRow + 1, 0, 4));
-
-            // 净资产类别数据行（从表头下一行到总计行之前）
-            if (totalNetAssetRow != -1) {
-                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, netWorthHeaderRow + 1, totalNetAssetRow, 1, 3, "USD"));
-                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, netWorthHeaderRow + 1, totalNetAssetRow, 3, 4));
-            }
-        }
-
-        if (totalNetAssetRow != -1) {
-            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalNetAssetRow, totalNetAssetRow + 1, 1, 3, "USD"));
-            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalNetAssetRow, totalNetAssetRow + 1, 3, 4));
+        if (totalSubtotalRow != -1) {
+            // USD总计小计行：12列数据（资产小计 + 负债小计 + 净资产总计）
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 1, 3, "USD"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 3, 4));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 5, 7, "USD"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 7, 8));
+            formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 9, 11, "USD"));
+            formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalSubtotalRow, totalSubtotalRow + 1, 11, 12));
         }
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
