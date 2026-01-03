@@ -37,6 +37,7 @@ public class GoogleSheetsExportService {
     private final AssetTypeRepository assetTypeRepository;
     private final LiabilityTypeRepository liabilityTypeRepository;
     private final ExchangeRateService exchangeRateService;
+    private final UserRepository userRepository;
 
     private static final String RETIREMENT_FUND_TYPE = "RETIREMENT_FUND";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -94,6 +95,7 @@ public class GoogleSheetsExportService {
 
             // 导出各个Sheet
             exportBalanceSheet(spreadsheetId, familyId, year);
+            exportBalanceSheetDetail(spreadsheetId, familyId, year);
             exportExpenseSheet(spreadsheetId, familyId, year, "USD");
             exportExpenseSheet(spreadsheetId, familyId, year, "CNY");
             exportInvestmentAccountSheet(spreadsheetId, familyId, year);
@@ -135,6 +137,10 @@ public class GoogleSheetsExportService {
         // 清空并更新资产负债表
         googleSheetsService.clearSheet(spreadsheetId, "资产负债表");
         exportBalanceSheet(spreadsheetId, familyId, year);
+
+        // 清空并更新资产负债表明细
+        googleSheetsService.clearSheet(spreadsheetId, "资产负债表明细");
+        exportBalanceSheetDetail(spreadsheetId, familyId, year);
 
         // 清空并更新开支表-USD
         googleSheetsService.clearSheet(spreadsheetId, "开支表-USD");
@@ -732,6 +738,9 @@ public class GoogleSheetsExportService {
         // 预算列(col 2)、去年实际(col 3)、月度列(col 4-9)、总计(col 10)、差异(col 11)、剩余预算(col 12)
         formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, 3, rows.size(), 2, maxCols, currency));
 
+        // 5. 添加剩余预算列的条件颜色格式（基于预算百分比）
+        addBudgetColorFormatting(formatRequests, sheetId, rows, currency, familyId, year);
+
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
     }
 
@@ -1293,6 +1302,319 @@ public class GoogleSheetsExportService {
                     rows.size() + 2 // 图表锚点行（数据下方留2行空白）
                 ));
             }
+        }
+
+        googleSheetsService.formatCells(spreadsheetId, formatRequests);
+    }
+
+    /**
+     * 为剩余预算列添加条件颜色格式
+     * 绿色: 剩余预算 > 20% of 预算
+     * 黄色: 0% <= 剩余预算 <= 20% of 预算
+     * 红色: 剩余预算 < 0 (负数)
+     */
+    private void addBudgetColorFormatting(List<Request> formatRequests, Integer sheetId,
+                                         List<List<Object>> rows, String currency,
+                                         Long familyId, Integer year) {
+        Set<String> majorItemCodes = new HashSet<>(Arrays.asList("HOUSING", "TRANSPORTATION", "BUSINESS"));
+
+        // 遍历所有数据行，为剩余预算列添加颜色
+        int rowIndex = 0;
+        for (List<Object> row : rows) {
+            if (row.isEmpty() || row.size() < 13) {
+                rowIndex++;
+                continue;
+            }
+
+            String firstCell = row.get(0).toString();
+
+            // 跳过标题行、表头行和总计行
+            if (firstCell.contains("年度支出表") || firstCell.equals("大类") ||
+                firstCell.equals("总计") || firstCell.contains("半年") ||
+                firstCell.contains("大项开支") || firstCell.contains("日常开支")) {
+                rowIndex++;
+                continue;
+            }
+
+            // 获取预算和剩余预算
+            Object budgetObj = row.get(2); // 预算列
+            Object remainingObj = row.get(13); // 剩余预算列（最后一列）
+
+            if (budgetObj instanceof Double && remainingObj instanceof Double) {
+                double budget = (Double) budgetObj;
+                double remaining = (Double) remainingObj;
+
+                if (budget > 0) {
+                    double remainingPct = remaining / budget;
+
+                    // 根据百分比设置颜色
+                    if (remaining < 0) {
+                        // 红色 (负数)
+                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
+                            sheetId, rowIndex, rowIndex + 1, 13, 14,
+                            1.0f, 0.8f, 0.8f)); // 浅红色
+                    } else if (remainingPct <= 0.2) {
+                        // 黄色 (0-20%)
+                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
+                            sheetId, rowIndex, rowIndex + 1, 13, 14,
+                            1.0f, 1.0f, 0.8f)); // 浅黄色
+                    } else {
+                        // 绿色 (>20%)
+                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
+                            sheetId, rowIndex, rowIndex + 1, 13, 14,
+                            0.8f, 1.0f, 0.8f)); // 浅绿色
+                    }
+                }
+            }
+
+            rowIndex++;
+        }
+    }
+
+    /**
+     * 导出资产负债表明细Sheet
+     * 显示所有资产、负债账户的最新值，横坐标为用户名，按货币分开显示
+     */
+    private void exportBalanceSheetDetail(String spreadsheetId, Long familyId, Integer year)
+            throws IOException, GeneralSecurityException {
+        log.info("导出资产负债表明细");
+
+        Integer sheetId = googleSheetsService.addSheet(spreadsheetId, "资产负债表明细");
+        LocalDate asOfDate = LocalDate.of(year, 12, 31);
+
+        List<List<Object>> rows = new ArrayList<>();
+
+        // 标题行
+        rows.add(Arrays.asList(year + "年资产负债表明细"));
+        rows.add(Arrays.asList()); // 空行
+
+        // 按货币分组
+        List<String> currencies = Arrays.asList("USD", "CNY");
+
+        for (String currency : currencies) {
+            // 货币标题
+            rows.add(Arrays.asList(currency + " 账户明细"));
+            rows.add(Arrays.asList()); // 空行
+
+            // 资产部分
+            rows.add(Arrays.asList("资产账户"));
+
+            // 获取该货币的所有资产账户
+            List<AssetAccount> assetAccounts = assetAccountRepository
+                .findByFamilyIdAndIsActiveTrue(familyId).stream()
+                .filter(account -> {
+                    // 查找该账户在指定日期的最新记录
+                    Optional<AssetRecord> recordOpt = assetRecordRepository
+                        .findLatestByAccountAndDate(account.getId(), asOfDate);
+                    return recordOpt.isPresent() && currency.equals(recordOpt.get().getCurrency());
+                })
+                .collect(Collectors.toList());
+
+            if (!assetAccounts.isEmpty()) {
+                // 获取所有用户ID对应的用户名
+                Set<Long> userIds = assetAccounts.stream()
+                    .map(AssetAccount::getUserId)
+                    .collect(Collectors.toSet());
+                Map<Long, String> userIdToName = userIds.stream()
+                    .collect(Collectors.toMap(
+                        userId -> userId,
+                        userId -> userRepository.findById(userId)
+                            .map(User::getUsername)
+                            .orElse("Unknown")
+                    ));
+
+                // 按用户分组
+                Map<String, List<AssetAccount>> accountsByUser = assetAccounts.stream()
+                    .collect(Collectors.groupingBy(acc -> userIdToName.get(acc.getUserId())));
+
+                // 表头：账户类型 + 各用户名 + 总计
+                List<Object> headerRow = new ArrayList<>();
+                headerRow.add("账户类型");
+                headerRow.add("账户名称");
+                List<String> userNames = new ArrayList<>(accountsByUser.keySet());
+                headerRow.addAll(userNames);
+                headerRow.add("总计");
+                rows.add(headerRow);
+
+                // 按资产类型分组
+                Map<String, List<AssetAccount>> accountsByType = assetAccounts.stream()
+                    .collect(Collectors.groupingBy(acc -> acc.getAssetType().getChineseName()));
+
+                for (Map.Entry<String, List<AssetAccount>> typeEntry : accountsByType.entrySet()) {
+                    String typeName = typeEntry.getKey();
+                    List<AssetAccount> typeAccounts = typeEntry.getValue();
+
+                    for (AssetAccount account : typeAccounts) {
+                        List<Object> row = new ArrayList<>();
+                        row.add(typeName);
+                        row.add(account.getAccountName());
+
+                        BigDecimal rowTotal = BigDecimal.ZERO;
+
+                        // 为每个用户填充数据
+                        String accountUserName = userIdToName.get(account.getUserId());
+                        for (String userName : userNames) {
+                            if (userName.equals(accountUserName)) {
+                                Optional<AssetRecord> recordOpt = assetRecordRepository
+                                    .findLatestByAccountAndDate(account.getId(), asOfDate);
+                                BigDecimal amount = recordOpt.map(AssetRecord::getAmount).orElse(BigDecimal.ZERO);
+                                row.add(amount.doubleValue());
+                                rowTotal = rowTotal.add(amount);
+                            } else {
+                                row.add(0.0);
+                            }
+                        }
+
+                        row.add(rowTotal.doubleValue());
+                        rows.add(row);
+                    }
+                }
+            } else {
+                rows.add(Arrays.asList("无" + currency + "资产账户"));
+            }
+
+            rows.add(Arrays.asList()); // 空行
+
+            // 负债部分
+            rows.add(Arrays.asList("负债账户"));
+
+            // 获取该货币的所有负债账户
+            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository
+                .findByFamilyIdAndIsActiveTrue(familyId).stream()
+                .filter(account -> {
+                    // 使用findLatestByAccountIdBeforeOrOnDate instead of findLatestByAccountAndDate
+                    Optional<LiabilityRecord> recordOpt = liabilityRecordRepository
+                        .findLatestByAccountIdBeforeOrOnDate(account.getId(), asOfDate);
+                    return recordOpt.isPresent() && currency.equals(recordOpt.get().getCurrency());
+                })
+                .collect(Collectors.toList());
+
+            if (!liabilityAccounts.isEmpty()) {
+                // 获取所有用户ID对应的用户名
+                Set<Long> liabUserIds = liabilityAccounts.stream()
+                    .map(LiabilityAccount::getUserId)
+                    .collect(Collectors.toSet());
+                Map<Long, String> liabUserIdToName = liabUserIds.stream()
+                    .collect(Collectors.toMap(
+                        userId -> userId,
+                        userId -> userRepository.findById(userId)
+                            .map(User::getUsername)
+                            .orElse("Unknown")
+                    ));
+
+                // 按用户分组
+                Map<String, List<LiabilityAccount>> liabAccountsByUser = liabilityAccounts.stream()
+                    .collect(Collectors.groupingBy(acc -> liabUserIdToName.get(acc.getUserId())));
+
+                // 表头
+                List<Object> liabHeaderRow = new ArrayList<>();
+                liabHeaderRow.add("账户类型");
+                liabHeaderRow.add("账户名称");
+                List<String> liabUserNames = new ArrayList<>(liabAccountsByUser.keySet());
+                liabHeaderRow.addAll(liabUserNames);
+                liabHeaderRow.add("总计");
+                rows.add(liabHeaderRow);
+
+                // 按负债类型分组
+                Map<String, List<LiabilityAccount>> liabAccountsByType = liabilityAccounts.stream()
+                    .collect(Collectors.groupingBy(acc -> acc.getLiabilityType().getChineseName()));
+
+                for (Map.Entry<String, List<LiabilityAccount>> typeEntry : liabAccountsByType.entrySet()) {
+                    String typeName = typeEntry.getKey();
+                    List<LiabilityAccount> typeAccounts = typeEntry.getValue();
+
+                    for (LiabilityAccount account : typeAccounts) {
+                        List<Object> row = new ArrayList<>();
+                        row.add(typeName);
+                        row.add(account.getAccountName());
+
+                        BigDecimal rowTotal = BigDecimal.ZERO;
+
+                        // 为每个用户填充数据
+                        String accountUserName = liabUserIdToName.get(account.getUserId());
+                        for (String userName : liabUserNames) {
+                            if (userName.equals(accountUserName)) {
+                                Optional<LiabilityRecord> recordOpt = liabilityRecordRepository
+                                    .findLatestByAccountIdBeforeOrOnDate(account.getId(), asOfDate);
+                                BigDecimal amount = recordOpt.map(LiabilityRecord::getOutstandingBalance)
+                                    .orElse(BigDecimal.ZERO);
+                                row.add(amount.doubleValue());
+                                rowTotal = rowTotal.add(amount);
+                            } else {
+                                row.add(0.0);
+                            }
+                        }
+
+                        row.add(rowTotal.doubleValue());
+                        rows.add(row);
+                    }
+                }
+            } else {
+                rows.add(Arrays.asList("无" + currency + "负债账户"));
+            }
+
+            rows.add(Arrays.asList()); // 空行
+            rows.add(Arrays.asList()); // 空行
+        }
+
+        // 写入数据
+        googleSheetsService.writeData(spreadsheetId, "资产负债表明细", rows);
+
+        // 应用格式化
+        List<Request> formatRequests = new ArrayList<>();
+
+        // 确定最大列数（账户类型 + 账户名称 + 可能的多个用户 + 总计）
+        int maxCols = 10; // 预估最大列数，后续可以根据实际调整
+
+        // 1. 为所有单元格添加边框
+        formatRequests.add(googleSheetsService.createBordersForAll(sheetId, rows.size(), maxCols));
+
+        // 2. 合并并居中主标题
+        formatRequests.addAll(googleSheetsService.createMergeAndCenterFormat(sheetId, 0, 1, 0, maxCols));
+
+        // 3. 格式化所有货币标题和表头
+        for (int i = 0; i < rows.size(); i++) {
+            List<Object> row = rows.get(i);
+            if (row.isEmpty()) continue;
+            String firstCell = row.get(0).toString();
+
+            if (firstCell.contains("账户明细") || firstCell.equals("资产账户") ||
+                firstCell.equals("负债账户") || firstCell.equals("账户类型")) {
+                formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, i, i + 1, 0, maxCols));
+            }
+        }
+
+        // 4. 格式化金额列（除了前两列：账户类型和账户名称）
+        // 查找数据行并应用货币格式
+        for (int i = 0; i < rows.size(); i++) {
+            List<Object> row = rows.get(i);
+            if (row.isEmpty() || row.size() <= 2) continue;
+
+            String firstCell = row.get(0).toString();
+
+            // 跳过标题、空行、表头行
+            if (firstCell.contains("明细") || firstCell.contains("账户") ||
+                firstCell.equals("账户类型") || firstCell.contains("无")) {
+                continue;
+            }
+
+            // 确定该行的货币
+            String rowCurrency = "USD";
+            for (int j = i - 1; j >= 0; j--) {
+                if (rows.get(j).isEmpty()) continue;
+                String cellValue = rows.get(j).get(0).toString();
+                if (cellValue.contains("CNY 账户明细")) {
+                    rowCurrency = "CNY";
+                    break;
+                } else if (cellValue.contains("USD 账户明细")) {
+                    rowCurrency = "USD";
+                    break;
+                }
+            }
+
+            // 格式化该行的金额列
+            formatRequests.add(googleSheetsService.createCurrencyFormat(
+                sheetId, i, i + 1, 2, row.size(), rowCurrency));
         }
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);

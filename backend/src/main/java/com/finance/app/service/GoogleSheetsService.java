@@ -492,6 +492,40 @@ public class GoogleSheetsService {
     }
 
     /**
+     * 创建带背景颜色的单元格格式
+     * @param sheetId 工作表ID
+     * @param startRow 起始行
+     * @param endRow 结束行（不包含）
+     * @param startCol 起始列
+     * @param endCol 结束列（不包含）
+     * @param red RGB红色值（0.0-1.0）
+     * @param green RGB绿色值（0.0-1.0）
+     * @param blue RGB蓝色值（0.0-1.0）
+     */
+    public Request createBackgroundColorFormat(Integer sheetId, int startRow, int endRow, int startCol, int endCol,
+                                                float red, float green, float blue) {
+        return new Request().setRepeatCell(new RepeatCellRequest()
+            .setRange(new GridRange()
+                .setSheetId(sheetId)
+                .setStartRowIndex(startRow)
+                .setEndRowIndex(endRow)
+                .setStartColumnIndex(startCol)
+                .setEndColumnIndex(endCol))
+            .setCell(new CellData()
+                .setUserEnteredFormat(new CellFormat()
+                    .setBackgroundColor(new Color()
+                        .setRed(red)
+                        .setGreen(green)
+                        .setBlue(blue))
+                    .setBorders(new Borders()
+                        .setTop(new Border().setStyle("SOLID"))
+                        .setBottom(new Border().setStyle("SOLID"))
+                        .setLeft(new Border().setStyle("SOLID"))
+                        .setRight(new Border().setStyle("SOLID")))))
+            .setFields("userEnteredFormat(backgroundColor,borders)"));
+    }
+
+    /**
      * 为整个工作表添加表格线
      * @param sheetId 工作表ID
      * @param rowCount 行数
