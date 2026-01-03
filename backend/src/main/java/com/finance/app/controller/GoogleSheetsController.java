@@ -3,13 +3,16 @@ package com.finance.app.controller;
 import com.finance.app.model.GoogleSheetsSync;
 import com.finance.app.repository.GoogleSheetsSyncRepository;
 import com.finance.app.service.GoogleSheetsExportService;
+import com.finance.app.service.SseEmitterManager;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class GoogleSheetsController {
 
     private final GoogleSheetsExportService googleSheetsExportService;
     private final GoogleSheetsSyncRepository googleSheetsSyncRepository;
+    private final SseEmitterManager sseEmitterManager;
 
     /**
      * 同步年度财务报表到Google Sheets
@@ -81,7 +85,7 @@ public class GoogleSheetsController {
     }
 
     /**
-     * 查询同步任务状态
+     * 查询同步任务状态（轮询方式，保留用于兼容）
      */
     @GetMapping("/sync-status/{syncId}")
     @Operation(summary = "查询同步任务状态",
@@ -123,6 +127,65 @@ public class GoogleSheetsController {
         response.put("data", data);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * SSE端点 - 实时推送同步任务进度
+     */
+    @GetMapping(value = "/sync-progress/{syncId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "订阅同步任务进度（SSE）",
+               description = "通过Server-Sent Events实时接收Google Sheets同步任务的进度更新")
+    public SseEmitter subscribeProgress(
+            @Parameter(description = "同步任务ID", required = true)
+            @PathVariable Long syncId) {
+
+        log.info("客户端订阅SSE进度: syncId={}", syncId);
+
+        // 检查任务是否存在
+        Optional<GoogleSheetsSync> syncOpt = googleSheetsSyncRepository.findById(syncId);
+        if (syncOpt.isEmpty()) {
+            SseEmitter emitter = new SseEmitter(0L);
+            try {
+                emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data(Map.of("error", "找不到指定的同步任务")));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("发送错误消息失败", e);
+            }
+            return emitter;
+        }
+
+        GoogleSheetsSync sync = syncOpt.get();
+
+        // 创建SSE连接
+        SseEmitter emitter = sseEmitterManager.createEmitter(syncId);
+
+        // 立即发送当前状态
+        try {
+            Map<String, Object> initialData = new HashMap<>();
+            initialData.put("syncId", sync.getId());
+            initialData.put("status", sync.getStatus());
+            initialData.put("progress", sync.getProgress());
+            initialData.put("message", "连接成功");
+            initialData.put("timestamp", System.currentTimeMillis());
+
+            emitter.send(SseEmitter.event()
+                .name("connected")
+                .data(initialData));
+
+            // 如果任务已完成，立即发送完成消息
+            if ("COMPLETED".equals(sync.getStatus())) {
+                sseEmitterManager.sendSuccess(syncId, sync.getShareUrl(), sync.getSpreadsheetId());
+            } else if ("FAILED".equals(sync.getStatus())) {
+                sseEmitterManager.sendError(syncId, sync.getErrorMessage());
+            }
+
+        } catch (Exception e) {
+            log.error("发送初始状态失败: syncId={}", syncId, e);
+        }
+
+        return emitter;
     }
 
     /**

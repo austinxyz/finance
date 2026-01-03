@@ -165,8 +165,8 @@ const errorMessage = ref('')
 const statusMessage = ref('正在同步到Google Sheets...')
 const statusDetail = ref('正在启动任务，请稍候...')
 
-// 轮询定时器
-let pollInterval = null
+// SSE连接
+let eventSource = null
 
 // 进度环计算
 const circleCircumference = 2 * Math.PI * 40 // r=40
@@ -186,7 +186,7 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
   } else {
-    stopPolling()
+    closeEventSource()
   }
 })
 
@@ -201,7 +201,7 @@ const resetForm = () => {
   errorMessage.value = ''
   statusMessage.value = '正在同步到Google Sheets...'
   statusDetail.value = '正在启动任务，请稍候...'
-  stopPolling()
+  closeEventSource()
 }
 
 // 关闭弹窗
@@ -257,8 +257,8 @@ const syncToGoogleSheets = async () => {
     if (response.data.status === 'PENDING' || response.data.status === 'IN_PROGRESS') {
       syncId.value = response.data.syncId
       progress.value = response.data.progress || 0
-      // 开始轮询状态
-      startPolling()
+      // 建立SSE连接接收实时进度
+      connectEventSource(syncId.value)
     } else {
       // 理论上不应该走到这里，因为现在都是异步的
       syncStatus.value = 'error'
@@ -268,51 +268,97 @@ const syncToGoogleSheets = async () => {
     console.error('同步失败:', error)
     syncStatus.value = 'error'
     errorMessage.value = error.response?.data?.error || error.message || '未知错误'
-    stopPolling()
+    closeEventSource()
   }
 }
 
-// 开始轮询任务状态
-const startPolling = () => {
-  stopPolling() // 先停止已有的轮询
+// 建立SSE连接
+const connectEventSource = (taskSyncId) => {
+  closeEventSource() // 先关闭已有的连接
 
-  pollInterval = setInterval(async () => {
-    try {
-      const response = await googleSheetsApi.getSyncStatus(syncId.value)
-      const data = response.data
+  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const url = `${baseURL}/google-sheets/sync-progress/${taskSyncId}`
 
-      progress.value = data.progress || 0
-      updateStatusMessage(progress.value)
+  console.log('建立SSE连接:', url)
+  eventSource = new EventSource(url)
 
-      if (data.status === 'COMPLETED') {
-        // 任务完成
-        stopPolling()
-        syncStatus.value = 'success'
-        shareUrl.value = data.shareUrl
-        progress.value = 100
-        emit('success', data)
-      } else if (data.status === 'FAILED') {
-        // 任务失败
-        stopPolling()
+  // 连接成功
+  eventSource.addEventListener('connected', (event) => {
+    console.log('SSE连接成功:', event.data)
+    const data = JSON.parse(event.data)
+    progress.value = data.progress || 0
+    updateStatusMessage(progress.value)
+  })
+
+  // 进度更新
+  eventSource.addEventListener('progress', (event) => {
+    console.log('收到进度更新:', event.data)
+    const data = JSON.parse(event.data)
+    progress.value = data.progress || 0
+    statusMessage.value = data.message || getStatusMessage(progress.value)
+    updateStatusMessage(progress.value)
+  })
+
+  // 任务完成
+  eventSource.addEventListener('complete', (event) => {
+    console.log('收到完成消息:', event.data)
+    const data = JSON.parse(event.data)
+    syncStatus.value = 'success'
+    shareUrl.value = data.shareUrl
+    progress.value = 100
+    emit('success', data)
+    closeEventSource()
+  })
+
+  // 任务失败
+  eventSource.addEventListener('error', (event) => {
+    // 检查是否是自定义错误事件
+    if (event.data) {
+      console.log('收到错误消息:', event.data)
+      try {
+        const data = JSON.parse(event.data)
         syncStatus.value = 'error'
-        errorMessage.value = data.errorMessage || '任务执行失败'
+        errorMessage.value = data.errorMessage || data.error || '任务执行失败'
+      } catch (e) {
+        console.error('解析错误消息失败:', e)
       }
-      // 继续轮询 PENDING 和 IN_PROGRESS 状态
-    } catch (error) {
-      console.error('查询任务状态失败:', error)
-      stopPolling()
+    } else {
+      // EventSource连接错误
+      console.error('SSE连接错误')
       syncStatus.value = 'error'
-      errorMessage.value = '无法查询任务状态'
+      errorMessage.value = 'SSE连接中断'
     }
-  }, 2000) // 每2秒查询一次
+    closeEventSource()
+  })
+
+  // 通用错误处理
+  eventSource.onerror = (error) => {
+    console.error('EventSource错误:', error)
+    if (eventSource.readyState === EventSource.CLOSED) {
+      console.log('SSE连接已关闭')
+    }
+  }
 }
 
-// 停止轮询
-const stopPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
+// 关闭SSE连接
+const closeEventSource = () => {
+  if (eventSource) {
+    console.log('关闭SSE连接')
+    eventSource.close()
+    eventSource = null
   }
+}
+
+// 辅助函数：根据进度获取状态消息（作为fallback）
+const getStatusMessage = (progressValue) => {
+  if (progressValue <= 10) return '正在创建电子表格...'
+  if (progressValue <= 25) return '正在导出资产负债表...'
+  if (progressValue <= 35) return '正在导出资产负债表明细...'
+  if (progressValue <= 50) return '正在导出USD开支表...'
+  if (progressValue <= 65) return '正在导出CNY开支表...'
+  if (progressValue <= 80) return '正在导出投资账户明细...'
+  if (progressValue <= 90) return '正在导出退休账户明细...'
+  return '正在完成...'
 }
 
 // 重置并重试
@@ -321,12 +367,12 @@ const resetAndRetry = () => {
   errorMessage.value = ''
   progress.value = 0
   syncId.value = null
-  stopPolling()
+  closeEventSource()
 }
 
 // 组件卸载前清理
 onBeforeUnmount(() => {
-  stopPolling()
+  closeEventSource()
 })
 </script>
 

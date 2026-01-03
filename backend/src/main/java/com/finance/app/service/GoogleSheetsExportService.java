@@ -40,6 +40,7 @@ public class GoogleSheetsExportService {
     private final LiabilityTypeRepository liabilityTypeRepository;
     private final ExchangeRateService exchangeRateService;
     private final UserRepository userRepository;
+    private final SseEmitterManager sseEmitterManager;
 
     private static final String RETIREMENT_FUND_TYPE = "RETIREMENT_FUND";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -193,6 +194,9 @@ public class GoogleSheetsExportService {
             sync.setErrorMessage(null);
             googleSheetsSyncRepository.save(sync);
 
+            // 通过SSE推送完成消息
+            sseEmitterManager.sendSuccess(syncId, shareUrl, spreadsheetId);
+
             log.info("年度报表生成完成: syncId={}, shareUrl={}", syncId, shareUrl);
 
         } catch (Exception e) {
@@ -202,17 +206,45 @@ public class GoogleSheetsExportService {
             sync.setStatus("FAILED");
             sync.setErrorMessage(e.getMessage());
             googleSheetsSyncRepository.save(sync);
+
+            // 通过SSE推送错误消息
+            sseEmitterManager.sendError(syncId, e.getMessage());
         }
     }
 
     /**
-     * 更新任务进度
+     * 更新任务进度（同时推送到SSE）
      */
     private void updateProgress(Long syncId, int progress) {
+        updateProgress(syncId, progress, null);
+    }
+
+    /**
+     * 更新任务进度并指定消息
+     */
+    private void updateProgress(Long syncId, int progress, String message) {
         googleSheetsSyncRepository.findById(syncId).ifPresent(sync -> {
             sync.setProgress(progress);
             googleSheetsSyncRepository.save(sync);
+
+            // 通过SSE推送进度更新
+            String statusMessage = message != null ? message : getProgressMessage(progress);
+            sseEmitterManager.sendProgress(syncId, progress, sync.getStatus(), statusMessage);
         });
+    }
+
+    /**
+     * 根据进度百分比获取状态消息
+     */
+    private String getProgressMessage(int progress) {
+        if (progress <= 10) return "正在创建电子表格...";
+        if (progress <= 25) return "正在导出资产负债表...";
+        if (progress <= 35) return "正在导出资产负债表明细...";
+        if (progress <= 50) return "正在导出USD开支表...";
+        if (progress <= 65) return "正在导出CNY开支表...";
+        if (progress <= 80) return "正在导出投资账户明细...";
+        if (progress <= 90) return "正在导出退休账户明细...";
+        return "正在完成...";
     }
 
     /**
