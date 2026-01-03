@@ -25,8 +25,8 @@ public class SseEmitterManager {
      * @return SseEmitter
      */
     public SseEmitter createEmitter(Long syncId) {
-        // 30分钟超时（足够长，避免任务未完成就超时）
-        SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
+        // 60分钟超时（足够长，避免数据量大时任务未完成就超时）
+        SseEmitter emitter = new SseEmitter(60 * 60 * 1000L);
 
         emitter.onCompletion(() -> {
             log.info("SSE连接完成: syncId={}", syncId);
@@ -72,13 +72,13 @@ public class SseEmitterManager {
                     .name("progress")
                     .data(data));
 
-                log.debug("发送进度更新: syncId={}, progress={}, status={}", syncId, progress, status);
+                log.info("发送进度更新: syncId={}, progress={}, status={}, message={}", syncId, progress, status, message);
             } catch (IOException e) {
                 log.error("发送SSE消息失败: syncId={}", syncId, e);
                 removeEmitter(syncId);
             }
         } else {
-            log.debug("未找到SSE连接: syncId={}", syncId);
+            log.warn("未找到SSE连接，无法发送进度: syncId={}, progress={}", syncId, progress);
         }
     }
 

@@ -178,8 +178,8 @@ public class GoogleSheetsService {
 
         Sheets service = getSheetsService();
 
-        // 对于包含中文或特殊字符的工作表名称，需要用单引号括起来
-        String range = "'" + sheetName + "'!A1";
+        // 直接使用工作表名称，Java客户端会自动处理编码
+        String range = sheetName + "!A1";
         ValueRange body = new ValueRange().setValues(values);
 
         service.spreadsheets().values()
@@ -234,6 +234,30 @@ public class GoogleSheetsService {
     }
 
     /**
+     * 检查工作表是否存在
+     * @param spreadsheetId 电子表格ID
+     * @param sheetName 工作表名称
+     * @return 是否存在
+     */
+    public boolean sheetExists(String spreadsheetId, String sheetName)
+            throws IOException, GeneralSecurityException {
+        Sheets service = getSheetsService();
+
+        Spreadsheet spreadsheet = service.spreadsheets()
+            .get(spreadsheetId)
+            .setFields("sheets.properties")
+            .execute();
+
+        for (Sheet sheet : spreadsheet.getSheets()) {
+            if (sheetName.equals(sheet.getProperties().getTitle())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * 清空工作表内容
      * @param spreadsheetId 电子表格ID
      * @param sheetName 工作表名称
@@ -242,14 +266,18 @@ public class GoogleSheetsService {
             throws IOException, GeneralSecurityException {
         log.info("清空工作表: {}", sheetName);
 
+        // 先检查工作表是否存在
+        if (!sheetExists(spreadsheetId, sheetName)) {
+            log.warn("工作表不存在，跳过清空: {}", sheetName);
+            return;
+        }
+
         Sheets service = getSheetsService();
 
-        // 对于包含中文或特殊字符的工作表名称，需要用单引号括起来
-        String range = "'" + sheetName + "'";
-
+        // 直接使用工作表名称，Java客户端会自动处理编码
         ClearValuesRequest clearRequest = new ClearValuesRequest();
         service.spreadsheets().values()
-            .clear(spreadsheetId, range, clearRequest)
+            .clear(spreadsheetId, sheetName, clearRequest)
             .execute();
 
         log.info("工作表清空完成");

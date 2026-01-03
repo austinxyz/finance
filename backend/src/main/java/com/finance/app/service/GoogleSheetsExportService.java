@@ -5,6 +5,7 @@ import com.finance.app.repository.*;
 import com.google.api.services.sheets.v4.model.Request;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,8 @@ public class GoogleSheetsExportService {
     private final ExchangeRateService exchangeRateService;
     private final UserRepository userRepository;
     private final SseEmitterManager sseEmitterManager;
+    private final ApplicationContext applicationContext;
+    private final AnalysisService analysisService;
 
     private static final String RETIREMENT_FUND_TYPE = "RETIREMENT_FUND";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -101,8 +104,10 @@ public class GoogleSheetsExportService {
             log.info("创建新的同步任务记录: syncId={}", sync.getId());
         }
 
-        // 异步执行导出任务
-        executeAsyncExport(sync.getId(), familyId, year, permissionRole, isNew);
+        // 异步执行导出任务（通过Spring代理调用以启用@Async）
+        // 通过ApplicationContext获取代理对象来触发@Async
+        applicationContext.getBean(GoogleSheetsExportService.class)
+            .executeAsyncExport(sync.getId(), familyId, year, permissionRole, isNew);
 
         Map<String, Object> result = new HashMap<>();
         result.put("syncId", sync.getId());
@@ -121,14 +126,24 @@ public class GoogleSheetsExportService {
     public void executeAsyncExport(Long syncId, Long familyId, Integer year, String permissionRole, boolean isNew) {
         log.info("开始异步执行报表导出: syncId={}, familyId={}, year={}", syncId, familyId, year);
 
+        // 等待500ms，确保客户端有时间建立SSE连接
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("等待SSE连接时被中断", e);
+        }
+
         GoogleSheetsSync sync = googleSheetsSyncRepository.findById(syncId)
             .orElseThrow(() -> new RuntimeException("同步记录不存在: " + syncId));
 
         try {
             // 更新状态为进行中
             sync.setStatus("IN_PROGRESS");
-            sync.setProgress(5);
             googleSheetsSyncRepository.save(sync);
+
+            // 发送初始进度
+            updateProgress(syncId, 5, "正在启动任务...");
 
             String spreadsheetId;
             String shareUrl;
@@ -138,29 +153,29 @@ public class GoogleSheetsExportService {
                 String title = year + "年家庭财务报表";
                 spreadsheetId = googleSheetsService.createSpreadsheet(title);
                 sync.setSpreadsheetId(spreadsheetId);
-                sync.setProgress(10);
                 googleSheetsSyncRepository.save(sync);
+                updateProgress(syncId, 10, "正在创建电子表格...");
 
                 log.info("创建新的报表: {}", spreadsheetId);
 
                 // 导出各个Sheet（每个Sheet更新进度）
                 exportBalanceSheet(spreadsheetId, familyId, year);
-                updateProgress(syncId, 25);
+                updateProgress(syncId, 25, "正在导出资产负债表...");
 
                 exportBalanceSheetDetail(spreadsheetId, familyId, year);
-                updateProgress(syncId, 35);
+                updateProgress(syncId, 35, "正在导出资产负债表明细...");
 
                 exportExpenseSheet(spreadsheetId, familyId, year, "USD");
-                updateProgress(syncId, 50);
+                updateProgress(syncId, 50, "正在导出USD开支表...");
 
                 exportExpenseSheet(spreadsheetId, familyId, year, "CNY");
-                updateProgress(syncId, 65);
+                updateProgress(syncId, 65, "正在导出CNY开支表...");
 
                 exportInvestmentAccountSheet(spreadsheetId, familyId, year);
-                updateProgress(syncId, 80);
+                updateProgress(syncId, 80, "正在导出投资账户明细...");
 
                 exportRetirementAccountSheet(spreadsheetId, familyId, year);
-                updateProgress(syncId, 90);
+                updateProgress(syncId, 90, "正在导出退休账户明细...");
 
                 // 删除默认的"Sheet1"
                 deleteDefaultSheet(spreadsheetId);
@@ -174,9 +189,8 @@ public class GoogleSheetsExportService {
                 spreadsheetId = sync.getSpreadsheetId();
                 log.info("更新已存在的报表: {}", spreadsheetId);
 
-                // 清空并重新导出所有Sheet
-                clearAndExportAllSheets(spreadsheetId, familyId, year);
-                updateProgress(syncId, 90);
+                // 清空并重新导出所有Sheet（带进度更新）
+                clearAndExportAllSheets(spreadsheetId, familyId, year, syncId);
 
                 // 更新权限（如果需要）
                 if (!permissionRole.equals(sync.getPermission())) {
@@ -250,33 +264,39 @@ public class GoogleSheetsExportService {
     /**
      * 清空并重新导出所有工作表
      */
-    private void clearAndExportAllSheets(String spreadsheetId, Long familyId, Integer year)
+    private void clearAndExportAllSheets(String spreadsheetId, Long familyId, Integer year, Long syncId)
             throws IOException, GeneralSecurityException {
         log.info("清空并重新导出所有工作表");
 
         // 清空并更新资产负债表
         googleSheetsService.clearSheet(spreadsheetId, "资产负债表");
         exportBalanceSheet(spreadsheetId, familyId, year);
+        updateProgress(syncId, 25, "正在导出资产负债表...");
 
         // 清空并更新资产负债表明细
         googleSheetsService.clearSheet(spreadsheetId, "资产负债表明细");
         exportBalanceSheetDetail(spreadsheetId, familyId, year);
+        updateProgress(syncId, 35, "正在导出资产负债表明细...");
 
         // 清空并更新开支表-USD
         googleSheetsService.clearSheet(spreadsheetId, "开支表-USD");
         exportExpenseSheet(spreadsheetId, familyId, year, "USD");
+        updateProgress(syncId, 50, "正在导出USD开支表...");
 
         // 清空并更新开支表-CNY
         googleSheetsService.clearSheet(spreadsheetId, "开支表-CNY");
         exportExpenseSheet(spreadsheetId, familyId, year, "CNY");
+        updateProgress(syncId, 65, "正在导出CNY开支表...");
 
         // 清空并更新投资账户明细
         googleSheetsService.clearSheet(spreadsheetId, "投资账户明细");
         exportInvestmentAccountSheet(spreadsheetId, familyId, year);
+        updateProgress(syncId, 80, "正在导出投资账户明细...");
 
         // 清空并更新退休账户明细
         googleSheetsService.clearSheet(spreadsheetId, "退休账户明细");
         exportRetirementAccountSheet(spreadsheetId, familyId, year);
+        updateProgress(syncId, 90, "正在导出退休账户明细...");
 
         log.info("所有工作表更新完成");
     }
@@ -612,6 +632,43 @@ public class GoogleSheetsExportService {
 
         rows.add(Arrays.asList()); // 空行
 
+        // 净资产部分：使用AnalysisService的净资产分类逻辑
+        rows.add(Arrays.asList("净资产类别", "当前年值", "去年年底", "同比%"));
+
+        // 获取当前年的净资产分类
+        Map<String, Object> netAllocationCurrent = analysisService.getNetAssetAllocation(null, familyId, asOfDate, "All");
+        List<Map<String, Object>> netCategoriesCurrent = (List<Map<String, Object>>) netAllocationCurrent.get("data");
+
+        // 获取去年年底的净资产分类
+        Map<String, Object> netAllocationLastYear = analysisService.getNetAssetAllocation(null, familyId, lastYearEndDate, "All");
+        List<Map<String, Object>> netCategoriesLastYear = (List<Map<String, Object>>) netAllocationLastYear.get("data");
+
+        // 构建去年数据的Map，方便查找
+        Map<String, BigDecimal> lastYearNetValueByCategory = new HashMap<>();
+        for (Map<String, Object> cat : netCategoriesLastYear) {
+            String catName = (String) cat.get("name");
+            BigDecimal netValue = new BigDecimal(cat.get("netValue").toString());
+            lastYearNetValueByCategory.put(catName, netValue);
+        }
+
+        // 显示各净资产类别
+        for (Map<String, Object> cat : netCategoriesCurrent) {
+            String catName = (String) cat.get("name");
+            BigDecimal netCurrent = new BigDecimal(cat.get("netValue").toString());
+            BigDecimal netLastYear = lastYearNetValueByCategory.getOrDefault(catName, BigDecimal.ZERO);
+
+            double netChangePct = netLastYear.compareTo(BigDecimal.ZERO) != 0
+                ? netCurrent.subtract(netLastYear).divide(netLastYear, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100")).doubleValue()
+                : (netCurrent.compareTo(BigDecimal.ZERO) != 0 ? 100.0 : 0.0);
+
+            rows.add(Arrays.asList(
+                catName,
+                netCurrent.doubleValue(),
+                netLastYear.doubleValue(),
+                netChangePct / 100
+            ));
+        }
+
         rows.add(Arrays.asList(
             "净资产总计 (USD)",
             totalNetWorthCurrent.doubleValue(),
@@ -643,6 +700,7 @@ public class GoogleSheetsExportService {
         int totalTitleRow = -1;
         int totalHeaderRow = -1;
         int totalAssetRow = -1;
+        int netWorthHeaderRow = -1;
         int totalNetAssetRow = -1;
 
         for (int i = 0; i < rows.size(); i++) {
@@ -672,6 +730,8 @@ public class GoogleSheetsExportService {
                 totalHeaderRow = i;
             } else if (firstCell.startsWith("资产总计")) {
                 totalAssetRow = i;
+            } else if ("净资产类别".equals(firstCell)) {
+                netWorthHeaderRow = i;
             } else if (firstCell.startsWith("净资产总计")) {
                 totalNetAssetRow = i;
             }
@@ -760,6 +820,18 @@ public class GoogleSheetsExportService {
             formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalAssetRow, totalAssetRow + 1, 6, 8, "USD"));
             formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalAssetRow, totalAssetRow + 1, 8, 9));
         }
+
+        // 净资产类别表头
+        if (netWorthHeaderRow != -1) {
+            formatRequests.add(googleSheetsService.createHeaderFormat(sheetId, netWorthHeaderRow, netWorthHeaderRow + 1, 0, 4));
+
+            // 净资产类别数据行（从表头下一行到总计行之前）
+            if (totalNetAssetRow != -1) {
+                formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, netWorthHeaderRow + 1, totalNetAssetRow, 1, 3, "USD"));
+                formatRequests.add(googleSheetsService.createPercentFormat(sheetId, netWorthHeaderRow + 1, totalNetAssetRow, 3, 4));
+            }
+        }
+
         if (totalNetAssetRow != -1) {
             formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, totalNetAssetRow, totalNetAssetRow + 1, 1, 3, "USD"));
             formatRequests.add(googleSheetsService.createPercentFormat(sheetId, totalNetAssetRow, totalNetAssetRow + 1, 3, 4));
@@ -1441,7 +1513,7 @@ public class GoogleSheetsExportService {
         // 遍历所有数据行，为剩余预算列添加颜色
         int rowIndex = 0;
         for (List<Object> row : rows) {
-            if (row.isEmpty() || row.size() < 13) {
+            if (row.isEmpty() || row.size() < 14) { // 需要至少14列才能访问索引13
                 rowIndex++;
                 continue;
             }
@@ -1519,14 +1591,22 @@ public class GoogleSheetsExportService {
             // 资产部分
             rows.add(Arrays.asList("资产账户"));
 
-            // 获取该货币的所有资产账户
-            List<AssetAccount> assetAccounts = assetAccountRepository
-                .findByFamilyIdAndIsActiveTrue(familyId).stream()
+            // 一次性查询所有资产账户
+            List<AssetAccount> allAssetAccounts = assetAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+
+            // 预加载所有资产记录（减少数据库查询）
+            Map<Long, AssetRecord> assetRecordMap = new HashMap<>();
+            for (AssetAccount account : allAssetAccounts) {
+                Optional<AssetRecord> recordOpt = assetRecordRepository
+                    .findLatestByAccountAndDate(account.getId(), asOfDate);
+                recordOpt.ifPresent(record -> assetRecordMap.put(account.getId(), record));
+            }
+
+            // 过滤出该货币的资产账户
+            List<AssetAccount> assetAccounts = allAssetAccounts.stream()
                 .filter(account -> {
-                    // 查找该账户在指定日期的最新记录
-                    Optional<AssetRecord> recordOpt = assetRecordRepository
-                        .findLatestByAccountAndDate(account.getId(), asOfDate);
-                    return recordOpt.isPresent() && currency.equals(recordOpt.get().getCurrency());
+                    AssetRecord record = assetRecordMap.get(account.getId());
+                    return record != null && currency.equals(record.getCurrency());
                 })
                 .collect(Collectors.toList());
 
@@ -1560,6 +1640,13 @@ public class GoogleSheetsExportService {
                 Map<String, List<AssetAccount>> accountsByType = assetAccounts.stream()
                     .collect(Collectors.groupingBy(acc -> acc.getAssetType().getChineseName()));
 
+                // 用户总计累加器
+                Map<String, BigDecimal> userAssetTotals = new HashMap<>();
+                for (String userName : userNames) {
+                    userAssetTotals.put(userName, BigDecimal.ZERO);
+                }
+                BigDecimal assetGrandTotal = BigDecimal.ZERO;
+
                 for (Map.Entry<String, List<AssetAccount>> typeEntry : accountsByType.entrySet()) {
                     String typeName = typeEntry.getKey();
                     List<AssetAccount> typeAccounts = typeEntry.getValue();
@@ -1571,24 +1658,35 @@ public class GoogleSheetsExportService {
 
                         BigDecimal rowTotal = BigDecimal.ZERO;
 
-                        // 为每个用户填充数据
+                        // 为每个用户填充数据（使用预加载的记录）
                         String accountUserName = userIdToName.get(account.getUserId());
                         for (String userName : userNames) {
                             if (userName.equals(accountUserName)) {
-                                Optional<AssetRecord> recordOpt = assetRecordRepository
-                                    .findLatestByAccountAndDate(account.getId(), asOfDate);
-                                BigDecimal amount = recordOpt.map(AssetRecord::getAmount).orElse(BigDecimal.ZERO);
+                                AssetRecord record = assetRecordMap.get(account.getId());
+                                BigDecimal amount = record != null ? record.getAmount() : BigDecimal.ZERO;
                                 row.add(amount.doubleValue());
                                 rowTotal = rowTotal.add(amount);
+                                userAssetTotals.put(userName, userAssetTotals.get(userName).add(amount));
                             } else {
                                 row.add(0.0);
                             }
                         }
 
                         row.add(rowTotal.doubleValue());
+                        assetGrandTotal = assetGrandTotal.add(rowTotal);
                         rows.add(row);
                     }
                 }
+
+                // 添加资产总计行
+                List<Object> assetTotalRow = new ArrayList<>();
+                assetTotalRow.add("资产小计");
+                assetTotalRow.add("");
+                for (String userName : userNames) {
+                    assetTotalRow.add(userAssetTotals.get(userName).doubleValue());
+                }
+                assetTotalRow.add(assetGrandTotal.doubleValue());
+                rows.add(assetTotalRow);
             } else {
                 rows.add(Arrays.asList("无" + currency + "资产账户"));
             }
@@ -1598,14 +1696,22 @@ public class GoogleSheetsExportService {
             // 负债部分
             rows.add(Arrays.asList("负债账户"));
 
-            // 获取该货币的所有负债账户
-            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository
-                .findByFamilyIdAndIsActiveTrue(familyId).stream()
+            // 一次性查询所有负债账户
+            List<LiabilityAccount> allLiabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+
+            // 预加载所有负债记录（减少数据库查询）
+            Map<Long, LiabilityRecord> liabilityRecordMap = new HashMap<>();
+            for (LiabilityAccount account : allLiabilityAccounts) {
+                Optional<LiabilityRecord> recordOpt = liabilityRecordRepository
+                    .findLatestByAccountIdBeforeOrOnDate(account.getId(), asOfDate);
+                recordOpt.ifPresent(record -> liabilityRecordMap.put(account.getId(), record));
+            }
+
+            // 过滤出该货币的负债账户
+            List<LiabilityAccount> liabilityAccounts = allLiabilityAccounts.stream()
                 .filter(account -> {
-                    // 使用findLatestByAccountIdBeforeOrOnDate instead of findLatestByAccountAndDate
-                    Optional<LiabilityRecord> recordOpt = liabilityRecordRepository
-                        .findLatestByAccountIdBeforeOrOnDate(account.getId(), asOfDate);
-                    return recordOpt.isPresent() && currency.equals(recordOpt.get().getCurrency());
+                    LiabilityRecord record = liabilityRecordMap.get(account.getId());
+                    return record != null && currency.equals(record.getCurrency());
                 })
                 .collect(Collectors.toList());
 
@@ -1639,6 +1745,13 @@ public class GoogleSheetsExportService {
                 Map<String, List<LiabilityAccount>> liabAccountsByType = liabilityAccounts.stream()
                     .collect(Collectors.groupingBy(acc -> acc.getLiabilityType().getChineseName()));
 
+                // 用户总计累加器
+                Map<String, BigDecimal> userLiabilityTotals = new HashMap<>();
+                for (String userName : liabUserNames) {
+                    userLiabilityTotals.put(userName, BigDecimal.ZERO);
+                }
+                BigDecimal liabilityGrandTotal = BigDecimal.ZERO;
+
                 for (Map.Entry<String, List<LiabilityAccount>> typeEntry : liabAccountsByType.entrySet()) {
                     String typeName = typeEntry.getKey();
                     List<LiabilityAccount> typeAccounts = typeEntry.getValue();
@@ -1650,25 +1763,35 @@ public class GoogleSheetsExportService {
 
                         BigDecimal rowTotal = BigDecimal.ZERO;
 
-                        // 为每个用户填充数据
+                        // 为每个用户填充数据（使用预加载的记录）
                         String accountUserName = liabUserIdToName.get(account.getUserId());
                         for (String userName : liabUserNames) {
                             if (userName.equals(accountUserName)) {
-                                Optional<LiabilityRecord> recordOpt = liabilityRecordRepository
-                                    .findLatestByAccountIdBeforeOrOnDate(account.getId(), asOfDate);
-                                BigDecimal amount = recordOpt.map(LiabilityRecord::getOutstandingBalance)
-                                    .orElse(BigDecimal.ZERO);
+                                LiabilityRecord record = liabilityRecordMap.get(account.getId());
+                                BigDecimal amount = record != null ? record.getOutstandingBalance() : BigDecimal.ZERO;
                                 row.add(amount.doubleValue());
                                 rowTotal = rowTotal.add(amount);
+                                userLiabilityTotals.put(userName, userLiabilityTotals.get(userName).add(amount));
                             } else {
                                 row.add(0.0);
                             }
                         }
 
                         row.add(rowTotal.doubleValue());
+                        liabilityGrandTotal = liabilityGrandTotal.add(rowTotal);
                         rows.add(row);
                     }
                 }
+
+                // 添加负债总计行
+                List<Object> liabilityTotalRow = new ArrayList<>();
+                liabilityTotalRow.add("负债小计");
+                liabilityTotalRow.add("");
+                for (String userName : liabUserNames) {
+                    liabilityTotalRow.add(userLiabilityTotals.get(userName).doubleValue());
+                }
+                liabilityTotalRow.add(liabilityGrandTotal.doubleValue());
+                rows.add(liabilityTotalRow);
             } else {
                 rows.add(Arrays.asList("无" + currency + "负债账户"));
             }
