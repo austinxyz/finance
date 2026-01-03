@@ -2,7 +2,7 @@ package com.finance.app.service;
 
 import com.finance.app.model.*;
 import com.finance.app.repository.*;
-import com.google.api.services.sheets.v4.model.Request;
+import com.google.api.services.sheets.v4.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -936,17 +936,19 @@ public class GoogleSheetsExportService {
         }
 
         // 4. 格式化所有金额列为货币格式（跳过大类和小类列）
-        // 预算列(col 2)、去年实际(col 3)、月度列(col 4-9)、总计(col 10)、差异(col 11)、剩余预算(col 12)
-        formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, 3, rows.size(), 2, maxCols, currency));
+        // 预算列(col 2)、去年实际(col 3)、月度列(col 4-9)、总计(col 10)、差异(col 11)
+        // 注意：跳过剩余预算列(col 12)，因为它需要带背景色的特殊格式
+        formatRequests.add(googleSheetsService.createCurrencyFormat(sheetId, 3, rows.size(), 2, 12, currency));
 
         // 5. 添加剩余预算列的条件颜色格式（基于预算百分比）
+        // 这个方法会为剩余预算列(col 12)同时设置货币格式和背景色
         addBudgetColorFormatting(formatRequests, sheetId, rows, currency, familyId, year);
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
     }
 
     /**
-     * 添加半年支出数据
+     * 添加半年支出数据（优化版：消除重复查询）
      */
     private void addExpenseHalfYear(List<List<Object>> rows, Long familyId, Integer year, String currency,
                                    int startMonth, int endMonth, String title, boolean isMajorItems) {
@@ -972,6 +974,69 @@ public class GoogleSheetsExportService {
         // 获取所有大类
         List<ExpenseCategoryMajor> majorCategories = expenseCategoryMajorRepository.findAll();
 
+        // 🚀 优化：收集所有需要的小类ID，批量预加载数据
+        List<Long> allMinorIds = new ArrayList<>();
+        for (ExpenseCategoryMajor major : majorCategories) {
+            if (major.getId() == 0) continue;
+            boolean isMajor = majorItemCodes.contains(major.getCode());
+            if (isMajorItems != isMajor) continue;
+
+            List<ExpenseCategoryMinor> minorCategories = expenseCategoryMinorRepository
+                .findByMajorCategoryIdOrderBySortOrder(major.getId());
+            minorCategories.forEach(minor -> allMinorIds.add(minor.getId()));
+        }
+
+        // 🚀 批量加载预算数据（一次查询）
+        Map<Long, BigDecimal> budgetMap = new HashMap<>();
+        if (!allMinorIds.isEmpty()) {
+            List<ExpenseBudget> budgets = expenseBudgetRepository
+                .findByFamilyIdAndBudgetYearAndCurrencyAndMinorCategoryIdIn(
+                    familyId, year, currency, allMinorIds);
+            budgets.forEach(b -> budgetMap.put(b.getMinorCategoryId(), b.getBudgetAmount()));
+        }
+
+        // 🚀 批量加载去年的开支记录（12-72次查询 -> 1次）
+        Map<String, Map<Long, BigDecimal>> lastYearRecordsMap = new HashMap<>();
+        for (int month = startMonth; month <= endMonth; month++) {
+            String period = String.format("%d-%02d", year - 1, month);
+            if (!allMinorIds.isEmpty()) {
+                List<ExpenseRecord> records = expenseRecordRepository
+                    .findByFamilyIdAndExpensePeriodAndCurrencyAndMinorCategoryIdIn(
+                        familyId, period, currency, allMinorIds);
+                Map<Long, BigDecimal> monthMap = new HashMap<>();
+                records.forEach(r -> monthMap.put(r.getMinorCategoryId(), r.getAmount()));
+                lastYearRecordsMap.put(period, monthMap);
+            }
+        }
+
+        // 🚀 批量加载今年的开支记录（12-72次查询 -> 1次）
+        Map<String, Map<Long, BigDecimal>> currentYearRecordsMap = new HashMap<>();
+        for (int month = startMonth; month <= endMonth; month++) {
+            String period = String.format("%d-%02d", year, month);
+            if (!allMinorIds.isEmpty()) {
+                List<ExpenseRecord> records = expenseRecordRepository
+                    .findByFamilyIdAndExpensePeriodAndCurrencyAndMinorCategoryIdIn(
+                        familyId, period, currency, allMinorIds);
+                Map<Long, BigDecimal> monthMap = new HashMap<>();
+                records.forEach(r -> monthMap.put(r.getMinorCategoryId(), r.getAmount()));
+                currentYearRecordsMap.put(period, monthMap);
+            }
+        }
+
+        // 🚀 批量加载上半年数据（如果是下半年）
+        Map<String, Map<Long, BigDecimal>> firstHalfRecordsMap = new HashMap<>();
+        if (startMonth >= 7 && !allMinorIds.isEmpty()) {
+            for (int month = 1; month <= 6; month++) {
+                String period = String.format("%d-%02d", year, month);
+                List<ExpenseRecord> records = expenseRecordRepository
+                    .findByFamilyIdAndExpensePeriodAndCurrencyAndMinorCategoryIdIn(
+                        familyId, period, currency, allMinorIds);
+                Map<Long, BigDecimal> monthMap = new HashMap<>();
+                records.forEach(r -> monthMap.put(r.getMinorCategoryId(), r.getAmount()));
+                firstHalfRecordsMap.put(period, monthMap);
+            }
+        }
+
         // 总计累加器
         BigDecimal grandTotalBudget = BigDecimal.ZERO;
         BigDecimal grandTotalLastYear = BigDecimal.ZERO;
@@ -981,6 +1046,7 @@ public class GoogleSheetsExportService {
             grandTotalMonthly[i] = BigDecimal.ZERO;
         }
 
+        // 现在使用预加载的数据，无需再查询数据库
         for (ExpenseCategoryMajor major : majorCategories) {
             if (major.getId() == 0) continue;
 
@@ -995,148 +1061,91 @@ public class GoogleSheetsExportService {
             BigDecimal majorBudgetTotal = BigDecimal.ZERO;
             BigDecimal majorActualTotal = BigDecimal.ZERO;
             BigDecimal majorLastYearTotal = BigDecimal.ZERO;
-            List<BigDecimal[]> minorMonthlyData = new ArrayList<>();
 
-            // 收集小类数据
+            // 小类明细行（只循环一次，使用预加载数据）
             for (ExpenseCategoryMinor minor : minorCategories) {
-                Optional<ExpenseBudget> budgetOpt = expenseBudgetRepository
-                    .findByFamilyIdAndBudgetYearAndMinorCategoryIdAndCurrency(familyId, year, minor.getId(), currency);
-                BigDecimal budget = budgetOpt.map(ExpenseBudget::getBudgetAmount).orElse(BigDecimal.ZERO);
+                BigDecimal budget = budgetMap.getOrDefault(minor.getId(), BigDecimal.ZERO);
 
+                // 计算去年总计（使用预加载数据）
                 BigDecimal lastYearTotal = BigDecimal.ZERO;
                 for (int month = startMonth; month <= endMonth; month++) {
                     String lastYearPeriod = String.format("%d-%02d", year - 1, month);
-                    Optional<ExpenseRecord> lastYearRecordOpt = expenseRecordRepository
-                        .findByFamilyIdAndExpensePeriodAndMinorCategoryIdAndCurrency(
-                            familyId, lastYearPeriod, minor.getId(), currency);
-                    lastYearTotal = lastYearTotal.add(
-                        lastYearRecordOpt.map(ExpenseRecord::getAmount).orElse(BigDecimal.ZERO));
+                    Map<Long, BigDecimal> monthMap = lastYearRecordsMap.get(lastYearPeriod);
+                    if (monthMap != null) {
+                        lastYearTotal = lastYearTotal.add(monthMap.getOrDefault(minor.getId(), BigDecimal.ZERO));
+                    }
                 }
 
+                // 计算今年月度实际（使用预加载数据）
                 BigDecimal[] monthlyActuals = new BigDecimal[endMonth - startMonth + 1];
                 BigDecimal actualTotal = BigDecimal.ZERO;
                 for (int month = startMonth; month <= endMonth; month++) {
                     String period = String.format("%d-%02d", year, month);
-                    Optional<ExpenseRecord> recordOpt = expenseRecordRepository
-                        .findByFamilyIdAndExpensePeriodAndMinorCategoryIdAndCurrency(
-                            familyId, period, minor.getId(), currency);
-                    BigDecimal monthlyAmount = recordOpt.map(ExpenseRecord::getAmount).orElse(BigDecimal.ZERO);
+                    Map<Long, BigDecimal> monthMap = currentYearRecordsMap.get(period);
+                    BigDecimal monthlyAmount = BigDecimal.ZERO;
+                    if (monthMap != null) {
+                        monthlyAmount = monthMap.getOrDefault(minor.getId(), BigDecimal.ZERO);
+                    }
                     monthlyActuals[month - startMonth] = monthlyAmount;
                     actualTotal = actualTotal.add(monthlyAmount);
                 }
 
+                // 计算剩余预算
+                BigDecimal remainingBudget;
+                if (startMonth >= 7) {
+                    // 下半年：使用预加载的上半年数据
+                    BigDecimal firstHalfActual = BigDecimal.ZERO;
+                    for (int month = 1; month <= 6; month++) {
+                        String period = String.format("%d-%02d", year, month);
+                        Map<Long, BigDecimal> monthMap = firstHalfRecordsMap.get(period);
+                        if (monthMap != null) {
+                            firstHalfActual = firstHalfActual.add(monthMap.getOrDefault(minor.getId(), BigDecimal.ZERO));
+                        }
+                    }
+                    remainingBudget = budget.subtract(firstHalfActual).subtract(actualTotal);
+                } else {
+                    // 上半年
+                    remainingBudget = budget.subtract(actualTotal);
+                }
+
+                // 累加大类小计
                 majorBudgetTotal = majorBudgetTotal.add(budget);
                 majorActualTotal = majorActualTotal.add(actualTotal);
                 majorLastYearTotal = majorLastYearTotal.add(lastYearTotal);
 
-                minorMonthlyData.add(monthlyActuals);
-            }
-
-            // 累加到总计
-            grandTotalBudget = grandTotalBudget.add(majorBudgetTotal);
-            grandTotalLastYear = grandTotalLastYear.add(majorLastYearTotal);
-            grandTotalActual = grandTotalActual.add(majorActualTotal);
-
-            // 大类汇总行 - 不再显示
-            // List<Object> majorRow = new ArrayList<>();
-            // majorRow.add(major.getName());
-            // majorRow.add("小计");
-            // majorRow.add(majorBudgetTotal.doubleValue());
-            // majorRow.add(majorLastYearTotal.doubleValue());
-
-            // for (int month = startMonth; month <= endMonth; month++) {
-            //     BigDecimal monthTotal = BigDecimal.ZERO;
-            //     for (BigDecimal[] monthlyActuals : minorMonthlyData) {
-            //         monthTotal = monthTotal.add(monthlyActuals[month - startMonth]);
-            //     }
-            //     majorRow.add(monthTotal.doubleValue());
-            // }
-            // majorRow.add(majorActualTotal.doubleValue());
-            // majorRow.add(majorActualTotal.subtract(majorBudgetTotal).doubleValue());
-            // rows.add(majorRow);
-
-            // 小类明细行
-            for (int i = 0; i < minorCategories.size(); i++) {
-                ExpenseCategoryMinor minor = minorCategories.get(i);
-                Optional<ExpenseBudget> budgetOpt = expenseBudgetRepository
-                    .findByFamilyIdAndBudgetYearAndMinorCategoryIdAndCurrency(familyId, year, minor.getId(), currency);
-                BigDecimal budget = budgetOpt.map(ExpenseBudget::getBudgetAmount).orElse(BigDecimal.ZERO);
-
-                BigDecimal lastYearTotal = BigDecimal.ZERO;
-                for (int month = startMonth; month <= endMonth; month++) {
-                    String lastYearPeriod = String.format("%d-%02d", year - 1, month);
-                    Optional<ExpenseRecord> lastYearRecordOpt = expenseRecordRepository
-                        .findByFamilyIdAndExpensePeriodAndMinorCategoryIdAndCurrency(
-                            familyId, lastYearPeriod, minor.getId(), currency);
-                    lastYearTotal = lastYearTotal.add(
-                        lastYearRecordOpt.map(ExpenseRecord::getAmount).orElse(BigDecimal.ZERO));
-                }
-
-                BigDecimal[] monthlyActuals = minorMonthlyData.get(i);
-                BigDecimal actualTotal = Arrays.stream(monthlyActuals)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                // 计算剩余预算逻辑
-                BigDecimal remainingBudget;
-                int currentMonth = LocalDate.now().getMonthValue();
-
-                if (startMonth >= 7) {
-                    // 下半年(7-12月)：剩余预算 = 预算 - (上半年实际) - (当前实际)
-                    BigDecimal firstHalfActual = BigDecimal.ZERO;
-                    for (int month = 1; month <= 6; month++) {
-                        String period = String.format("%d-%02d", year, month);
-                        Optional<ExpenseRecord> recordOpt = expenseRecordRepository
-                            .findByFamilyIdAndExpensePeriodAndMinorCategoryIdAndCurrency(
-                                familyId, period, minor.getId(), currency);
-                        firstHalfActual = firstHalfActual.add(
-                            recordOpt.map(ExpenseRecord::getAmount).orElse(BigDecimal.ZERO));
-                    }
-                    remainingBudget = budget.subtract(firstHalfActual).subtract(actualTotal);
-                } else {
-                    // 上半年(1-6月)：剩余预算 = 预算 - 实际
-                    remainingBudget = budget.subtract(actualTotal);
-                }
-
+                // 生成行数据
                 List<Object> row = new ArrayList<>();
-                row.add(major.getName()); // 显示大类名称
+                row.add(major.getName());
                 row.add(minor.getName());
                 row.add(budget.doubleValue());
                 row.add(lastYearTotal.doubleValue());
                 for (int j = 0; j < monthlyActuals.length; j++) {
                     BigDecimal monthly = monthlyActuals[j];
                     row.add(monthly.doubleValue());
-                    grandTotalMonthly[j] = grandTotalMonthly[j].add(monthly); // 累加每月总计
+                    grandTotalMonthly[j] = grandTotalMonthly[j].add(monthly);
                 }
                 row.add(actualTotal.doubleValue());
-                row.add(actualTotal.subtract(lastYearTotal).doubleValue()); // 差异 = 今年实际 - 去年实际
+                row.add(actualTotal.subtract(lastYearTotal).doubleValue());
                 row.add(remainingBudget.doubleValue());
                 rows.add(row);
             }
+
+            // 累加到总计
+            grandTotalBudget = grandTotalBudget.add(majorBudgetTotal);
+            grandTotalLastYear = grandTotalLastYear.add(majorLastYearTotal);
+            grandTotalActual = grandTotalActual.add(majorActualTotal);
         }
 
-        // 计算总剩余预算
+        // 计算总剩余预算（使用已预加载的数据）
         BigDecimal grandRemainingBudget;
 
         if (startMonth >= 7) {
-            // 下半年：计算上半年总实际支出
+            // 下半年：使用预加载的上半年数据计算总实际支出
             BigDecimal grandFirstHalfActual = BigDecimal.ZERO;
-            List<ExpenseCategoryMajor> allMajorCategories = expenseCategoryMajorRepository.findAll();
-            for (ExpenseCategoryMajor major : allMajorCategories) {
-                if (major.getId() == 0) continue;
-                boolean isMajor = majorItemCodes.contains(major.getCode());
-                if (isMajorItems != isMajor) continue;
-
-                List<ExpenseCategoryMinor> minors = expenseCategoryMinorRepository
-                    .findByMajorCategoryIdOrderBySortOrder(major.getId());
-                for (ExpenseCategoryMinor minor : minors) {
-                    for (int month = 1; month <= 6; month++) {
-                        String period = String.format("%d-%02d", year, month);
-                        Optional<ExpenseRecord> recordOpt = expenseRecordRepository
-                            .findByFamilyIdAndExpensePeriodAndMinorCategoryIdAndCurrency(
-                                familyId, period, minor.getId(), currency);
-                        grandFirstHalfActual = grandFirstHalfActual.add(
-                            recordOpt.map(ExpenseRecord::getAmount).orElse(BigDecimal.ZERO));
-                    }
+            for (Map.Entry<String, Map<Long, BigDecimal>> entry : firstHalfRecordsMap.entrySet()) {
+                Map<Long, BigDecimal> monthMap = entry.getValue();
+                for (BigDecimal amount : monthMap.values()) {
+                    grandFirstHalfActual = grandFirstHalfActual.add(amount);
                 }
             }
             grandRemainingBudget = grandTotalBudget.subtract(grandFirstHalfActual).subtract(grandTotalActual);
@@ -1521,8 +1530,9 @@ public class GoogleSheetsExportService {
 
         // 遍历所有数据行，为剩余预算列添加颜色
         int rowIndex = 0;
+
         for (List<Object> row : rows) {
-            if (row.isEmpty() || row.size() < 14) { // 需要至少14列才能访问索引13
+            if (row.isEmpty() || row.size() < 13) { // 需要至少13列才能访问索引12
                 rowIndex++;
                 continue;
             }
@@ -1539,32 +1549,50 @@ public class GoogleSheetsExportService {
 
             // 获取预算和剩余预算
             Object budgetObj = row.get(2); // 预算列
-            Object remainingObj = row.get(13); // 剩余预算列（最后一列）
+            Object remainingObj = row.get(12); // 剩余预算列（索引12，第13列）
 
-            if (budgetObj instanceof Double && remainingObj instanceof Double) {
-                double budget = (Double) budgetObj;
-                double remaining = (Double) remainingObj;
+            // 支持Number类型（包括Double、BigDecimal等）
+            if (budgetObj instanceof Number && remainingObj instanceof Number) {
+                double budget = ((Number) budgetObj).doubleValue();
+                double remaining = ((Number) remainingObj).doubleValue();
 
                 if (budget > 0) {
                     double remainingPct = remaining / budget;
 
-                    // 根据百分比设置颜色
+                    // 根据百分比设置颜色（带边框和货币格式）
+                    Color backgroundColor;
                     if (remaining < 0) {
-                        // 红色 (负数)
-                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
-                            sheetId, rowIndex, rowIndex + 1, 13, 14,
-                            1.0f, 0.8f, 0.8f)); // 浅红色
+                        // 红色 (负数 - 超支)
+                        backgroundColor = new Color().setRed(1.0f).setGreen(0.8f).setBlue(0.8f);
                     } else if (remainingPct <= 0.2) {
-                        // 黄色 (0-20%)
-                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
-                            sheetId, rowIndex, rowIndex + 1, 13, 14,
-                            1.0f, 1.0f, 0.8f)); // 浅黄色
+                        // 黄色 (0-20% - 预算紧张)
+                        backgroundColor = new Color().setRed(1.0f).setGreen(1.0f).setBlue(0.8f);
                     } else {
-                        // 绿色 (>20%)
-                        formatRequests.add(googleSheetsService.createBackgroundColorFormat(
-                            sheetId, rowIndex, rowIndex + 1, 13, 14,
-                            0.8f, 1.0f, 0.8f)); // 浅绿色
+                        // 绿色 (>20% - 预算充足)
+                        backgroundColor = new Color().setRed(0.8f).setGreen(1.0f).setBlue(0.8f);
                     }
+
+                    // 创建带背景色和货币格式的单元格格式
+                    String pattern = "USD".equals(currency) ? "$#,##0.00" : "¥#,##0.00";
+                    formatRequests.add(new Request().setRepeatCell(new RepeatCellRequest()
+                        .setRange(new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(rowIndex)
+                            .setEndRowIndex(rowIndex + 1)
+                            .setStartColumnIndex(12)
+                            .setEndColumnIndex(13))
+                        .setCell(new CellData()
+                            .setUserEnteredFormat(new CellFormat()
+                                .setBackgroundColor(backgroundColor)
+                                .setNumberFormat(new NumberFormat()
+                                    .setType("CURRENCY")
+                                    .setPattern(pattern))
+                                .setBorders(new Borders()
+                                    .setTop(new Border().setStyle("SOLID"))
+                                    .setBottom(new Border().setStyle("SOLID"))
+                                    .setLeft(new Border().setStyle("SOLID"))
+                                    .setRight(new Border().setStyle("SOLID")))))
+                        .setFields("userEnteredFormat(backgroundColor,numberFormat,borders)")));
                 }
             }
 
@@ -1620,17 +1648,13 @@ public class GoogleSheetsExportService {
                 .collect(Collectors.toList());
 
             if (!assetAccounts.isEmpty()) {
-                // 获取所有用户ID对应的用户名
+                // 🚀 优化：批量加载所有用户（避免N+1查询）
                 Set<Long> userIds = assetAccounts.stream()
                     .map(AssetAccount::getUserId)
                     .collect(Collectors.toSet());
-                Map<Long, String> userIdToName = userIds.stream()
-                    .collect(Collectors.toMap(
-                        userId -> userId,
-                        userId -> userRepository.findById(userId)
-                            .map(User::getUsername)
-                            .orElse("Unknown")
-                    ));
+                List<User> users = userRepository.findAllById(userIds);
+                Map<Long, String> userIdToName = users.stream()
+                    .collect(Collectors.toMap(User::getId, User::getUsername));
 
                 // 按用户分组
                 Map<String, List<AssetAccount>> accountsByUser = assetAccounts.stream()
@@ -1725,17 +1749,13 @@ public class GoogleSheetsExportService {
                 .collect(Collectors.toList());
 
             if (!liabilityAccounts.isEmpty()) {
-                // 获取所有用户ID对应的用户名
+                // 🚀 优化：批量加载所有用户（避免N+1查询）
                 Set<Long> liabUserIds = liabilityAccounts.stream()
                     .map(LiabilityAccount::getUserId)
                     .collect(Collectors.toSet());
-                Map<Long, String> liabUserIdToName = liabUserIds.stream()
-                    .collect(Collectors.toMap(
-                        userId -> userId,
-                        userId -> userRepository.findById(userId)
-                            .map(User::getUsername)
-                            .orElse("Unknown")
-                    ));
+                List<User> liabUsers = userRepository.findAllById(liabUserIds);
+                Map<Long, String> liabUserIdToName = liabUsers.stream()
+                    .collect(Collectors.toMap(User::getId, User::getUsername));
 
                 // 按用户分组
                 Map<String, List<LiabilityAccount>> liabAccountsByUser = liabilityAccounts.stream()

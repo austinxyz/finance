@@ -430,6 +430,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  LineController,
   BarElement,
   BarController,
   ArcElement,
@@ -446,6 +447,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  LineController,
   BarElement,
   BarController,
   ArcElement,
@@ -932,6 +934,7 @@ function updateAnnualNetWorthChart() {
 
   if (annualNetWorthChartInstance) {
     annualNetWorthChartInstance.destroy()
+    annualNetWorthChartInstance = null
   }
 
   console.log('Creating annual net worth chart with', overallTrendData.value.length, 'data points')
@@ -1180,6 +1183,7 @@ function updateNetWorthChart() {
 
   if (netWorthChartInstance) {
     netWorthChartInstance.destroy()
+    netWorthChartInstance = null
   }
 
   const ctx = netWorthChartCanvas.value.getContext('2d')
@@ -1222,6 +1226,7 @@ function updateAssetChart() {
 
   if (assetChartInstance) {
     assetChartInstance.destroy()
+    assetChartInstance = null
   }
 
   const ctx = assetChartCanvas.value.getContext('2d')
@@ -1256,6 +1261,7 @@ function updateLiabilityChart() {
 
   if (liabilityChartInstance) {
     liabilityChartInstance.destroy()
+    liabilityChartInstance = null
   }
 
   const ctx = liabilityChartCanvas.value.getContext('2d')
@@ -1290,6 +1296,7 @@ function updateExpenseChart() {
 
   if (expenseChartInstance) {
     expenseChartInstance.destroy()
+    expenseChartInstance = null
   }
 
   const ctx = expenseChartCanvas.value.getContext('2d')

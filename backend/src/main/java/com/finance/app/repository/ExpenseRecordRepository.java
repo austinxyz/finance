@@ -112,4 +112,10 @@ public interface ExpenseRecordRepository extends JpaRepository<ExpenseRecord, Lo
         @Param("currency") String currency,
         @Param("period") String period
     );
+
+    /**
+     * 批量查询多个小类和期间的支出记录（优化性能）
+     */
+    List<ExpenseRecord> findByFamilyIdAndExpensePeriodAndCurrencyAndMinorCategoryIdIn(
+        Long familyId, String expensePeriod, String currency, List<Long> minorCategoryIds);
 }

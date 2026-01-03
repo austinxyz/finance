@@ -144,7 +144,7 @@ const props = defineProps({
   },
   familyId: {
     type: Number,
-    required: true
+    default: null
   },
   defaultYear: {
     type: Number,
@@ -254,15 +254,18 @@ const syncToGoogleSheets = async () => {
       permission: permission.value
     })
 
-    if (response.data.status === 'PENDING' || response.data.status === 'IN_PROGRESS') {
-      syncId.value = response.data.syncId
-      progress.value = response.data.progress || 0
+    // 检查响应结构（后端通过ApiResponse包装，前端拦截器已解包）
+    const data = response.data || response
+
+    if (data.status === 'PENDING' || data.status === 'IN_PROGRESS') {
+      syncId.value = data.syncId
+      progress.value = data.progress || 0
       // 建立SSE连接接收实时进度
       connectEventSource(syncId.value)
     } else {
       // 理论上不应该走到这里，因为现在都是异步的
       syncStatus.value = 'error'
-      errorMessage.value = '未知的任务状态'
+      errorMessage.value = '未知的任务状态: ' + (data.status || 'undefined')
     }
   } catch (error) {
     console.error('同步失败:', error)
@@ -279,12 +282,10 @@ const connectEventSource = (taskSyncId) => {
   const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
   const url = `${baseURL}/google-sheets/sync-progress/${taskSyncId}`
 
-  console.log('建立SSE连接:', url)
   eventSource = new EventSource(url)
 
   // 连接成功
   eventSource.addEventListener('connected', (event) => {
-    console.log('SSE连接成功:', event.data)
     const data = JSON.parse(event.data)
     progress.value = data.progress || 0
     updateStatusMessage(progress.value)
@@ -292,7 +293,6 @@ const connectEventSource = (taskSyncId) => {
 
   // 进度更新
   eventSource.addEventListener('progress', (event) => {
-    console.log('收到进度更新:', event.data)
     const data = JSON.parse(event.data)
     progress.value = data.progress || 0
     statusMessage.value = data.message || getStatusMessage(progress.value)
@@ -301,7 +301,6 @@ const connectEventSource = (taskSyncId) => {
 
   // 任务完成
   eventSource.addEventListener('complete', (event) => {
-    console.log('收到完成消息:', event.data)
     const data = JSON.parse(event.data)
     syncStatus.value = 'success'
     shareUrl.value = data.shareUrl
@@ -314,7 +313,6 @@ const connectEventSource = (taskSyncId) => {
   eventSource.addEventListener('error', (event) => {
     // 检查是否是自定义错误事件
     if (event.data) {
-      console.log('收到错误消息:', event.data)
       try {
         const data = JSON.parse(event.data)
         syncStatus.value = 'error'
@@ -324,7 +322,6 @@ const connectEventSource = (taskSyncId) => {
       }
     } else {
       // EventSource连接错误
-      console.error('SSE连接错误')
       syncStatus.value = 'error'
       errorMessage.value = 'SSE连接中断'
     }
@@ -333,9 +330,8 @@ const connectEventSource = (taskSyncId) => {
 
   // 通用错误处理
   eventSource.onerror = (error) => {
-    console.error('EventSource错误:', error)
     if (eventSource.readyState === EventSource.CLOSED) {
-      console.log('SSE连接已关闭')
+      // 连接已关闭，静默处理
     }
   }
 }
@@ -343,7 +339,6 @@ const connectEventSource = (taskSyncId) => {
 // 关闭SSE连接
 const closeEventSource = () => {
   if (eventSource) {
-    console.log('关闭SSE连接')
     eventSource.close()
     eventSource = null
   }

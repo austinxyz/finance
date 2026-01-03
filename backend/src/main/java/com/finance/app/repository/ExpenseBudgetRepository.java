@@ -50,4 +50,10 @@ public interface ExpenseBudgetRepository extends JpaRepository<ExpenseBudget, Lo
         @Param("year") Integer year,
         @Param("majorCategoryId") Long majorCategoryId
     );
+
+    /**
+     * 批量查询多个小类的预算（优化性能）
+     */
+    List<ExpenseBudget> findByFamilyIdAndBudgetYearAndCurrencyAndMinorCategoryIdIn(
+        Long familyId, Integer budgetYear, String currency, List<Long> minorCategoryIds);
 }
