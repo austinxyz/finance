@@ -39,6 +39,10 @@ backend/.env.*
 .anthropic_api_key
 .claude_api_key
 
+# Google Cloud Service Account Credentials
+backend/src/main/resources/config/google-credentials.json
+backend/src/main/resources/config/google-oauth-credentials.json
+
 # Personal configuration backups
 *_backup.env
 api-key-*.txt
@@ -64,3 +68,4 @@ import/budget_preview_*.json
 import/budget_preview_*.xlsx
 import/import_budget_*.sql
 import/import_budget_success_*.txt
+tokens/

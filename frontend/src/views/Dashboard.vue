@@ -42,6 +42,15 @@
             </svg>
             <span>{{ isExporting ? '导出中...' : '导出Excel' }}</span>
           </button>
+          <button
+            @click="showGoogleSheetsSync = true"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <span>Google Sheets</span>
+          </button>
         </div>
       </div>
     </div>
@@ -396,6 +405,15 @@
       </div>
     </div>
 
+    <!-- Google Sheets同步弹窗 -->
+    <GoogleSheetsSync
+      :show="showGoogleSheetsSync"
+      :familyId="familyId"
+      :defaultYear="exportYear"
+      @close="showGoogleSheetsSync = false"
+      @success="onSyncSuccess"
+    />
+
   </div>
 </template>
 
@@ -405,6 +423,7 @@ import { assetAccountAPI, liabilityAccountAPI, familyAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
 import { annualSummaryAPI } from '@/api/annualSummary'
 import { expenseAnalysisAPI } from '@/api/expense'
+import GoogleSheetsSync from '@/components/GoogleSheetsSync.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -530,6 +549,7 @@ const createDoughnutChartOptions = (formatFn, showDataLabels = true) => ({
 const userId = ref(1) // TODO: 从用户登录状态获取
 const families = ref([])
 const familyId = ref(null) // 将从默认家庭API获取
+const showGoogleSheetsSync = ref(false)
 const assetAccounts = ref([])
 const liabilityAccounts = ref([])
 const netAssetAllocation = ref({ total: 0, data: [] })
@@ -1444,6 +1464,12 @@ async function exportAnnualReport() {
   } finally {
     isExporting.value = false
   }
+}
+
+// Google Sheets同步成功回调
+function onSyncSuccess(data) {
+  console.log('同步到Google Sheets成功:', data)
+  // 可以在这里显示成功通知
 }
 
 // 监听支出数据变化，自动更新图表
