@@ -1,5 +1,7 @@
 package com.finance.app.controller;
 
+import com.finance.app.model.GoogleSheetsSync;
+import com.finance.app.repository.GoogleSheetsSyncRepository;
 import com.finance.app.service.GoogleSheetsExportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,10 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Google Sheets同步控制器
@@ -26,6 +27,7 @@ import java.util.Map;
 public class GoogleSheetsController {
 
     private final GoogleSheetsExportService googleSheetsExportService;
+    private final GoogleSheetsSyncRepository googleSheetsSyncRepository;
 
     /**
      * 同步年度财务报表到Google Sheets
@@ -35,8 +37,8 @@ public class GoogleSheetsController {
      * @return 分享链接和电子表格ID
      */
     @PostMapping("/sync-annual-report")
-    @Operation(summary = "同步年度财务报表到Google Sheets",
-               description = "将指定年份的财务报表导出到Google Sheets，并返回分享链接。每次调用都会创建新的电子表格。")
+    @Operation(summary = "同步年度财务报表到Google Sheets（异步）",
+               description = "将指定年份的财务报表导出到Google Sheets（异步任务）。立即返回任务ID，客户端需要轮询查询任务状态。")
     public ResponseEntity<Map<String, Object>> syncAnnualReport(
             @Parameter(description = "家庭ID", required = true)
             @RequestParam Long familyId,
@@ -48,7 +50,7 @@ public class GoogleSheetsController {
             @RequestParam(defaultValue = "reader") String permission) {
 
         try {
-            log.info("开始同步年度报表到Google Sheets: familyId={}, year={}, permission={}",
+            log.info("开始创建Google Sheets同步任务: familyId={}, year={}, permission={}",
                 familyId, year, permission);
 
             // 验证权限参数
@@ -59,49 +61,68 @@ public class GoogleSheetsController {
                 return ResponseEntity.badRequest().body(errorResponse);
             }
 
-            // 执行同步
-            Map<String, Object> syncResult = googleSheetsExportService.createOrUpdateAnnualReport(familyId, year, permission);
-
-            String shareUrl = (String) syncResult.get("shareUrl");
-            String spreadsheetId = (String) syncResult.get("spreadsheetId");
-            boolean isNew = (Boolean) syncResult.get("isNew");
-
-            Map<String, String> data = new HashMap<>();
-            data.put("spreadsheetId", spreadsheetId);
-            data.put("shareUrl", shareUrl);
-            data.put("permission", permission);
-            data.put("isNew", String.valueOf(isNew));
-            data.put("message", isNew ? "报表已成功创建并同步到Google Sheets" : "报表已更新，最新数据已同步到Google Sheets");
+            // 启动异步任务
+            Map<String, Object> taskResult = googleSheetsExportService.createOrUpdateAnnualReport(familyId, year, permission);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("data", data);
+            response.put("data", taskResult);
 
-            log.info("年度报表同步完成: {}", shareUrl);
+            log.info("同步任务已启动: syncId={}", taskResult.get("syncId"));
             return ResponseEntity.ok(response);
 
-        } catch (IOException e) {
-            log.error("IO错误：无法访问Google Sheets API", e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("error", "IO错误：" + e.getMessage());
-            return ResponseEntity.status(500).body(errorResponse);
-
-        } catch (GeneralSecurityException e) {
-            log.error("安全错误：Google API认证失败", e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("error", "认证失败：" + e.getMessage());
-            errorResponse.put("hint", "请检查Service Account凭证文件是否正确配置");
-            return ResponseEntity.status(401).body(errorResponse);
-
         } catch (Exception e) {
-            log.error("同步失败：未知错误", e);
+            log.error("创建同步任务失败", e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("error", "同步失败：" + e.getMessage());
+            errorResponse.put("error", "创建任务失败：" + e.getMessage());
             return ResponseEntity.status(500).body(errorResponse);
         }
+    }
+
+    /**
+     * 查询同步任务状态
+     */
+    @GetMapping("/sync-status/{syncId}")
+    @Operation(summary = "查询同步任务状态",
+               description = "根据任务ID查询Google Sheets同步任务的状态和进度")
+    public ResponseEntity<Map<String, Object>> getSyncStatus(
+            @Parameter(description = "同步任务ID", required = true)
+            @PathVariable Long syncId) {
+
+        Optional<GoogleSheetsSync> syncOpt = googleSheetsSyncRepository.findById(syncId);
+
+        if (syncOpt.isEmpty()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "找不到指定的同步任务");
+            return ResponseEntity.status(404).body(errorResponse);
+        }
+
+        GoogleSheetsSync sync = syncOpt.get();
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("syncId", sync.getId());
+        data.put("status", sync.getStatus());
+        data.put("progress", sync.getProgress());
+        data.put("familyId", sync.getFamilyId());
+        data.put("year", sync.getYear());
+
+        if ("COMPLETED".equals(sync.getStatus())) {
+            data.put("shareUrl", sync.getShareUrl());
+            data.put("spreadsheetId", sync.getSpreadsheetId());
+            data.put("permission", sync.getPermission());
+        }
+
+        if ("FAILED".equals(sync.getStatus())) {
+            data.put("errorMessage", sync.getErrorMessage());
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", data);
+
+        return ResponseEntity.ok(response);
     }
 
     /**

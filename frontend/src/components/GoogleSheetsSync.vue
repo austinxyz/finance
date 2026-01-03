@@ -4,9 +4,9 @@
       <!-- 标题栏 -->
       <div class="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 class="text-lg font-semibold text-gray-900">同步到Google Sheets</h3>
-        <button @click="close" class="text-gray-400 hover:text-gray-600">
+        <button @click="close" class="text-gray-400 hover:text-gray-600" :disabled="syncStatus === 'loading'">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="width" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -45,12 +45,25 @@
           </div>
         </div>
 
-        <!-- 加载状态 -->
+        <!-- 加载/进行中状态 -->
         <div v-else-if="syncStatus === 'loading'" class="py-8">
           <div class="flex flex-col items-center justify-center">
-            <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-            <p class="text-gray-600 mt-4 text-sm font-medium">正在同步到Google Sheets...</p>
-            <p class="text-gray-500 mt-2 text-xs">正在创建电子表格和导出数据，请稍候（可能需要30-60秒）</p>
+            <!-- 进度环 -->
+            <div class="relative w-24 h-24">
+              <svg class="w-24 h-24 transform -rotate-90">
+                <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none" />
+                <circle cx="48" cy="48" r="40" :stroke="progressColor" stroke-width="8" fill="none"
+                        stroke-linecap="round"
+                        :stroke-dasharray="circleCircumference"
+                        :stroke-dashoffset="circleDashOffset"
+                        class="transition-all duration-300" />
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-xl font-bold text-gray-700">{{ progress }}%</span>
+              </div>
+            </div>
+            <p class="text-gray-600 mt-4 text-sm font-medium">{{ statusMessage }}</p>
+            <p class="text-gray-500 mt-2 text-xs">{{ statusDetail }}</p>
           </div>
         </div>
 
@@ -89,7 +102,7 @@
               </svg>
               <div class="ml-3">
                 <p class="text-xs text-blue-800">
-                  将创建一个新的Google Sheets电子表格，包含资产负债表、开支表、投资账户明细等5个工作表。
+                  将创建一个新的Google Sheets电子表格，包含资产负债表、资产负债表明细、开支表、投资账户明细等6个工作表。
                 </p>
               </div>
             </div>
@@ -100,7 +113,8 @@
       <!-- 底部按钮 -->
       <div class="flex justify-end gap-3 p-4 border-t border-gray-200">
         <button @click="close"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                :disabled="syncStatus === 'loading'"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
           {{ syncStatus === 'success' ? '关闭' : '取消' }}
         </button>
         <button v-if="syncStatus === 'idle'"
@@ -120,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import googleSheetsApi from '../api/googleSheets'
 
 const props = defineProps({
@@ -144,13 +158,35 @@ const emit = defineEmits(['close', 'success'])
 const year = ref(props.defaultYear)
 const permission = ref('reader')
 const syncStatus = ref('idle') // idle, loading, success, error
+const progress = ref(0)
+const syncId = ref(null)
 const shareUrl = ref('')
 const errorMessage = ref('')
+const statusMessage = ref('正在同步到Google Sheets...')
+const statusDetail = ref('正在启动任务，请稍候...')
+
+// 轮询定时器
+let pollInterval = null
+
+// 进度环计算
+const circleCircumference = 2 * Math.PI * 40 // r=40
+const circleDashOffset = computed(() => {
+  return circleCircumference * (1 - progress.value / 100)
+})
+
+// 进度颜色
+const progressColor = computed(() => {
+  if (progress.value < 30) return '#3b82f6' // blue
+  if (progress.value < 70) return '#8b5cf6' // purple
+  return '#10b981' // green
+})
 
 // 监听显示状态，重置表单
 watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
+  } else {
+    stopPolling()
   }
 })
 
@@ -159,33 +195,123 @@ const resetForm = () => {
   year.value = props.defaultYear
   permission.value = 'reader'
   syncStatus.value = 'idle'
+  progress.value = 0
+  syncId.value = null
   shareUrl.value = ''
   errorMessage.value = ''
+  statusMessage.value = '正在同步到Google Sheets...'
+  statusDetail.value = '正在启动任务，请稍候...'
+  stopPolling()
 }
 
 // 关闭弹窗
 const close = () => {
-  emit('close')
+  if (syncStatus.value !== 'loading') {
+    emit('close')
+  }
+}
+
+// 更新状态消息
+const updateStatusMessage = (progressValue) => {
+  if (progressValue <= 10) {
+    statusMessage.value = '正在创建电子表格...'
+    statusDetail.value = '初始化Google Sheets文档'
+  } else if (progressValue <= 25) {
+    statusMessage.value = '正在导出资产负债表...'
+    statusDetail.value = '生成资产和负债汇总数据'
+  } else if (progressValue <= 35) {
+    statusMessage.value = '正在导出资产负债表明细...'
+    statusDetail.value = '按用户和货币分组显示账户详情'
+  } else if (progressValue <= 50) {
+    statusMessage.value = '正在导出USD开支表...'
+    statusDetail.value = '生成USD币种的支出预算对比'
+  } else if (progressValue <= 65) {
+    statusMessage.value = '正在导出CNY开支表...'
+    statusDetail.value = '生成CNY币种的支出预算对比'
+  } else if (progressValue <= 80) {
+    statusMessage.value = '正在导出投资账户明细...'
+    statusDetail.value = '生成投资账户时间序列数据'
+  } else if (progressValue <= 90) {
+    statusMessage.value = '正在导出退休账户明细...'
+    statusDetail.value = '生成退休基金账户数据'
+  } else {
+    statusMessage.value = '正在完成...'
+    statusDetail.value = '设置权限和生成分享链接'
+  }
 }
 
 // 同步到Google Sheets
 const syncToGoogleSheets = async () => {
   try {
     syncStatus.value = 'loading'
+    progress.value = 0
+    updateStatusMessage(0)
 
+    // 启动异步任务
     const response = await googleSheetsApi.syncAnnualReport({
       familyId: props.familyId,
       year: year.value,
       permission: permission.value
     })
 
-    shareUrl.value = response.data.shareUrl
-    syncStatus.value = 'success'
-    emit('success', response.data)
+    if (response.data.status === 'PENDING' || response.data.status === 'IN_PROGRESS') {
+      syncId.value = response.data.syncId
+      progress.value = response.data.progress || 0
+      // 开始轮询状态
+      startPolling()
+    } else {
+      // 理论上不应该走到这里，因为现在都是异步的
+      syncStatus.value = 'error'
+      errorMessage.value = '未知的任务状态'
+    }
   } catch (error) {
     console.error('同步失败:', error)
     syncStatus.value = 'error'
     errorMessage.value = error.response?.data?.error || error.message || '未知错误'
+    stopPolling()
+  }
+}
+
+// 开始轮询任务状态
+const startPolling = () => {
+  stopPolling() // 先停止已有的轮询
+
+  pollInterval = setInterval(async () => {
+    try {
+      const response = await googleSheetsApi.getSyncStatus(syncId.value)
+      const data = response.data
+
+      progress.value = data.progress || 0
+      updateStatusMessage(progress.value)
+
+      if (data.status === 'COMPLETED') {
+        // 任务完成
+        stopPolling()
+        syncStatus.value = 'success'
+        shareUrl.value = data.shareUrl
+        progress.value = 100
+        emit('success', data)
+      } else if (data.status === 'FAILED') {
+        // 任务失败
+        stopPolling()
+        syncStatus.value = 'error'
+        errorMessage.value = data.errorMessage || '任务执行失败'
+      }
+      // 继续轮询 PENDING 和 IN_PROGRESS 状态
+    } catch (error) {
+      console.error('查询任务状态失败:', error)
+      stopPolling()
+      syncStatus.value = 'error'
+      errorMessage.value = '无法查询任务状态'
+    }
+  }, 2000) // 每2秒查询一次
+}
+
+// 停止轮询
+const stopPolling = () => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
   }
 }
 
@@ -193,7 +319,15 @@ const syncToGoogleSheets = async () => {
 const resetAndRetry = () => {
   syncStatus.value = 'idle'
   errorMessage.value = ''
+  progress.value = 0
+  syncId.value = null
+  stopPolling()
 }
+
+// 组件卸载前清理
+onBeforeUnmount(() => {
+  stopPolling()
+})
 </script>
 
 <style scoped>

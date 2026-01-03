@@ -5,12 +5,12 @@ import request from './request'
  */
 export default {
   /**
-   * 同步年度财务报表到Google Sheets
+   * 同步年度财务报表到Google Sheets（异步）
    * @param {Object} params - 参数对象
    * @param {number} params.familyId - 家庭ID
    * @param {number} params.year - 年份
    * @param {string} params.permission - 权限设置（reader或writer）
-   * @returns {Promise} 包含分享链接和spreadsheetId的响应
+   * @returns {Promise} 包含任务ID的响应
    */
   syncAnnualReport({ familyId, year, permission = 'reader' }) {
     return request.post('/google-sheets/sync-annual-report', null, {
@@ -18,9 +18,17 @@ export default {
         familyId,
         year,
         permission
-      },
-      timeout: 60000 // 60秒超时，因为需要创建多个工作表并设置权限
+      }
     })
+  },
+
+  /**
+   * 查询同步任务状态
+   * @param {number} syncId - 同步任务ID
+   * @returns {Promise} 任务状态和进度
+   */
+  getSyncStatus(syncId) {
+    return request.get(`/google-sheets/sync-status/${syncId}`)
   },
 
   /**

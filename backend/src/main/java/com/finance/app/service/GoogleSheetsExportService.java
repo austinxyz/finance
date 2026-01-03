@@ -5,7 +5,9 @@ import com.finance.app.repository.*;
 import com.google.api.services.sheets.v4.model.Request;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -43,88 +45,174 @@ public class GoogleSheetsExportService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
-     * 创建或更新年度财务报表Google Sheets
+     * 创建或更新年度财务报表Google Sheets（同步方法，立即启动异步任务）
      * @param familyId 家庭ID
      * @param year 年份
      * @param permissionRole 权限：reader或writer
-     * @return Map包含分享链接和是否为新建 {shareUrl, isNew}
+     * @return Map包含任务ID和状态 {syncId, status}
      */
-    public Map<String, Object> createOrUpdateAnnualReport(Long familyId, Integer year, String permissionRole)
-            throws IOException, GeneralSecurityException {
-        log.info("开始同步Google Sheets年度报表: familyId={}, year={}", familyId, year);
+    public Map<String, Object> createOrUpdateAnnualReport(Long familyId, Integer year, String permissionRole) {
+        log.info("开始创建Google Sheets年度报表任务: familyId={}, year={}", familyId, year);
 
         // 查询是否已存在同步记录
         Optional<GoogleSheetsSync> existingSync = googleSheetsSyncRepository.findByFamilyIdAndYear(familyId, year);
 
-        String spreadsheetId;
-        String shareUrl;
+        GoogleSheetsSync sync;
         boolean isNew;
 
         if (existingSync.isPresent()) {
-            // 更新已存在的电子表格
-            GoogleSheetsSync sync = existingSync.get();
-            spreadsheetId = sync.getSpreadsheetId();
+            sync = existingSync.get();
             isNew = false;
 
-            log.info("找到已存在的报表，更新: {}", spreadsheetId);
-
-            // 清空并重新导出所有Sheet
-            clearAndExportAllSheets(spreadsheetId, familyId, year);
-
-            // 更新权限（如果需要）
-            if (!permissionRole.equals(sync.getPermission())) {
-                shareUrl = googleSheetsService.setPermissions(spreadsheetId, permissionRole);
-                sync.setPermission(permissionRole);
-            } else {
-                shareUrl = sync.getShareUrl();
+            // 检查是否有正在进行的任务
+            if ("IN_PROGRESS".equals(sync.getStatus()) || "PENDING".equals(sync.getStatus())) {
+                log.info("已有进行中的任务: syncId={}", sync.getId());
+                Map<String, Object> result = new HashMap<>();
+                result.put("syncId", sync.getId());
+                result.put("status", sync.getStatus());
+                result.put("progress", sync.getProgress());
+                result.put("message", "已有正在进行的同步任务");
+                return result;
             }
 
-            // 更新同步记录
-            sync.setShareUrl(shareUrl);
+            // 重置状态以开始新的同步
+            sync.setStatus("PENDING");
+            sync.setProgress(0);
+            sync.setErrorMessage(null);
+            sync.setPermission(permissionRole);
             googleSheetsSyncRepository.save(sync);
 
-            log.info("年度报表更新完成: {}", shareUrl);
+            log.info("重新启动同步任务: syncId={}, spreadsheetId={}", sync.getId(), sync.getSpreadsheetId());
 
         } else {
-            // 创建新的电子表格
-            String title = year + "年家庭财务报表";
-            spreadsheetId = googleSheetsService.createSpreadsheet(title);
+            // 创建新的同步记录
+            sync = new GoogleSheetsSync();
+            sync.setFamilyId(familyId);
+            sync.setYear(year);
+            sync.setSpreadsheetId(""); // 稍后在异步任务中设置
+            sync.setShareUrl(""); // 稍后在异步任务中设置
+            sync.setPermission(permissionRole);
+            sync.setStatus("PENDING");
+            sync.setProgress(0);
+            sync = googleSheetsSyncRepository.save(sync);
             isNew = true;
 
-            log.info("创建新的报表: {}", spreadsheetId);
-
-            // 导出各个Sheet
-            exportBalanceSheet(spreadsheetId, familyId, year);
-            exportBalanceSheetDetail(spreadsheetId, familyId, year);
-            exportExpenseSheet(spreadsheetId, familyId, year, "USD");
-            exportExpenseSheet(spreadsheetId, familyId, year, "CNY");
-            exportInvestmentAccountSheet(spreadsheetId, familyId, year);
-            exportRetirementAccountSheet(spreadsheetId, familyId, year);
-
-            // 删除默认的"Sheet1"
-            deleteDefaultSheet(spreadsheetId);
-
-            // 设置权限
-            shareUrl = googleSheetsService.setPermissions(spreadsheetId, permissionRole);
-
-            // 保存同步记录到数据库
-            GoogleSheetsSync newSync = new GoogleSheetsSync();
-            newSync.setFamilyId(familyId);
-            newSync.setYear(year);
-            newSync.setSpreadsheetId(spreadsheetId);
-            newSync.setShareUrl(shareUrl);
-            newSync.setPermission(permissionRole);
-            googleSheetsSyncRepository.save(newSync);
-
-            log.info("年度报表创建完成: {}", shareUrl);
+            log.info("创建新的同步任务记录: syncId={}", sync.getId());
         }
 
+        // 异步执行导出任务
+        executeAsyncExport(sync.getId(), familyId, year, permissionRole, isNew);
+
         Map<String, Object> result = new HashMap<>();
-        result.put("shareUrl", shareUrl);
-        result.put("spreadsheetId", spreadsheetId);
-        result.put("isNew", isNew);
+        result.put("syncId", sync.getId());
+        result.put("status", "PENDING");
+        result.put("progress", 0);
+        result.put("message", "报表生成任务已启动，请稍后查询状态");
 
         return result;
+    }
+
+    /**
+     * 异步执行报表导出
+     */
+    @Async("googleSheetsExecutor")
+    @Transactional
+    public void executeAsyncExport(Long syncId, Long familyId, Integer year, String permissionRole, boolean isNew) {
+        log.info("开始异步执行报表导出: syncId={}, familyId={}, year={}", syncId, familyId, year);
+
+        GoogleSheetsSync sync = googleSheetsSyncRepository.findById(syncId)
+            .orElseThrow(() -> new RuntimeException("同步记录不存在: " + syncId));
+
+        try {
+            // 更新状态为进行中
+            sync.setStatus("IN_PROGRESS");
+            sync.setProgress(5);
+            googleSheetsSyncRepository.save(sync);
+
+            String spreadsheetId;
+            String shareUrl;
+
+            if (isNew) {
+                // 创建新的电子表格
+                String title = year + "年家庭财务报表";
+                spreadsheetId = googleSheetsService.createSpreadsheet(title);
+                sync.setSpreadsheetId(spreadsheetId);
+                sync.setProgress(10);
+                googleSheetsSyncRepository.save(sync);
+
+                log.info("创建新的报表: {}", spreadsheetId);
+
+                // 导出各个Sheet（每个Sheet更新进度）
+                exportBalanceSheet(spreadsheetId, familyId, year);
+                updateProgress(syncId, 25);
+
+                exportBalanceSheetDetail(spreadsheetId, familyId, year);
+                updateProgress(syncId, 35);
+
+                exportExpenseSheet(spreadsheetId, familyId, year, "USD");
+                updateProgress(syncId, 50);
+
+                exportExpenseSheet(spreadsheetId, familyId, year, "CNY");
+                updateProgress(syncId, 65);
+
+                exportInvestmentAccountSheet(spreadsheetId, familyId, year);
+                updateProgress(syncId, 80);
+
+                exportRetirementAccountSheet(spreadsheetId, familyId, year);
+                updateProgress(syncId, 90);
+
+                // 删除默认的"Sheet1"
+                deleteDefaultSheet(spreadsheetId);
+
+                // 设置权限
+                shareUrl = googleSheetsService.setPermissions(spreadsheetId, permissionRole);
+                sync.setShareUrl(shareUrl);
+
+            } else {
+                // 更新已存在的电子表格
+                spreadsheetId = sync.getSpreadsheetId();
+                log.info("更新已存在的报表: {}", spreadsheetId);
+
+                // 清空并重新导出所有Sheet
+                clearAndExportAllSheets(spreadsheetId, familyId, year);
+                updateProgress(syncId, 90);
+
+                // 更新权限（如果需要）
+                if (!permissionRole.equals(sync.getPermission())) {
+                    shareUrl = googleSheetsService.setPermissions(spreadsheetId, permissionRole);
+                    sync.setPermission(permissionRole);
+                } else {
+                    shareUrl = sync.getShareUrl();
+                }
+                sync.setShareUrl(shareUrl);
+            }
+
+            // 标记为完成
+            sync.setStatus("COMPLETED");
+            sync.setProgress(100);
+            sync.setErrorMessage(null);
+            googleSheetsSyncRepository.save(sync);
+
+            log.info("年度报表生成完成: syncId={}, shareUrl={}", syncId, shareUrl);
+
+        } catch (Exception e) {
+            log.error("报表生成失败: syncId={}", syncId, e);
+
+            // 标记为失败
+            sync.setStatus("FAILED");
+            sync.setErrorMessage(e.getMessage());
+            googleSheetsSyncRepository.save(sync);
+        }
+    }
+
+    /**
+     * 更新任务进度
+     */
+    private void updateProgress(Long syncId, int progress) {
+        googleSheetsSyncRepository.findById(syncId).ifPresent(sync -> {
+            sync.setProgress(progress);
+            googleSheetsSyncRepository.save(sync);
+        });
     }
 
     /**

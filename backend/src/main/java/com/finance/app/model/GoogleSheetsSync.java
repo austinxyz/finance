@@ -47,6 +47,24 @@ public class GoogleSheetsSync {
     private String permission;
 
     /**
+     * 任务状态：PENDING, IN_PROGRESS, COMPLETED, FAILED
+     */
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "PENDING";
+
+    /**
+     * 进度百分比 (0-100)
+     */
+    @Column(name = "progress")
+    private Integer progress = 0;
+
+    /**
+     * 错误信息（任务失败时）
+     */
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    /**
      * 首次创建时间
      */
     @Column(name = "created_at", nullable = false, updatable = false)
