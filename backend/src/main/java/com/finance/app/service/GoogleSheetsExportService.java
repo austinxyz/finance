@@ -48,6 +48,9 @@ public class GoogleSheetsExportService {
     private static final String RETIREMENT_FUND_TYPE = "RETIREMENT_FUND";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    // 汇率缓存 ThreadLocal（每个导出任务独立）
+    private static final ThreadLocal<Map<String, BigDecimal>> EXCHANGE_RATE_CACHE = ThreadLocal.withInitial(HashMap::new);
+
     /**
      * 创建或更新年度财务报表Google Sheets（同步方法，立即启动异步任务）
      * @param familyId 家庭ID
@@ -145,6 +148,9 @@ public class GoogleSheetsExportService {
             // 发送初始进度
             updateProgress(syncId, 5, "正在启动任务...");
 
+            // 预加载汇率数据（优化性能）
+            preloadExchangeRates(year);
+
             String spreadsheetId;
             String shareUrl;
 
@@ -223,6 +229,9 @@ public class GoogleSheetsExportService {
 
             // 通过SSE推送错误消息
             sseEmitterManager.sendError(syncId, e.getMessage());
+        } finally {
+            // 清理汇率缓存
+            clearExchangeRateCache();
         }
     }
 
@@ -1872,13 +1881,70 @@ public class GoogleSheetsExportService {
     }
 
     /**
-     * 货币转换为USD
+     * 预加载指定年份所需的汇率到缓存
+     */
+    private void preloadExchangeRates(Integer year) {
+        log.info("预加载{}年汇率数据", year);
+        Map<String, BigDecimal> cache = EXCHANGE_RATE_CACHE.get();
+        cache.clear(); // 清空之前的缓存
+
+        // 需要加载的日期：年初、年底、去年年底，以及每月月底（用于月度趋势）
+        List<LocalDate> datesToLoad = new ArrayList<>();
+        datesToLoad.add(LocalDate.of(year - 1, 12, 31));  // 去年年底
+        datesToLoad.add(LocalDate.of(year, 12, 31));       // 今年年底
+
+        // 添加每月月底
+        for (int month = 1; month <= 12; month++) {
+            datesToLoad.add(LocalDate.of(year, month, 1).with(java.time.temporal.TemporalAdjusters.lastDayOfMonth()));
+        }
+
+        // 支持的货币（除USD外）
+        List<String> currencies = Arrays.asList("CNY", "EUR", "GBP", "JPY");
+
+        // 批量加载汇率
+        for (LocalDate date : datesToLoad) {
+            for (String currency : currencies) {
+                String cacheKey = currency + "_" + date.toString();
+                try {
+                    BigDecimal rate = exchangeRateService.getExchangeRate(currency, date);
+                    cache.put(cacheKey, rate);
+                } catch (Exception e) {
+                    log.warn("加载汇率失败: {} on {}, 使用默认值1.0", currency, date, e);
+                    cache.put(cacheKey, BigDecimal.ONE);
+                }
+            }
+        }
+
+        log.info("汇率缓存加载完成，共{}条", cache.size());
+    }
+
+    /**
+     * 清理汇率缓存
+     */
+    private void clearExchangeRateCache() {
+        EXCHANGE_RATE_CACHE.remove();
+    }
+
+    /**
+     * 货币转换为USD（使用缓存）
      */
     private BigDecimal convertToUSD(BigDecimal amount, String currency, LocalDate date) {
         if ("USD".equals(currency)) {
             return amount;
         }
-        BigDecimal rate = exchangeRateService.getExchangeRate(currency, date);
+
+        // 尝试从缓存获取
+        String cacheKey = currency + "_" + date.toString();
+        Map<String, BigDecimal> cache = EXCHANGE_RATE_CACHE.get();
+        BigDecimal rate = cache.get(cacheKey);
+
+        // 如果缓存中没有，从服务获取（fallback）
+        if (rate == null) {
+            log.debug("汇率缓存未命中: {}, 从服务获取", cacheKey);
+            rate = exchangeRateService.getExchangeRate(currency, date);
+            cache.put(cacheKey, rate);
+        }
+
         return amount.multiply(rate).setScale(2, BigDecimal.ROUND_HALF_UP);
     }
 
