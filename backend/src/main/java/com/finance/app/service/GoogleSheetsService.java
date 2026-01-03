@@ -178,7 +178,8 @@ public class GoogleSheetsService {
 
         Sheets service = getSheetsService();
 
-        String range = sheetName + "!A1";
+        // 对于包含中文或特殊字符的工作表名称，需要用单引号括起来
+        String range = "'" + sheetName + "'!A1";
         ValueRange body = new ValueRange().setValues(values);
 
         service.spreadsheets().values()
@@ -243,9 +244,12 @@ public class GoogleSheetsService {
 
         Sheets service = getSheetsService();
 
+        // 对于包含中文或特殊字符的工作表名称，需要用单引号括起来
+        String range = "'" + sheetName + "'";
+
         ClearValuesRequest clearRequest = new ClearValuesRequest();
         service.spreadsheets().values()
-            .clear(spreadsheetId, sheetName, clearRequest)
+            .clear(spreadsheetId, range, clearRequest)
             .execute();
 
         log.info("工作表清空完成");
