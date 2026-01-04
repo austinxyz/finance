@@ -558,6 +558,106 @@ public class GoogleSheetsService {
     }
 
     /**
+     * 创建背景色+粗体格式
+     */
+    public Request createBackgroundColorBoldFormat(Integer sheetId, int startRow, int endRow, int startCol, int endCol,
+                                                   float red, float green, float blue) {
+        return new Request().setRepeatCell(new RepeatCellRequest()
+            .setRange(new GridRange()
+                .setSheetId(sheetId)
+                .setStartRowIndex(startRow)
+                .setEndRowIndex(endRow)
+                .setStartColumnIndex(startCol)
+                .setEndColumnIndex(endCol))
+            .setCell(new CellData()
+                .setUserEnteredFormat(new CellFormat()
+                    .setBackgroundColor(new Color()
+                        .setRed(red)
+                        .setGreen(green)
+                        .setBlue(blue))
+                    .setTextFormat(new TextFormat()
+                        .setBold(true))
+                    .setBorders(new Borders()
+                        .setTop(new Border().setStyle("SOLID"))
+                        .setBottom(new Border().setStyle("SOLID"))
+                        .setLeft(new Border().setStyle("SOLID"))
+                        .setRight(new Border().setStyle("SOLID")))))
+            .setFields("userEnteredFormat(backgroundColor,textFormat,borders)"));
+    }
+
+    /**
+     * 创建背景色+粗体+货币格式（用于总计行）
+     */
+    public Request createBackgroundColorBoldCurrencyFormat(Integer sheetId, int startRow, int endRow, int startCol, int endCol,
+                                                           float red, float green, float blue, String currency) {
+        String pattern = "USD".equals(currency) ? "$#,##0.00" : "¥#,##0.00";
+
+        return new Request().setRepeatCell(new RepeatCellRequest()
+            .setRange(new GridRange()
+                .setSheetId(sheetId)
+                .setStartRowIndex(startRow)
+                .setEndRowIndex(endRow)
+                .setStartColumnIndex(startCol)
+                .setEndColumnIndex(endCol))
+            .setCell(new CellData()
+                .setUserEnteredFormat(new CellFormat()
+                    .setBackgroundColor(new Color()
+                        .setRed(red)
+                        .setGreen(green)
+                        .setBlue(blue))
+                    .setTextFormat(new TextFormat()
+                        .setBold(true))
+                    .setNumberFormat(new NumberFormat()
+                        .setType("CURRENCY")
+                        .setPattern(pattern))
+                    .setBorders(new Borders()
+                        .setTop(new Border().setStyle("SOLID"))
+                        .setBottom(new Border().setStyle("SOLID"))
+                        .setLeft(new Border().setStyle("SOLID"))
+                        .setRight(new Border().setStyle("SOLID")))))
+            .setFields("userEnteredFormat(backgroundColor,textFormat,numberFormat,borders)"));
+    }
+
+    /**
+     * 为单个单元格创建百分比格式+条件背景颜色（正数绿色，负数红色）
+     * @param sheetId 工作表ID
+     * @param row 行索引（0-based）
+     * @param col 列索引（0-based）
+     * @param value 百分比值（小数形式，如0.15表示15%）
+     */
+    public Request createConditionalPercentFormat(Integer sheetId, int row, int col, double value) {
+        // 根据值决定背景颜色：负数红色，正数绿色
+        Color backgroundColor;
+        if (value < 0) {
+            // 红色背景
+            backgroundColor = new Color().setRed(1.0f).setGreen(0.8f).setBlue(0.8f);
+        } else {
+            // 绿色背景
+            backgroundColor = new Color().setRed(0.8f).setGreen(1.0f).setBlue(0.8f);
+        }
+
+        return new Request().setRepeatCell(new RepeatCellRequest()
+            .setRange(new GridRange()
+                .setSheetId(sheetId)
+                .setStartRowIndex(row)
+                .setEndRowIndex(row + 1)
+                .setStartColumnIndex(col)
+                .setEndColumnIndex(col + 1))
+            .setCell(new CellData()
+                .setUserEnteredFormat(new CellFormat()
+                    .setNumberFormat(new NumberFormat()
+                        .setType("PERCENT")
+                        .setPattern("0.00%"))
+                    .setBackgroundColor(backgroundColor)
+                    .setBorders(new Borders()
+                        .setTop(new Border().setStyle("SOLID"))
+                        .setBottom(new Border().setStyle("SOLID"))
+                        .setLeft(new Border().setStyle("SOLID"))
+                        .setRight(new Border().setStyle("SOLID")))))
+            .setFields("userEnteredFormat(numberFormat,backgroundColor,borders)"));
+    }
+
+    /**
      * 为整个工作表添加表格线
      * @param sheetId 工作表ID
      * @param rowCount 行数
