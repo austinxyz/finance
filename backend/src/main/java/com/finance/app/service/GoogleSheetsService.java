@@ -910,8 +910,8 @@ public class GoogleSheetsService {
                         .setColumnIndex(anchorCol))
                     .setOffsetXPixels(0)
                     .setOffsetYPixels(0)
-                    .setWidthPixels(600)
-                    .setHeightPixels(400)));
+                    .setWidthPixels(480)
+                    .setHeightPixels(360)));
 
         return new Request().setAddChart(new AddChartRequest().setChart(chart));
     }
@@ -966,6 +966,85 @@ public class GoogleSheetsService {
                 new BasicChartAxis()
                     .setPosition("BOTTOM_AXIS")
                     .setTitle("账户"),
+                new BasicChartAxis()
+                    .setPosition("LEFT_AXIS")
+                    .setTitle("净资产 (USD)")
+            ));
+
+        EmbeddedChart chart = new EmbeddedChart()
+            .setSpec(new ChartSpec()
+                .setTitle(title)
+                .setBasicChart(basicChart))
+            .setPosition(new EmbeddedObjectPosition()
+                .setOverlayPosition(new OverlayPosition()
+                    .setAnchorCell(new GridCoordinate()
+                        .setSheetId(sheetId)
+                        .setRowIndex(anchorRow)
+                        .setColumnIndex(anchorCol))
+                    .setOffsetXPixels(0)
+                    .setOffsetYPixels(0)
+                    .setWidthPixels(1000)
+                    .setHeightPixels(500)));
+
+        return new Request().setAddChart(new AddChartRequest().setChart(chart));
+    }
+
+    /**
+     * 创建嵌入式分组柱状图（多series）
+     * @param sheetId 工作表ID
+     * @param title 图表标题
+     * @param startRow 数据起始行（包含表头）
+     * @param endRow 数据结束行（不包含，通常是总计行之后）
+     * @param labelCol 标签列（类型名称）
+     * @param startValueCol 数值列起始（第一个用户）
+     * @param endValueCol 数值列结束（不包含总计列）
+     * @param anchorRow 图表锚点行
+     * @param anchorCol 图表锚点列
+     * @return 创建图表的请求
+     */
+    public Request createEmbeddedGroupedColumnChart(Integer sheetId, String title, int startRow, int endRow,
+                                                    int labelCol, int startValueCol, int endValueCol,
+                                                    int anchorRow, int anchorCol) {
+        // X轴（标签）
+        BasicChartDomain domain = new BasicChartDomain()
+            .setDomain(new ChartData()
+                .setSourceRange(new ChartSourceRange()
+                    .setSources(Collections.singletonList(
+                        new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(startRow)
+                            .setEndRowIndex(endRow)
+                            .setStartColumnIndex(labelCol)
+                            .setEndColumnIndex(labelCol + 1)
+                    ))));
+
+        // 为每个数值列创建一个series（每个用户）
+        List<BasicChartSeries> seriesList = new ArrayList<>();
+        for (int col = startValueCol; col < endValueCol; col++) {
+            BasicChartSeries series = new BasicChartSeries()
+                .setSeries(new ChartData()
+                    .setSourceRange(new ChartSourceRange()
+                        .setSources(Collections.singletonList(
+                            new GridRange()
+                                .setSheetId(sheetId)
+                                .setStartRowIndex(startRow)
+                                .setEndRowIndex(endRow)
+                                .setStartColumnIndex(col)
+                                .setEndColumnIndex(col + 1)
+                        ))));
+            seriesList.add(series);
+        }
+
+        BasicChartSpec basicChart = new BasicChartSpec()
+            .setChartType("COLUMN")
+            .setLegendPosition("RIGHT_LEGEND")
+            .setHeaderCount(1)
+            .setSeries(seriesList)
+            .setDomains(Collections.singletonList(domain))
+            .setAxis(Arrays.asList(
+                new BasicChartAxis()
+                    .setPosition("BOTTOM_AXIS")
+                    .setTitle("净资产类型"),
                 new BasicChartAxis()
                     .setPosition("LEFT_AXIS")
                     .setTitle("净资产 (USD)")

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 /**
  * Google Sheets年度报表导出服务
@@ -559,6 +560,7 @@ public class GoogleSheetsExportService {
 
         // USD总计部分（折算所有货币到USD）
         rows.add(Arrays.asList("折算为USD基准货币总计")); // 小标题
+        int totalSectionHeaderRow = rows.size(); // 记录USD总计表格表头行位置
         rows.add(Arrays.asList(
             "资产类型", "当前年值", "去年年底", "同比%",
             "", // 空列间隔
@@ -759,16 +761,7 @@ public class GoogleSheetsExportService {
             totalNetWorthChangePct / 100
         ));
 
-        rows.add(Arrays.asList()); // 空行
-        rows.add(Arrays.asList()); // 空行
-
-        // 添加饼图数据（供饼图使用）
-        int pieChartDataStartRow = rows.size();
-        rows.add(Arrays.asList("类型", "金额 (USD)"));
-        rows.add(Arrays.asList("资产", totalAssetsCurrent.doubleValue()));
-        rows.add(Arrays.asList("负债", totalLiabilitiesCurrent.doubleValue()));
-        rows.add(Arrays.asList("净资产", totalNetWorthCurrent.doubleValue()));
-        int pieChartDataEndRow = rows.size();
+        int totalSectionSubtotalRow = rows.size() - 1; // 记录USD总计小计行位置
 
         // 写入数据
         googleSheetsService.writeData(spreadsheetId, "资产负债表", rows);
@@ -951,19 +944,44 @@ public class GoogleSheetsExportService {
         // 5. 为百分比列添加条件颜色格式（正数绿色，负数红色）
         addPercentageColorFormatting(formatRequests, sheetId, rows);
 
-        // 6. 添加USD总计饼图
-        // 图表锚点：饼图数据行后面，第5列（空列间隔后）
-        int pieChartAnchorRow = pieChartDataEndRow + 1;
-        int pieChartAnchorCol = 5;
+        // 6. 添加三个饼图（复用"折算为USD基准货币总计"表格数据）
+        // 资产类型分布饼图 - 左侧
+        // 使用表格的第0列（资产类型）和第1列（当前年值）
         formatRequests.add(googleSheetsService.createEmbeddedPieChart(
             sheetId,
-            year + "年资产负债净资产分布 (USD)",
-            pieChartDataStartRow + 1, // 跳过表头
-            pieChartDataEndRow,
-            0, // 标签列
-            1, // 数值列
-            pieChartAnchorRow,
-            pieChartAnchorCol
+            year + "年资产类型分布 (USD)",
+            totalSectionHeaderRow + 1, // 跳过表头，从数据行开始
+            totalSectionSubtotalRow,   // 到小计行之前
+            0, // 标签列（资产类型）
+            1, // 数值列（当前年值）
+            totalSectionSubtotalRow + 2, // 图表锚点行（小计行下方留1行空白）
+            0  // 第0列开始
+        ));
+
+        // 负债类型分布饼图 - 中间
+        // 使用表格的第5列（负债类型）和第6列（当前年值）
+        formatRequests.add(googleSheetsService.createEmbeddedPieChart(
+            sheetId,
+            year + "年负债类型分布 (USD)",
+            totalSectionHeaderRow + 1, // 跳过表头，从数据行开始
+            totalSectionSubtotalRow,   // 到小计行之前
+            5, // 标签列（负债类型）
+            6, // 数值列（当前年值）
+            totalSectionSubtotalRow + 2, // 图表锚点行
+            5  // 第5列开始
+        ));
+
+        // 净资产类型分布饼图 - 右侧
+        // 使用表格的第10列（净资产类型）和第11列（当前年值）
+        formatRequests.add(googleSheetsService.createEmbeddedPieChart(
+            sheetId,
+            year + "年净资产类型分布 (USD)",
+            totalSectionHeaderRow + 1, // 跳过表头，从数据行开始
+            totalSectionSubtotalRow,   // 到小计行之前
+            10, // 标签列（净资产类型）
+            11, // 数值列（当前年值）
+            totalSectionSubtotalRow + 2, // 图表锚点行
+            10 // 第10列开始
         ));
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
@@ -2039,16 +2057,18 @@ public class GoogleSheetsExportService {
         allAssetAccounts.forEach(acc -> familyUserIds.add(acc.getUserId()));
         allLiabilityAccounts.forEach(acc -> familyUserIds.add(acc.getUserId()));
 
-        // 按用户ID排序，确保顺序一致
-        List<Long> sortedUserIds = new ArrayList<>(familyUserIds);
-        Collections.sort(sortedUserIds);
-
-        // 获取用户名映射
-        List<User> familyUsers = userRepository.findAllById(sortedUserIds);
+        // 获取用户信息
+        List<User> familyUsers = userRepository.findAllById(familyUserIds);
         Map<Long, String> userIdToNameMap = familyUsers.stream()
             .collect(Collectors.toMap(User::getId, User::getUsername));
 
-        // 按userId顺序构建用户名列表
+        // 按用户名排序（确保AustinXu在前，LorraineChen在后）
+        List<Long> sortedUserIds = familyUsers.stream()
+            .sorted(Comparator.comparing(User::getUsername))
+            .map(User::getId)
+            .collect(Collectors.toList());
+
+        // 按排序后的userId顺序构建用户名列表
         List<String> familyUserNames = sortedUserIds.stream()
             .map(userIdToNameMap::get)
             .filter(Objects::nonNull)
@@ -2061,6 +2081,7 @@ public class GoogleSheetsExportService {
             netAssetHeaderRow.add(userName);
         }
         netAssetHeaderRow.add("总计");
+        int netAssetTableStartRow = rows.size(); // 记录净资产表格起始行（表头行）
         rows.add(netAssetHeaderRow);
         log.info("净资产表头列数: {}, 用户数: {}", netAssetHeaderRow.size(), familyUserNames.size());
 
@@ -2083,9 +2104,35 @@ public class GoogleSheetsExportService {
             }
         }
 
-        // 构建净资产类型到用户值的映射
+        // 定义净资产类型的优先级顺序（房地产净值应该在最前面）
+        List<String> priorityOrder = Arrays.asList(
+            "房地产净值",
+            "投资净值",
+            "现金净值",
+            "退休金净值"
+        );
+
+        // 按优先级排序净资产类型
+        List<String> sortedNetAssetTypes = new ArrayList<>(allNetAssetTypes);
+        sortedNetAssetTypes.sort((a, b) -> {
+            int indexA = priorityOrder.indexOf(a);
+            int indexB = priorityOrder.indexOf(b);
+
+            // 如果都在优先级列表中，按列表顺序排序
+            if (indexA != -1 && indexB != -1) {
+                return Integer.compare(indexA, indexB);
+            }
+            // 如果只有a在列表中，a排在前面
+            if (indexA != -1) return -1;
+            // 如果只有b在列表中，b排在前面
+            if (indexB != -1) return 1;
+            // 都不在列表中，按字母顺序
+            return a.compareTo(b);
+        });
+
+        // 构建净资产类型到用户值的映射（使用排序后的顺序）
         Map<String, Map<Long, BigDecimal>> netAssetByTypeAndUser = new LinkedHashMap<>();
-        for (String typeName : allNetAssetTypes) {
+        for (String typeName : sortedNetAssetTypes) {
             netAssetByTypeAndUser.put(typeName, new HashMap<>());
         }
 
@@ -2135,21 +2182,8 @@ public class GoogleSheetsExportService {
         }
         netAssetTotalRow.add(grandTotal.doubleValue());
         rows.add(netAssetTotalRow);
+        int netAssetTableEndRow = rows.size(); // 记录净资产表格结束行（总计行之后）
 
-        rows.add(Arrays.asList()); // 空行
-        rows.add(Arrays.asList()); // 空行
-
-        // 添加柱状图数据（净资产类型及其总计值）
-        int columnChartDataStartRow = rows.size();
-        rows.add(Arrays.asList("净资产类型", "净资产 (USD)"));
-        for (Map.Entry<String, Map<Long, BigDecimal>> entry : netAssetByTypeAndUser.entrySet()) {
-            String typeName = entry.getKey();
-            Map<Long, BigDecimal> userValues = entry.getValue();
-            BigDecimal total = userValues.values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-            rows.add(Arrays.asList(typeName, total.doubleValue()));
-        }
-        int columnChartDataEndRow = rows.size();
 
         // 写入数据
         googleSheetsService.writeData(spreadsheetId, "资产负债表明细", rows);
@@ -2277,19 +2311,23 @@ public class GoogleSheetsExportService {
                 sheetId, i, i + 1, 2, row.size(), rowCurrency));
         }
 
-        // 5. 添加净资产类型柱状图
-        // 图表锚点：柱状图数据行后面，第4列开始
-        int columnChartAnchorRow = columnChartDataEndRow + 1;
-        int columnChartAnchorCol = 4;
-        formatRequests.add(googleSheetsService.createEmbeddedColumnChart(
+        // 5. 添加净资产类型分布分组柱状图（按用户）
+        // 显示所有净资产类型，从房地产净值开始（已通过排序保证顺序）
+        // 表格结构：第0列=类型名，第1列开始=各用户，最后一列=总计
+        // 图表需要包含表头行（用于series名称），所以从 netAssetTableStartRow 开始
+        log.info("创建净资产柱状图: startRow={}, endRow={}, labelCol=0, valueColStart=1, valueColEnd={}, 用户数={}",
+            netAssetTableStartRow, netAssetTableEndRow - 1, 1 + familyUserNames.size(), familyUserNames.size());
+
+        formatRequests.add(googleSheetsService.createEmbeddedGroupedColumnChart(
             sheetId,
-            year + "年净资产类型分布 (USD)",
-            columnChartDataStartRow + 1, // 跳过表头
-            columnChartDataEndRow,
-            0, // 标签列（净资产类型）
-            1, // 数值列（净资产）
-            columnChartAnchorRow,
-            columnChartAnchorCol
+            year + "年净资产类型分布（按用户）",
+            netAssetTableStartRow,      // 包含表头行（用于获取用户名作为series名称）
+            netAssetTableEndRow - 1,   // 排除总计行
+            0,                          // 标签列（净资产类型）
+            1,                          // 数值列起始（第一个用户，第1列）
+            1 + familyUserNames.size(), // 数值列结束（排除总计列，不包含此列）
+            netAssetTableEndRow + 2,    // 图表锚点行（表格下方留2行空白）
+            4                           // 图表锚点列（第4列开始）
         ));
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
