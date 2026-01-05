@@ -759,6 +759,17 @@ public class GoogleSheetsExportService {
             totalNetWorthChangePct / 100
         ));
 
+        rows.add(Arrays.asList()); // 空行
+        rows.add(Arrays.asList()); // 空行
+
+        // 添加饼图数据（供饼图使用）
+        int pieChartDataStartRow = rows.size();
+        rows.add(Arrays.asList("类型", "金额 (USD)"));
+        rows.add(Arrays.asList("资产", totalAssetsCurrent.doubleValue()));
+        rows.add(Arrays.asList("负债", totalLiabilitiesCurrent.doubleValue()));
+        rows.add(Arrays.asList("净资产", totalNetWorthCurrent.doubleValue()));
+        int pieChartDataEndRow = rows.size();
+
         // 写入数据
         googleSheetsService.writeData(spreadsheetId, "资产负债表", rows);
 
@@ -939,6 +950,21 @@ public class GoogleSheetsExportService {
 
         // 5. 为百分比列添加条件颜色格式（正数绿色，负数红色）
         addPercentageColorFormatting(formatRequests, sheetId, rows);
+
+        // 6. 添加USD总计饼图
+        // 图表锚点：饼图数据行后面，第5列（空列间隔后）
+        int pieChartAnchorRow = pieChartDataEndRow + 1;
+        int pieChartAnchorCol = 5;
+        formatRequests.add(googleSheetsService.createEmbeddedPieChart(
+            sheetId,
+            year + "年资产负债净资产分布 (USD)",
+            pieChartDataStartRow + 1, // 跳过表头
+            pieChartDataEndRow,
+            0, // 标签列
+            1, // 数值列
+            pieChartAnchorRow,
+            pieChartAnchorCol
+        ));
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
     }
@@ -2110,6 +2136,21 @@ public class GoogleSheetsExportService {
         netAssetTotalRow.add(grandTotal.doubleValue());
         rows.add(netAssetTotalRow);
 
+        rows.add(Arrays.asList()); // 空行
+        rows.add(Arrays.asList()); // 空行
+
+        // 添加柱状图数据（净资产类型及其总计值）
+        int columnChartDataStartRow = rows.size();
+        rows.add(Arrays.asList("净资产类型", "净资产 (USD)"));
+        for (Map.Entry<String, Map<Long, BigDecimal>> entry : netAssetByTypeAndUser.entrySet()) {
+            String typeName = entry.getKey();
+            Map<Long, BigDecimal> userValues = entry.getValue();
+            BigDecimal total = userValues.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            rows.add(Arrays.asList(typeName, total.doubleValue()));
+        }
+        int columnChartDataEndRow = rows.size();
+
         // 写入数据
         googleSheetsService.writeData(spreadsheetId, "资产负债表明细", rows);
 
@@ -2235,6 +2276,21 @@ public class GoogleSheetsExportService {
             formatRequests.add(googleSheetsService.createCurrencyFormat(
                 sheetId, i, i + 1, 2, row.size(), rowCurrency));
         }
+
+        // 5. 添加净资产类型柱状图
+        // 图表锚点：柱状图数据行后面，第4列开始
+        int columnChartAnchorRow = columnChartDataEndRow + 1;
+        int columnChartAnchorCol = 4;
+        formatRequests.add(googleSheetsService.createEmbeddedColumnChart(
+            sheetId,
+            year + "年净资产类型分布 (USD)",
+            columnChartDataStartRow + 1, // 跳过表头
+            columnChartDataEndRow,
+            0, // 标签列（净资产类型）
+            1, // 数值列（净资产）
+            columnChartAnchorRow,
+            columnChartAnchorCol
+        ));
 
         googleSheetsService.formatCells(spreadsheetId, formatRequests);
     }

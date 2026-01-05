@@ -857,4 +857,135 @@ public class GoogleSheetsService {
 
         return new Request().setAddChart(new AddChartRequest().setChart(chart));
     }
+
+    /**
+     * 创建嵌入式饼图
+     * @param sheetId 工作表ID
+     * @param title 图表标题
+     * @param startRow 数据起始行（包含标签行）
+     * @param endRow 数据结束行（不包含）
+     * @param labelCol 标签列（类别名称）
+     * @param valueCol 数值列（金额）
+     * @param anchorRow 图表锚点行
+     * @param anchorCol 图表锚点列
+     * @return 创建图表的请求
+     */
+    public Request createEmbeddedPieChart(Integer sheetId, String title, int startRow, int endRow,
+                                          int labelCol, int valueCol, int anchorRow, int anchorCol) {
+        // 创建饼图数据系列
+        List<PieChartSpec> pieChartSpecs = new ArrayList<>();
+
+        PieChartSpec pieChart = new PieChartSpec()
+            .setLegendPosition("RIGHT_LEGEND")
+            .setDomain(new ChartData()
+                .setSourceRange(new ChartSourceRange()
+                    .setSources(Collections.singletonList(
+                        new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(startRow)
+                            .setEndRowIndex(endRow)
+                            .setStartColumnIndex(labelCol)
+                            .setEndColumnIndex(labelCol + 1)
+                    ))))
+            .setSeries(new ChartData()
+                .setSourceRange(new ChartSourceRange()
+                    .setSources(Collections.singletonList(
+                        new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(startRow)
+                            .setEndRowIndex(endRow)
+                            .setStartColumnIndex(valueCol)
+                            .setEndColumnIndex(valueCol + 1)
+                    ))));
+
+        EmbeddedChart chart = new EmbeddedChart()
+            .setSpec(new ChartSpec()
+                .setTitle(title)
+                .setPieChart(pieChart))
+            .setPosition(new EmbeddedObjectPosition()
+                .setOverlayPosition(new OverlayPosition()
+                    .setAnchorCell(new GridCoordinate()
+                        .setSheetId(sheetId)
+                        .setRowIndex(anchorRow)
+                        .setColumnIndex(anchorCol))
+                    .setOffsetXPixels(0)
+                    .setOffsetYPixels(0)
+                    .setWidthPixels(600)
+                    .setHeightPixels(400)));
+
+        return new Request().setAddChart(new AddChartRequest().setChart(chart));
+    }
+
+    /**
+     * 创建嵌入式柱状图
+     * @param sheetId 工作表ID
+     * @param title 图表标题
+     * @param startRow 数据起始行（包含表头）
+     * @param endRow 数据结束行（不包含）
+     * @param labelCol 标签列（账户名称）
+     * @param valueCol 数值列（净资产）
+     * @param anchorRow 图表锚点行
+     * @param anchorCol 图表锚点列
+     * @return 创建图表的请求
+     */
+    public Request createEmbeddedColumnChart(Integer sheetId, String title, int startRow, int endRow,
+                                            int labelCol, int valueCol, int anchorRow, int anchorCol) {
+        // X轴（标签）
+        BasicChartDomain domain = new BasicChartDomain()
+            .setDomain(new ChartData()
+                .setSourceRange(new ChartSourceRange()
+                    .setSources(Collections.singletonList(
+                        new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(startRow)
+                            .setEndRowIndex(endRow)
+                            .setStartColumnIndex(labelCol)
+                            .setEndColumnIndex(labelCol + 1)
+                    ))));
+
+        // Y轴（数值）
+        BasicChartSeries series = new BasicChartSeries()
+            .setSeries(new ChartData()
+                .setSourceRange(new ChartSourceRange()
+                    .setSources(Collections.singletonList(
+                        new GridRange()
+                            .setSheetId(sheetId)
+                            .setStartRowIndex(startRow)
+                            .setEndRowIndex(endRow)
+                            .setStartColumnIndex(valueCol)
+                            .setEndColumnIndex(valueCol + 1)
+                    ))));
+
+        BasicChartSpec basicChart = new BasicChartSpec()
+            .setChartType("COLUMN")
+            .setLegendPosition("NO_LEGEND")
+            .setHeaderCount(1)
+            .setSeries(Collections.singletonList(series))
+            .setDomains(Collections.singletonList(domain))
+            .setAxis(Arrays.asList(
+                new BasicChartAxis()
+                    .setPosition("BOTTOM_AXIS")
+                    .setTitle("账户"),
+                new BasicChartAxis()
+                    .setPosition("LEFT_AXIS")
+                    .setTitle("净资产 (USD)")
+            ));
+
+        EmbeddedChart chart = new EmbeddedChart()
+            .setSpec(new ChartSpec()
+                .setTitle(title)
+                .setBasicChart(basicChart))
+            .setPosition(new EmbeddedObjectPosition()
+                .setOverlayPosition(new OverlayPosition()
+                    .setAnchorCell(new GridCoordinate()
+                        .setSheetId(sheetId)
+                        .setRowIndex(anchorRow)
+                        .setColumnIndex(anchorCol))
+                    .setOffsetXPixels(0)
+                    .setOffsetYPixels(0)
+                    .setWidthPixels(1000)
+                    .setHeightPixels(500)));
+
+        return new Request().setAddChart(new AddChartRequest().setChart(chart));
+    }
 }
