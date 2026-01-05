@@ -21,37 +21,16 @@
             </option>
           </select>
         </div>
-        <!-- Excel导出功能 -->
-        <div class="flex items-center gap-2">
-          <select
-            v-model="exportYear"
-            class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-          >
-            <option v-for="year in availableYears" :key="year" :value="year">
-              {{ year }}年
-            </option>
-          </select>
-          <button
-            @click="exportAnnualReport"
-            :disabled="isExporting"
-            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <svg v-if="isExporting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>{{ isExporting ? '导出中...' : '导出Excel' }}</span>
-          </button>
-          <button
-            @click="showGoogleSheetsSync = true"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <span>Google Sheets</span>
-          </button>
-        </div>
+        <!-- Google Sheets 同步 -->
+        <button
+          @click="showGoogleSheetsSync = true"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <span>Google Sheets</span>
+        </button>
       </div>
     </div>
 
@@ -409,7 +388,7 @@
     <GoogleSheetsSync
       :show="showGoogleSheetsSync"
       :familyId="familyId"
-      :defaultYear="exportYear"
+      :defaultYear="currentYear"
       @close="showGoogleSheetsSync = false"
       @success="onSyncSuccess"
     />
@@ -584,19 +563,6 @@ let expenseChartInstance = null
 // 使用当前年份
 const currentYear = ref(new Date().getFullYear())
 const annualExpenseSummary = ref([])
-
-// Excel导出相关
-const isExporting = ref(false)
-const exportYear = ref(new Date().getFullYear())
-const availableYears = computed(() => {
-  const years = []
-  const startYear = 2020
-  const endYear = new Date().getFullYear()
-  for (let year = endYear; year >= startYear; year--) {
-    years.push(year)
-  }
-  return years
-})
 
 const selectedTimeRange = ref('3y')
 const timeRanges = [
@@ -1426,52 +1392,6 @@ function onFamilyChange() {
   loadAnnualExpenseSummary()
 }
 
-// 导出年度Excel报表
-async function exportAnnualReport() {
-  if (!familyId.value || !exportYear.value) {
-    alert('请选择家庭和年份')
-    return
-  }
-
-  isExporting.value = true
-  try {
-    const response = await fetch(
-      `/api/export/annual-report?familyId=${familyId.value}&year=${exportYear.value}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error('导出失败')
-    }
-
-    // 获取文件blob
-    const blob = await response.blob()
-
-    // 创建下载链接
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `财务报表_${exportYear.value}年_${familyId.value}.xlsx`
-    document.body.appendChild(link)
-    link.click()
-
-    // 清理
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-
-    console.log('Excel导出成功')
-  } catch (error) {
-    console.error('导出Excel失败:', error)
-    alert('导出失败，请稍后重试')
-  } finally {
-    isExporting.value = false
-  }
-}
 
 // Google Sheets同步成功回调
 function onSyncSuccess(data) {
