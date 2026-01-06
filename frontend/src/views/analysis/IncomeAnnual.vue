@@ -476,15 +476,16 @@ export default {
         })
 
         // 5. 将所有大类和收入数据合并
+        // 注意：新的API返回嵌套结构，大类字段为 id, name, chineseName, icon（不带major前缀）
         majorCategoryData.value = allMajorCategories
-          .filter(major => major.majorCategoryId) // 只保留有majorCategoryId的项
+          .filter(major => major.id) // 只保留有id的项（新结构使用id而非majorCategoryId）
           .map(major => {
-            const incomeItem = currentYearIncomeMap[major.majorCategoryId]
+            const incomeItem = currentYearIncomeMap[major.id]
             return {
-              majorCategoryId: major.majorCategoryId,
-              majorCategoryName: major.majorCategoryName,
-              majorCategoryChineseName: major.majorCategoryChineseName,
-              majorCategoryIcon: major.majorCategoryIcon,
+              majorCategoryId: major.id,
+              majorCategoryName: major.name,
+              majorCategoryChineseName: major.chineseName,
+              majorCategoryIcon: major.icon,
               totalAmount: incomeItem ? incomeItem.totalAmount : 0,
               currency: incomeItem ? incomeItem.currency : selectedCurrency.value
             }

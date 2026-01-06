@@ -11,6 +11,8 @@ import com.finance.app.repository.ExchangeRateRepository;
 import com.finance.app.repository.IncomeCategoryMajorRepository;
 import com.finance.app.repository.IncomeCategoryMinorRepository;
 import com.finance.app.repository.IncomeRecordRepository;
+import com.finance.app.service.InvestmentAnalysisService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class IncomeAnalysisService {
 
     @Autowired
@@ -33,6 +36,9 @@ public class IncomeAnalysisService {
 
     @Autowired
     private ExchangeRateRepository exchangeRateRepository;
+
+    @Autowired
+    private InvestmentAnalysisService investmentAnalysisService;
 
     /**
      * 获取年度大类汇总
@@ -76,7 +82,28 @@ public class IncomeAnalysisService {
             majorCategoryTotals.merge(majorId, amount, BigDecimal::add);
         }
 
-        // 5. 构建DTO列表
+        // 5. 获取Investment大类的实时投资回报（使用投资分析页面的计算逻辑）
+        IncomeCategoryMajor investmentCategory = majorCategoryRepository.findByName("Investment");
+        if (investmentCategory != null) {
+            try {
+                // 调用投资分析服务获取年度投资回报
+                List<com.finance.app.dto.InvestmentCategoryAnalysisDTO> investmentAnalysis =
+                    investmentAnalysisService.getAnnualByCategory(familyId, year, currency);
+
+                // 累加所有投资大类的回报
+                BigDecimal totalInvestmentReturn = investmentAnalysis.stream()
+                    .map(dto -> dto.getReturns() != null ? dto.getReturns() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // 覆盖Investment大类的金额（使用投资分析的计算结果）
+                majorCategoryTotals.put(investmentCategory.getId(), totalInvestmentReturn);
+            } catch (Exception e) {
+                log.error("获取投资回报失败，使用income_records中的数据: familyId={}, year={}", familyId, year, e);
+                // 如果投资分析失败，保留原有的income_records数据
+            }
+        }
+
+        // 6. 构建DTO列表
         List<IncomeAnnualMajorCategoryDTO> result = new ArrayList<>();
         for (Map.Entry<Long, BigDecimal> entry : majorCategoryTotals.entrySet()) {
             IncomeCategoryMajor major = majorCategoryRepository.findById(entry.getKey())
@@ -93,7 +120,7 @@ public class IncomeAnalysisService {
             }
         }
 
-        // 6. 按金额降序排序
+        // 7. 按金额降序排序
         result.sort((a, b) -> b.getTotalAmount().compareTo(a.getTotalAmount()));
 
         return result;
@@ -311,4 +338,5 @@ public class IncomeAnalysisService {
 
         return amount.multiply(rate);
     }
+
 }

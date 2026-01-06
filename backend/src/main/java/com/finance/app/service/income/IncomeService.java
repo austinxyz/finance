@@ -45,41 +45,41 @@ public class IncomeService {
     }
 
     /**
-     * 获取所有分类（大类+小类）
+     * 获取所有分类（大类+小类嵌套结构）
      */
     public List<IncomeCategoryDTO> getAllCategories() {
         List<IncomeCategoryMajor> majors = majorCategoryRepository.findAllByOrderByDisplayOrderAsc();
 
         return majors.stream()
-            .flatMap(major -> {
+            .map(major -> {
+                // 获取该大类下的所有小类
                 List<IncomeCategoryMinor> minors = minorCategoryRepository
                     .findByMajorCategoryId(major.getId());
 
-                if (minors.isEmpty()) {
-                    // 没有小类，返回大类本身
-                    return List.of(IncomeCategoryDTO.builder()
+                // 构建小类DTO列表
+                List<IncomeCategoryDTO.MinorCategoryDTO> minorDTOs = minors.stream()
+                    .<IncomeCategoryDTO.MinorCategoryDTO>map(minor -> IncomeCategoryDTO.MinorCategoryDTO.builder()
+                        .id(minor.getId())
                         .majorCategoryId(major.getId())
-                        .majorCategoryName(major.getName())
-                        .majorCategoryChineseName(major.getChineseName())
-                        .majorCategoryIcon(major.getIcon())
-                        .majorCategoryColor(major.getColor())
-                        .isActive(major.getIsActive())
-                        .build()).stream();
-                }
+                        .name(minor.getName())
+                        .chineseName(minor.getChineseName())
+                        .isActive(minor.getIsActive())
+                        .displayOrder(null) // 小类暂无排序字段
+                        .recordCount(0) // TODO: 后续可以添加记录数统计
+                        .build())
+                    .collect(Collectors.toList());
 
-                // 返回大类下的所有小类
-                return minors.stream().map(minor -> IncomeCategoryDTO.builder()
-                    .id(minor.getId())
-                    .majorCategoryId(major.getId())
-                    .majorCategoryName(major.getName())
-                    .majorCategoryChineseName(major.getChineseName())
-                    .majorCategoryIcon(major.getIcon())
-                    .majorCategoryColor(major.getColor())
-                    .minorCategoryId(minor.getId())
-                    .minorCategoryName(minor.getName())
-                    .minorCategoryChineseName(minor.getChineseName())
-                    .isActive(minor.getIsActive())
-                    .build());
+                // 构建大类DTO（包含小类列表）
+                return IncomeCategoryDTO.builder()
+                    .id(major.getId())
+                    .name(major.getName())
+                    .chineseName(major.getChineseName())
+                    .icon(major.getIcon())
+                    .color(major.getColor())
+                    .displayOrder(major.getDisplayOrder())
+                    .isActive(major.getIsActive())
+                    .minorCategories(minorDTOs)
+                    .build();
             })
             .collect(Collectors.toList());
     }

@@ -18,4 +18,9 @@ public interface IncomeCategoryMajorRepository extends JpaRepository<IncomeCateg
      * 按显示顺序查找所有大类
      */
     List<IncomeCategoryMajor> findAllByOrderByDisplayOrderAsc();
+
+    /**
+     * 按名称查找大类
+     */
+    IncomeCategoryMajor findByName(String name);
 }
