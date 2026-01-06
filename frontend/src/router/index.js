@@ -180,6 +180,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/income-annual',
+        name: 'IncomeAnnual',
+        component: () => import('../views/analysis/IncomeAnnual.vue'),
+        meta: {
+          title: '年度收入分析',
+          description: '分析年度收入结构和趋势'
+        }
+      },
+      {
         path: 'analysis/expense-annual-actual',
         name: 'ExpenseAnnualActual',
         component: () => import('../views/analysis/ExpenseAnnualActual.vue'),

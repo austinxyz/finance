@@ -236,8 +236,23 @@
             <TrendingUp class="w-5 h-5" />
             <span>年度趋势</span>
           </router-link>
+        </div>
 
-          <!-- 投资分析 -->
+        <!-- 收入分析 -->
+        <div class="space-y-1">
+          <div class="nav-section-title">收入分析</div>
+          <router-link
+            to="/analysis/income-annual"
+            class="nav-item"
+            :class="isActive('/analysis/income-annual')"
+          >
+            <DollarSign class="w-5 h-5" />
+            <span>年度收入</span>
+          </router-link>
+        </div>
+
+        <!-- 投资分析 -->
+        <div class="space-y-1">
           <div class="nav-section-title">投资分析</div>
           <router-link
             to="/analysis/investment-annual"
