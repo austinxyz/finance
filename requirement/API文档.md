@@ -8,6 +8,90 @@
 
 **数据格式:** JSON
 
+## 收入管理
+
+### 收入分类
+
+**基础路径:** `/api/incomes/categories`
+
+- `GET /incomes/categories` - 获取所有分类（大类+小类组合）
+- `GET /incomes/categories/major` - 获取所有收入大类
+- `GET /incomes/categories/major/{majorCategoryId}/minor` - 获取指定大类的所有小类
+
+**预设大类（10个）:**
+- 工资 💼 (Salary)
+- 奖金 🎁 (Bonus)
+- 投资收益 📈 (Investment)
+- 租金 🏠 (Rental)
+- 副业 💡 (SideHustle)
+- 股票RSU 📊 (RSU)
+- 退休基金贡献 🏦 (Retirement)
+- 退税 💰 (TaxRefund)
+- 礼金 🎀 (Gift)
+- 其他 📦 (Other)
+
+### 收入记录
+
+**基础路径:** `/api/incomes/records`
+
+- `GET /incomes/records` - 查询收入记录（按期间）
+- `GET /incomes/records/range` - 查询收入记录（按期间范围）
+- `POST /incomes/records` - 创建收入记录
+- `PUT /incomes/records/{id}` - 更新收入记录
+- `DELETE /incomes/records/{id}` - 删除收入记录
+- `POST /incomes/records/batch` - 批量保存收入记录
+
+**查询参数示例:**
+```
+GET /incomes/records?familyId=1&period=2024-12
+GET /incomes/records/range?familyId=1&startPeriod=2024-01&endPeriod=2024-12
+```
+
+**创建记录请求示例:**
+```json
+{
+  "familyId": 1,
+  "userId": 1,
+  "assetAccountId": 5,
+  "majorCategoryId": 1,
+  "minorCategoryId": 1,
+  "period": "2024-12",
+  "amount": 10000.00,
+  "currency": "USD",
+  "description": "2024年12月工资"
+}
+```
+
+**批量保存请求示例:**
+```json
+{
+  "familyId": 1,
+  "userId": 1,
+  "period": "2024-12",
+  "records": [
+    {
+      "majorCategoryId": 1,
+      "minorCategoryId": 1,
+      "amount": 10000.00,
+      "currency": "USD",
+      "description": "基本工资"
+    },
+    {
+      "majorCategoryId": 2,
+      "minorCategoryId": 4,
+      "amount": 5000.00,
+      "currency": "USD",
+      "description": "年终奖"
+    }
+  ]
+}
+```
+
+**重要说明:**
+- 投资收益类别（Investment）由系统自动计算，禁止手动创建/更新/删除
+- 唯一性约束：同一家庭+用户+期间+大类+小类+币种只能有一条记录
+- 批量保存时如记录已存在则更新，不存在则创建
+
 ## 资产负债管理
 
 ### 资产管理

@@ -111,6 +111,27 @@
           </router-link>
         </div>
 
+        <!-- 收入管理 -->
+        <div class="space-y-1">
+          <div class="nav-section-title">收入管理</div>
+          <router-link
+            to="/incomes/categories"
+            class="nav-item"
+            :class="isActive('/incomes/categories')"
+          >
+            <DollarSign class="w-5 h-5" />
+            <span>分类与记录</span>
+          </router-link>
+          <router-link
+            to="/incomes/batch-update"
+            class="nav-item"
+            :class="isActive('/incomes/batch-update')"
+          >
+            <PenSquare class="w-5 h-5" />
+            <span>批量录入</span>
+          </router-link>
+        </div>
+
         <!-- 支出管理 -->
         <div class="space-y-1">
           <div class="nav-section-title">支出管理</div>

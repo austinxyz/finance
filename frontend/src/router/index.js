@@ -86,6 +86,25 @@ const routes = [
           description: '按月批量录入投资交易'
         }
       },
+      // 收入管理
+      {
+        path: 'incomes/categories',
+        name: 'IncomeCategories',
+        component: () => import('../views/incomes/IncomeCategories.vue'),
+        meta: {
+          title: '分类与记录',
+          description: '管理收入分类，查看历史记录和趋势'
+        }
+      },
+      {
+        path: 'incomes/batch-update',
+        name: 'IncomeBatchUpdate',
+        component: () => import('../views/incomes/IncomeBatchUpdate.vue'),
+        meta: {
+          title: '批量录入',
+          description: '按月批量录入家庭收入'
+        }
+      },
       // 支出管理
       {
         path: 'expenses/categories',
