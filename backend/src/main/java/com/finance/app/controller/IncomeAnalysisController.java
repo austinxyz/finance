@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/incomes/analysis")
+@RequestMapping("/incomes-analysis")
 public class IncomeAnalysisController {
 
     @Autowired

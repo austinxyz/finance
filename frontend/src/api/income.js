@@ -74,21 +74,21 @@ export const incomeRecordAPI = {
 export const incomeAnalysisAPI = {
   // 获取年度大类汇总
   getAnnualMajorCategories(familyId, year, currency = 'USD') {
-    return request.get('/incomes/analysis/annual/major-categories', {
+    return request.get('/incomes-analysis/annual/major-categories', {
       params: { familyId, year, currency }
     })
   },
 
   // 获取年度小类汇总
   getAnnualMinorCategories(familyId, year, majorCategoryId, currency = 'USD') {
-    return request.get('/incomes/analysis/annual/minor-categories', {
+    return request.get('/incomes-analysis/annual/minor-categories', {
       params: { familyId, year, majorCategoryId, currency }
     })
   },
 
   // 获取月度趋势
   getAnnualMonthlyTrend(familyId, year, majorCategoryId, minorCategoryId, currency = 'USD') {
-    return request.get('/incomes/analysis/annual/monthly-trend', {
+    return request.get('/incomes-analysis/annual/monthly-trend', {
       params: { familyId, year, majorCategoryId, minorCategoryId, currency }
     })
   }
