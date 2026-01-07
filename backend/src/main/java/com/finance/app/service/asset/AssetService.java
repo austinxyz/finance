@@ -1,14 +1,14 @@
-package com.finance.app.service;
+package com.finance.app.service.asset;
 
+import com.finance.app.dto.AssetAccountDTO;
+import com.finance.app.dto.AssetRecordDTO;
 import com.finance.app.dto.BatchRecordUpdateDTO;
-import com.finance.app.dto.LiabilityAccountDTO;
-import com.finance.app.dto.LiabilityRecordDTO;
-import com.finance.app.model.LiabilityAccount;
-import com.finance.app.model.LiabilityRecord;
-import com.finance.app.model.LiabilityType;
-import com.finance.app.repository.LiabilityAccountRepository;
-import com.finance.app.repository.LiabilityRecordRepository;
-import com.finance.app.repository.LiabilityTypeRepository;
+import com.finance.app.model.AssetAccount;
+import com.finance.app.model.AssetRecord;
+import com.finance.app.repository.AssetAccountRepository;
+import com.finance.app.repository.AssetRecordRepository;
+import com.finance.app.repository.AssetTypeRepository;
+import com.finance.app.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,71 +21,65 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class LiabilityService {
+public class AssetService {
 
-    private final LiabilityAccountRepository accountRepository;
-    private final LiabilityRecordRepository recordRepository;
-    private final LiabilityTypeRepository liabilityTypeRepository;
+    private final AssetAccountRepository accountRepository;
+    private final AssetTypeRepository assetTypeRepository;
+    private final AssetRecordRepository recordRepository;
     private final com.finance.app.repository.UserRepository userRepository;
-    private final com.finance.app.repository.AssetAccountRepository assetAccountRepository;
+    private final com.finance.app.repository.LiabilityAccountRepository liabilityAccountRepository;
     private final ExchangeRateService exchangeRateService;
 
-    // ========== Liability Type Operations ==========
+    // ========== Asset Type Operations ==========
 
-    public List<LiabilityType> getAllLiabilityTypes() {
-        return liabilityTypeRepository.findAllByOrderByDisplayOrderAsc();
+    public List<com.finance.app.model.AssetType> getAllAssetTypes() {
+        return assetTypeRepository.findAllByOrderByDisplayOrderAsc();
     }
 
     // ========== Account Operations ==========
 
-    public List<LiabilityAccountDTO> getAllAccounts(Long userId, Long familyId) {
-        List<LiabilityAccount> accounts;
+    public List<AssetAccountDTO> getAllAccounts(Long userId, Long familyId) {
+        List<AssetAccount> accounts;
         // 优先级：familyId > userId > 所有账户
         if (familyId != null) {
             accounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
         } else if (userId != null) {
             accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
         } else {
-            accounts = accountRepository.findAll().stream()
-                    .filter(LiabilityAccount::getIsActive)
-                    .collect(Collectors.toList());
+            accounts = accountRepository.findByIsActiveTrue();
         }
         return accounts.stream().map(this::convertAccountToDTO).collect(Collectors.toList());
     }
 
-    public LiabilityAccount getAccountById(Long accountId) {
+    public AssetAccount getAccountById(Long accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
     }
 
     @Transactional
-    public LiabilityAccount createAccount(LiabilityAccount account) {
+    public AssetAccount createAccount(AssetAccount account) {
         return accountRepository.save(account);
     }
 
     @Transactional
-    public LiabilityAccount updateAccount(Long accountId, LiabilityAccount accountDetails) {
-        LiabilityAccount account = getAccountById(accountId);
+    public AssetAccount updateAccount(Long accountId, AssetAccount accountDetails) {
+        AssetAccount account = getAccountById(accountId);
         account.setUserId(accountDetails.getUserId());
-        account.setLiabilityTypeId(accountDetails.getLiabilityTypeId());
+        account.setAssetTypeId(accountDetails.getAssetTypeId());
         account.setAccountName(accountDetails.getAccountName());
         account.setAccountNumber(accountDetails.getAccountNumber());
         account.setInstitution(accountDetails.getInstitution());
         account.setCurrency(accountDetails.getCurrency());
-        account.setInterestRate(accountDetails.getInterestRate());
-        account.setOriginalAmount(accountDetails.getOriginalAmount());
-        account.setStartDate(accountDetails.getStartDate());
-        account.setEndDate(accountDetails.getEndDate());
-        account.setMonthlyPayment(accountDetails.getMonthlyPayment());
         account.setNotes(accountDetails.getNotes());
+        account.setTaxStatus(accountDetails.getTaxStatus());
         return accountRepository.save(account);
     }
 
     @Transactional
     public void deleteAccount(Long accountId) {
-        LiabilityAccount account = getAccountById(accountId);
+        AssetAccount account = getAccountById(accountId);
 
-        // 检查是否有关联的负债记录
+        // 检查是否有关联的资产记录
         boolean hasRecords = recordRepository.existsByAccountId(accountId);
 
         if (hasRecords) {
@@ -100,40 +94,39 @@ public class LiabilityService {
 
     // ========== Record Operations ==========
 
-    public List<LiabilityRecordDTO> getAccountRecords(Long accountId) {
-        List<LiabilityRecord> records = recordRepository.findByAccountIdOrderByRecordDateDesc(accountId);
+    public List<AssetRecordDTO> getAccountRecords(Long accountId) {
+        List<AssetRecord> records = recordRepository.findByAccountIdOrderByRecordDateDesc(accountId);
         return records.stream().map(this::convertToRecordDTO).collect(Collectors.toList());
     }
 
     @Transactional
-    public LiabilityRecord createRecord(LiabilityRecord record) {
+    public AssetRecordDTO createRecord(AssetRecord record) {
         // 检查是否已存在同一日期的记录
         if (recordRepository.existsByAccountIdAndRecordDate(record.getAccountId(), record.getRecordDate())) {
             throw new RuntimeException("Record already exists for this date");
         }
 
         // 自动从账户获取userId
-        LiabilityAccount account = getAccountById(record.getAccountId());
+        AssetAccount account = getAccountById(record.getAccountId());
         record.setUserId(account.getUserId());
 
-        return recordRepository.save(record);
+        AssetRecord savedRecord = recordRepository.save(record);
+        return convertToRecordDTO(savedRecord);
     }
 
     @Transactional
-    public LiabilityRecord updateRecord(Long recordId, LiabilityRecord recordDetails) {
-        LiabilityRecord record = recordRepository.findById(recordId)
+    public AssetRecordDTO updateRecord(Long recordId, AssetRecord recordDetails) {
+        AssetRecord record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
 
-        // Update basic fields
         record.setRecordDate(recordDetails.getRecordDate());
-        record.setOutstandingBalance(recordDetails.getOutstandingBalance());
-        record.setCurrency(recordDetails.getCurrency());
-        record.setPaymentAmount(recordDetails.getPaymentAmount());
-        record.setPrincipalPayment(recordDetails.getPrincipalPayment());
-        record.setInterestPayment(recordDetails.getInterestPayment());
+        record.setAmount(recordDetails.getAmount());
+        record.setQuantity(recordDetails.getQuantity());
+        record.setUnitPrice(recordDetails.getUnitPrice());
         record.setNotes(recordDetails.getNotes());
 
-        return recordRepository.save(record);
+        AssetRecord updatedRecord = recordRepository.save(record);
+        return convertToRecordDTO(updatedRecord);
     }
 
     @Transactional
@@ -164,7 +157,7 @@ public class LiabilityService {
             // 如果该日期已有记录,返回该记录的值
             var record = recordRepository.findByAccountIdAndRecordDate(accountId, targetDate);
             record.ifPresent(r -> {
-                result.put("amount", r.getOutstandingBalance());
+                result.put("amount", r.getAmount());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
             });
@@ -172,7 +165,7 @@ public class LiabilityService {
             // 查找该日期之前最近的记录
             var previousRecord = recordRepository.findLatestByAccountIdBeforeOrOnDate(accountId, targetDate);
             previousRecord.ifPresent(r -> {
-                result.put("amount", r.getOutstandingBalance());
+                result.put("amount", r.getAmount());
                 result.put("recordDate", r.getRecordDate());
                 result.put("currency", r.getCurrency());
             });
@@ -181,85 +174,77 @@ public class LiabilityService {
         return result;
     }
 
-    // 批量更新负债记录
+    // 批量更新资产记录
     @Transactional
-    public List<LiabilityRecordDTO> batchUpdateRecords(BatchRecordUpdateDTO batchUpdate) {
+    public List<AssetRecord> batchUpdateRecords(BatchRecordUpdateDTO batchUpdate) {
         LocalDate recordDate = batchUpdate.getRecordDate();
-        System.out.println("=== 批量更新负债记录 ===");
-        System.out.println("接收到的日期: " + batchUpdate.getRecordDate());
-        System.out.println("处理后的日期: " + recordDate);
         if (recordDate == null) {
             recordDate = LocalDate.now();
-            System.out.println("使用当前日期: " + recordDate);
         }
 
-        List<LiabilityRecord> savedRecords = new ArrayList<>();
+        List<AssetRecord> savedRecords = new ArrayList<>();
         final LocalDate finalRecordDate = recordDate;
         boolean overwriteExisting = batchUpdate.getOverwriteExisting() != null && batchUpdate.getOverwriteExisting();
 
         for (BatchRecordUpdateDTO.AccountUpdate accountUpdate : batchUpdate.getAccounts()) {
             // 获取账户信息
-            LiabilityAccount account = getAccountById(accountUpdate.getAccountId());
+            AssetAccount account = getAccountById(accountUpdate.getAccountId());
 
             // 检查是否已存在该日期的记录
-            LiabilityRecord record = null;
             var existingRecordOpt = recordRepository.findByAccountIdAndRecordDate(
                 accountUpdate.getAccountId(), finalRecordDate);
 
+            AssetRecord record;
+            boolean isUpdate = false;
             if (existingRecordOpt.isPresent()) {
                 if (overwriteExisting) {
-                    // 覆盖已存在的记录
+                    // 覆盖已存在的记录 (UPDATE)
                     record = existingRecordOpt.get();
+                    isUpdate = true;
                 } else {
                     // 跳过这个账户
                     continue;
                 }
-            }
-
-            if (record == null) {
-                // 创建新记录
-                record = new LiabilityRecord();
+            } else {
+                // 创建新记录 (INSERT)
+                record = new AssetRecord();
                 record.setAccountId(accountUpdate.getAccountId());
                 record.setUserId(account.getUserId());
                 record.setRecordDate(finalRecordDate);
+                isUpdate = false;
             }
 
-            // 更新记录数据 - 对于负债，使用amount字段作为余额
-            record.setOutstandingBalance(accountUpdate.getAmount());
+            // 更新记录数据
+            record.setAmount(accountUpdate.getAmount());
+            record.setQuantity(accountUpdate.getQuantity());
+            record.setUnitPrice(accountUpdate.getUnitPrice());
 
-            // 设置币种
+            // 设置币种 (默认USD)
             String currency = accountUpdate.getCurrency() != null ? accountUpdate.getCurrency() : account.getCurrency();
             record.setCurrency(currency);
 
             // 保存记录
-            LiabilityRecord saved = recordRepository.save(record);
+            AssetRecord saved = recordRepository.save(record);
             savedRecords.add(saved);
         }
 
-        // 转换为DTO返回，避免序列化懒加载代理对象
-        return savedRecords.stream()
-                .map(this::convertToRecordDTO)
-                .collect(Collectors.toList());
+        return savedRecords;
     }
 
     // ========== Helper Methods ==========
 
-    public LiabilityAccountDTO convertAccountToDTO(LiabilityAccount account) {
-        LiabilityAccountDTO dto = new LiabilityAccountDTO();
+    public AssetAccountDTO convertAccountToDTO(AssetAccount account) {
+        AssetAccountDTO dto = new AssetAccountDTO();
         dto.setId(account.getId());
         dto.setUserId(account.getUserId());
-        dto.setLiabilityTypeId(account.getLiabilityTypeId());
+        dto.setAssetTypeId(account.getAssetTypeId());
         dto.setAccountName(account.getAccountName());
         dto.setAccountNumber(account.getAccountNumber());
         dto.setInstitution(account.getInstitution());
         dto.setCurrency(account.getCurrency());
-        dto.setInterestRate(account.getInterestRate());
-        dto.setOriginalAmount(account.getOriginalAmount());
-        dto.setStartDate(account.getStartDate());
-        dto.setEndDate(account.getEndDate());
-        dto.setMonthlyPayment(account.getMonthlyPayment());
         dto.setNotes(account.getNotes());
         dto.setIsActive(account.getIsActive());
+        dto.setTaxStatus(account.getTaxStatus());
         dto.setCreatedAt(account.getCreatedAt());
         dto.setUpdatedAt(account.getUpdatedAt());
 
@@ -267,51 +252,51 @@ public class LiabilityService {
         userRepository.findById(account.getUserId())
                 .ifPresent(user -> dto.setUserName(user.getFullName() != null ? user.getFullName() : user.getUsername()));
 
-        // 获取负债类型信息
-        if (account.getLiabilityType() != null) {
-            dto.setLiabilityTypeName(account.getLiabilityType().getChineseName());
-            dto.setLiabilityTypeCode(account.getLiabilityType().getType());
-            dto.setLiabilityTypeIcon(account.getLiabilityType().getIcon());
+        // 获取资产类型信息
+        if (account.getAssetType() != null) {
+            dto.setAssetTypeName(account.getAssetType().getChineseName());
+            dto.setAssetTypeCode(account.getAssetType().getType());
+            dto.setAssetTypeIcon(account.getAssetType().getIcon());
         }
 
-        // 获取最新余额和记录日期
+        // 获取最新金额和记录日期
         recordRepository.findLatestByAccountId(account.getId())
                 .ifPresent(record -> {
-                    dto.setLatestBalance(record.getOutstandingBalance());  // 原币种余额
+                    dto.setLatestAmount(record.getAmount());  // 原币种金额
                     dto.setLatestRecordDate(record.getRecordDate());
 
-                    // 计算基准货币余额（USD）
-                    if (record.getOutstandingBalance() != null && record.getCurrency() != null) {
+                    // 计算基准货币金额（USD）
+                    if (record.getAmount() != null && record.getCurrency() != null) {
                         BigDecimal rate = exchangeRateService.getExchangeRate(
                             record.getCurrency(),
                             record.getRecordDate()
                         );
-                        BigDecimal balanceInUSD = record.getOutstandingBalance().multiply(rate);
-                        dto.setLatestBalanceInBaseCurrency(balanceInUSD);
+                        BigDecimal amountInUSD = record.getAmount().multiply(rate);
+                        dto.setLatestAmountInBaseCurrency(amountInUSD);
                     }
                 });
 
-        // 获取关联的资产账户信息
-        dto.setLinkedAssetAccountId(account.getLinkedAssetAccountId());
-        if (account.getLinkedAssetAccountId() != null) {
-            assetAccountRepository.findById(account.getLinkedAssetAccountId())
-                    .ifPresent(linkedAccount -> dto.setLinkedAssetAccountName(linkedAccount.getAccountName()));
+        // 获取关联的负债账户信息
+        dto.setLinkedLiabilityAccountId(account.getLinkedLiabilityAccountId());
+        if (account.getLinkedLiabilityAccountId() != null) {
+            liabilityAccountRepository.findById(account.getLinkedLiabilityAccountId())
+                    .ifPresent(linkedAccount -> dto.setLinkedLiabilityAccountName(linkedAccount.getAccountName()));
         }
 
         return dto;
     }
 
-    public LiabilityRecordDTO convertToRecordDTO(LiabilityRecord record) {
-        LiabilityRecordDTO dto = new LiabilityRecordDTO();
+    private AssetRecordDTO convertToRecordDTO(AssetRecord record) {
+        AssetRecordDTO dto = new AssetRecordDTO();
         dto.setId(record.getId());
         dto.setAccountId(record.getAccountId());
         dto.setRecordDate(record.getRecordDate());
-        dto.setOutstandingBalance(record.getOutstandingBalance());
+        dto.setAmount(record.getAmount());
+        dto.setQuantity(record.getQuantity());
+        dto.setUnitPrice(record.getUnitPrice());
         dto.setCurrency(record.getCurrency());
-        dto.setPaymentAmount(record.getPaymentAmount());
-        dto.setPrincipalPayment(record.getPrincipalPayment());
-        dto.setInterestPayment(record.getInterestPayment());
         dto.setNotes(record.getNotes());
+        dto.setAttachmentUrl(record.getAttachmentUrl());
 
         if (record.getAccount() != null) {
             dto.setAccountName(record.getAccount().getAccountName());

@@ -8,7 +8,7 @@ import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityRecord;
 import com.finance.app.model.LiabilityType;
-import com.finance.app.service.LiabilityService;
+import com.finance.app.service.liability.LiabilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

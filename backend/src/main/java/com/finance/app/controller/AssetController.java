@@ -8,7 +8,7 @@ import com.finance.app.dto.BatchRecordCheckDTO;
 import com.finance.app.model.AssetAccount;
 import com.finance.app.model.AssetRecord;
 import com.finance.app.model.AssetType;
-import com.finance.app.service.AssetService;
+import com.finance.app.service.asset.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
