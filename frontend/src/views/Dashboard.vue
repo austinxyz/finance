@@ -47,6 +47,11 @@
       </div>
 
       <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">{{ currentYear }}年总支出</div>
+        <div class="text-lg font-bold text-purple-600">${{ formatAmount(totalBaseExpense) }}</div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
         <div class="text-xs font-medium text-gray-600 mb-1">{{ currentYear }}年实际支出</div>
         <div class="text-lg font-bold text-orange-600">${{ formatAmount(actualExpense) }}</div>
       </div>
@@ -67,7 +72,7 @@
       </div>
     </div>
 
-    <!-- 分布图表 - 第一行 -->
+    <!-- 分布图表 - 第一行：净资产、职业收入、总支出 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- 净资产分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
@@ -131,6 +136,49 @@
         </div>
       </div>
 
+      <!-- 年度总支出分布 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">{{ currentYear }}年总支出</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ currentYear }}年 · 预算支出金额</p>
+        </div>
+        <div class="p-6">
+          <div v-if="loadingExpense" class="text-sm text-gray-500 text-center py-8">
+            加载中...
+          </div>
+          <div v-else-if="baseExpenseCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
+            暂无支出数据
+          </div>
+          <div v-else>
+            <div class="h-64">
+              <canvas ref="baseExpenseChartCanvas"></canvas>
+            </div>
+            <div class="mt-6 space-y-2">
+              <div v-for="category in baseExpenseCategories" :key="category.id" class="flex items-center justify-between text-sm">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: category.color }"></div>
+                  <span class="text-gray-700">{{ category.name }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-gray-900 font-medium">${{ formatAmount(category.amount) }}</span>
+                  <span class="text-gray-500">{{ category.percentage }}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="flex items-center justify-between text-sm font-semibold">
+                <span class="text-gray-700">总支出</span>
+                <span class="text-lg text-purple-600">${{ formatAmount(totalBaseExpense) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 分布图表 - 第二行：实际支出、总资产、总负债 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- 年度实际支出分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -169,21 +217,12 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 资产分布 + 负债分布 (整合账户信息) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 资产分布 + 账户概览 -->
+      <!-- 当前总资产分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">资产分布</h2>
-            <p class="text-xs text-gray-500 mt-1">{{ totalAssetAccounts }} 个账户</p>
-          </div>
-          <div class="text-right">
-            <div class="text-sm text-gray-600">活跃账户</div>
-            <div class="text-lg font-semibold text-green-600">{{ activeAssetAccounts }}</div>
-          </div>
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">当前总资产分布</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ totalAssetAccounts }} 个账户 · {{ activeAssetAccounts }} 活跃</p>
         </div>
         <div class="p-6">
           <div v-if="assetCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
@@ -211,17 +250,11 @@
         </div>
       </div>
 
-      <!-- 负债分布 + 账户概览 -->
+      <!-- 负债分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">负债分布</h2>
-            <p class="text-xs text-gray-500 mt-1">{{ totalLiabilityAccounts }} 个账户</p>
-          </div>
-          <div class="text-right">
-            <div class="text-sm text-gray-600">活跃账户</div>
-            <div class="text-lg font-semibold text-red-600">{{ activeLiabilityAccounts }}</div>
-          </div>
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">当前总负债分布</h2>
+          <p class="text-xs text-gray-500 mt-1">{{ totalLiabilityAccounts }} 个账户 · {{ activeLiabilityAccounts }} 活跃</p>
         </div>
         <div class="p-6">
           <div v-if="liabilityCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
@@ -585,12 +618,14 @@ const assetChartCanvas = ref(null)
 const liabilityChartCanvas = ref(null)
 const netWorthChartCanvas = ref(null)
 const annualNetWorthChartCanvas = ref(null)
+const baseExpenseChartCanvas = ref(null)
 const expenseChartCanvas = ref(null)
 const incomeChartCanvas = ref(null)
 let assetChartInstance = null
 let liabilityChartInstance = null
 let netWorthChartInstance = null
 let annualNetWorthChartInstance = null
+let baseExpenseChartInstance = null
 let expenseChartInstance = null
 let incomeChartInstance = null
 
@@ -797,6 +832,31 @@ const expenseCategories = computed(() => {
 // 总支出
 const totalExpense = computed(() => {
   return expenseCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
+})
+
+// 总支出分类统计（本年度预算支出，不含实际调整）
+const baseExpenseCategories = computed(() => {
+  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为0）
+  const majorCategories = annualExpenseSummary.value.filter(
+    item => !item.minorCategoryName && item.majorCategoryId !== 0
+  )
+
+  if (majorCategories.length === 0) return []
+
+  const total = majorCategories.reduce((sum, cat) => sum + Number(cat.baseExpenseAmount || 0), 0)
+
+  return majorCategories.map((cat, index) => ({
+    id: cat.majorCategoryId,
+    name: cat.majorCategoryName,
+    amount: Number(cat.baseExpenseAmount || 0),
+    color: EXPENSE_COLORS[index % EXPENSE_COLORS.length],
+    percentage: total > 0 ? ((Number(cat.baseExpenseAmount || 0) / total) * 100).toFixed(1) : '0.0'
+  })).filter(cat => cat.amount > 0).sort((a, b) => b.amount - a.amount)
+})
+
+// 总支出总计（预算金额）
+const totalBaseExpense = computed(() => {
+  return baseExpenseCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
 })
 
 // 收入分类统计（本年度职业收入，排除投资收益）
@@ -1322,7 +1382,42 @@ function updateLiabilityChart() {
   })
 }
 
-// 更新支出分布图表
+// 更新总支出分布图表（预算金额）
+function updateBaseExpenseChart() {
+  if (!baseExpenseChartCanvas.value || baseExpenseCategories.value.length === 0) {
+    if (baseExpenseChartInstance) {
+      baseExpenseChartInstance.destroy()
+      baseExpenseChartInstance = null
+    }
+    return
+  }
+
+  if (baseExpenseChartInstance) {
+    baseExpenseChartInstance.destroy()
+    baseExpenseChartInstance = null
+  }
+
+  const ctx = baseExpenseChartCanvas.value.getContext('2d')
+
+  baseExpenseChartInstance = new ChartJS(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: baseExpenseCategories.value.map(c => c.name),
+      datasets: [{
+        data: baseExpenseCategories.value.map(c => c.amount),
+        backgroundColor: baseExpenseCategories.value.map(c => c.color),
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
+      }]
+    },
+    options: createDoughnutChartOptions(formatAmount, true)
+  })
+}
+
+// 更新支出分布图表（实际金额）
 function updateExpenseChart() {
   if (!expenseChartCanvas.value || expenseCategories.value.length === 0) {
     if (expenseChartInstance) {
@@ -1410,6 +1505,9 @@ async function loadAnnualExpenseSummary() {
       console.log('年度支出数据已设置:', annualExpenseSummary.value.length, '条记录')
       // 使用setTimeout确保DOM完全渲染后再更新图表
       setTimeout(() => {
+        if (baseExpenseChartCanvas.value && baseExpenseCategories.value.length > 0) {
+          updateBaseExpenseChart()
+        }
         if (expenseChartCanvas.value && expenseCategories.value.length > 0) {
           updateExpenseChart()
         }
@@ -1539,7 +1637,15 @@ function onSyncSuccess(data) {
   // 可以在这里显示成功通知
 }
 
-// 监听支出数据变化，自动更新图表
+// 监听总支出数据变化，自动更新图表
+watch(baseExpenseCategories, async () => {
+  if (baseExpenseCategories.value.length > 0) {
+    await nextTick()
+    updateBaseExpenseChart()
+  }
+}, { deep: true })
+
+// 监听实际支出数据变化，自动更新图表
 watch(expenseCategories, async () => {
   if (expenseCategories.value.length > 0) {
     await nextTick()
@@ -1579,6 +1685,10 @@ function destroyAllCharts() {
     liabilityChartInstance.destroy()
     liabilityChartInstance = null
   }
+  if (baseExpenseChartInstance) {
+    baseExpenseChartInstance.destroy()
+    baseExpenseChartInstance = null
+  }
   if (expenseChartInstance) {
     expenseChartInstance.destroy()
     expenseChartInstance = null
@@ -1604,6 +1714,7 @@ function handleResize() {
     if (assetCategories.value.length > 0) updateAssetChart()
     if (liabilityCategories.value.length > 0) updateLiabilityChart()
     if (incomeCategories.value.length > 0) updateIncomeChart()
+    if (baseExpenseCategories.value.length > 0) updateBaseExpenseChart()
     if (expenseCategories.value.length > 0) updateExpenseChart()
     if (overallTrendData.value.length > 0) updateAnnualNetWorthChart()
   }, 250) // 250ms 防抖

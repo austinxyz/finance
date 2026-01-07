@@ -1,341 +1,1474 @@
-# 收入管理功能设计
+# 收入管理模块 - 技术设计文档
 
-## 概述
+## 1. 概述
 
-收入管理模块用于追踪家庭成员的各类收入来源，包括工资、奖金、投资收益、租金等。支持月度批量录入、多币种转换、关联资产账户，并与投资管理模块联动自动汇总投资收益。
+### 1.1 技术栈
 
-## 核心设计理念
+**后端**：
+- Java 17
+- Spring Boot 3.2
+- Spring Data JPA
+- MySQL 8.0
+- Flyway (数据库版本管理)
 
-### 1. 分类体系
+**前端**：
+- Vue 3 (Composition API)
+- Vite
+- Tailwind CSS
+- Chart.js (数据可视化)
+- Axios (HTTP客户端)
 
-**10个预设大类**（不可修改）：
-- 工资 💼 (Salary)
-- 奖金 🎁 (Bonus)
-- 投资收益 📈 (Investment)
-- 租金 🏠 (Rental)
-- 副业 💡 (SideHustle)
-- 股票RSU 📊 (RSU)
-- 退休基金贡献 🏦 (Retirement)
-- 退税 💰 (TaxRefund)
-- 礼金 🎀 (Gift)
-- 其他 📦 (Other)
+### 1.2 架构特点
 
-**30+预设小类**（不可修改）：
-- 工资：基本工资、加班费、提成
-- 奖金：年终奖、绩效奖金、签约奖金
-- 投资收益：股票收益、分红、利息、数字货币收益
-- 租金：住宅租金、商业租金
-- 副业：自由职业、咨询、线上业务
-- RSU：Vested股票、员工购股计划
-- 退休基金：雇主匹配、雇主贡献、个人贡献
-- 退税：联邦退税、州退税
-- 礼金：婚礼礼金、生日礼金、节日礼金
+1. **时间序列设计**：按月记录收入数据，支持时间序列分析
+2. **分层架构**：Controller → Service → Repository → Database
+3. **多货币支持**：原币记录 + USD转换冗余字段
+4. **预聚合优化**：annual_income_summary 表存储预计算数据
+5. **投资收益特殊处理**：Investment 大类使用实时计算而非手工记录
 
-### 2. 数据模型
+### 1.3 与支出模块的差异
 
-#### 收入记录（income_records）
+| 特性 | 支出模块 | 收入模块 |
+|------|---------|---------|
+| 记录粒度 | 月度预算 + 实际支出 | 月度汇总 |
+| 分类层级 | 大类 + 小类 | 大类 + 小类 |
+| 特殊处理 | 无 | Investment 大类实时计算 |
+| 年度汇总 | 存储过程 | 存储过程 |
+| 预算功能 | 有 | 有（income_budgets表） |
 
-**关键字段**：
-- `family_id` - 家庭ID
-- `user_id` - 用户ID（家庭成员）
-- `asset_account_id` - 关联的资产账户ID（可选，记录收入最终到账的账户）
-- `major_category_id` - 收入大类ID
-- `minor_category_id` - 收入小类ID（可选）
-- `period` - 收入周期（YYYY-MM格式，如"2024-12"）
-- `amount` - 金额（税后实际到账）
-- `currency` - 币种（USD/CNY/EUR/GBP/JPY/AUD/CAD）
-- `amount_usd` - 换算成USD的金额（自动计算）
-- `description` - 备注
+---
 
-**唯一性约束**：
+## 2. 数据库设计
+
+### 2.1 表结构
+
+#### 2.1.1 收入大类表 (income_categories_major)
+
 ```sql
-UNIQUE KEY uk_income (family_id, user_id, period, major_category_id, minor_category_id, currency)
+CREATE TABLE income_categories_major (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE COMMENT '英文名称',
+    chinese_name VARCHAR(100) NOT NULL COMMENT '中文名称',
+    icon VARCHAR(50) COMMENT '图标emoji或类名',
+    color VARCHAR(20) COMMENT '颜色代码',
+    display_order INT NOT NULL DEFAULT 0 COMMENT '显示顺序',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+    description TEXT COMMENT '说明',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_display_order (display_order),
+    INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-同一家庭、同一用户、同一期间、同一分类、同一币种只能有一条记录。批量保存时如记录已存在则更新，否则创建。
+**初始数据**（10个预定义大类）：
+- Salary (工资, 💼)
+- Bonus (奖金, 🎁)
+- Investment (投资收益, 📈) - **特殊处理**
+- Rental (租金, 🏠)
+- Business (经营收入, 💼)
+- Freelance (自由职业, 💻)
+- Dividend (股息, 💰)
+- Interest (利息, 🏦)
+- Royalty (版税, 📚)
+- Other (其他, 📦)
 
-#### 年度收入预算（income_budgets）
+#### 2.1.2 收入小类表 (income_categories_minor)
 
-**关键字段**：
-- `family_id` - 家庭ID
-- `user_id` - 用户ID（NULL表示全家庭预算）
-- `major_category_id` - 收入大类ID
-- `minor_category_id` - 收入小类ID（可选）
-- `year` - 年份
-- `budgeted_amount` - 预算金额
-- `currency` - 币种
-
-**唯一性约束**：
 ```sql
-UNIQUE KEY uk_budget (family_id, user_id, major_category_id, minor_category_id, year, currency)
+CREATE TABLE income_categories_minor (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    major_category_id BIGINT NOT NULL COMMENT '所属大类ID',
+    name VARCHAR(100) NOT NULL COMMENT '小类名称',
+    chinese_name VARCHAR(100) COMMENT '中文名称',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+    display_order INT NOT NULL DEFAULT 0 COMMENT '显示顺序',
+    description TEXT COMMENT '说明',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (major_category_id) REFERENCES income_categories_major(id),
+    UNIQUE KEY uk_major_name (major_category_id, name),
+    INDEX idx_major_category (major_category_id),
+    INDEX idx_display_order (display_order),
+    INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 3. 核心业务逻辑
+**初始数据示例**（30+预定义小类）：
+- Salary → Base Salary (基本工资), Year-End Bonus (年终奖), Performance Bonus (绩效奖金)
+- Investment → 使用实时计算，无需手工记录小类
+- Rental → Residential (住宅租金), Commercial (商业租金)
 
-#### 投资收益自动汇总
+#### 2.1.3 收入记录表 (income_records)
 
-**特殊规则**：
-- "投资收益"大类（Investment）的记录由系统自动生成，**禁止手动创建/更新/删除**
-- 汇总来源：`investment_transactions` 表中的所有交易记录
-- 汇总维度：按家庭、用户、月份汇总
-- 汇总内容：
-  - 股票收益（买卖差价）
-  - 分红（Dividend交易类型）
-  - 利息（Interest交易类型）
-  - 数字货币收益（Crypto资产类型）
+```sql
+CREATE TABLE income_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    family_id BIGINT NOT NULL COMMENT '家庭ID',
+    user_id BIGINT NOT NULL COMMENT '记录人ID',
+    major_category_id BIGINT NOT NULL COMMENT '大类ID',
+    minor_category_id BIGINT NOT NULL COMMENT '小类ID',
+    period VARCHAR(7) NOT NULL COMMENT '收入期间(YYYY-MM)',
+    amount DECIMAL(18, 2) NOT NULL COMMENT '收入金额',
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD' COMMENT '货币代码',
+    amount_usd DECIMAL(18, 2) COMMENT 'USD金额（冗余字段）',
+    description TEXT COMMENT '说明',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-**实现逻辑**：
-```java
-// IncomeService.java
-if ("Investment".equals(major.getName())) {
-    throw new IllegalArgumentException("投资收益由系统自动计算，不能手动录入");
-}
+    FOREIGN KEY (major_category_id) REFERENCES income_categories_major(id),
+    FOREIGN KEY (minor_category_id) REFERENCES income_categories_minor(id),
+    UNIQUE KEY uk_family_period_category (family_id, period, major_category_id, minor_category_id, currency),
+    INDEX idx_family_period (family_id, period),
+    INDEX idx_period (period),
+    INDEX idx_major_category (major_category_id),
+    INDEX idx_currency (currency)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-#### 资产账户关联
+**唯一约束说明**：
+- 同一家庭、同一期间、同一分类、同一货币只能有一条记录
+- 支持同一期间不同货币的记录（如：2025-01 的 USD 和 CNY 记录）
 
-**关联意义**：
-- 记录收入最终到账的资产账户（如"Chase Checking"）
-- 可选字段，不强制关联
-- 便于追踪资金流向，验证账户余额变化
+#### 2.1.4 年度收入汇总表 (annual_income_summary)
 
-**示例**：
-- 工资 → Chase Checking账户
-- RSU Vested → Fidelity Brokerage账户
-- 租金收入 → Chase Savings账户
+```sql
+CREATE TABLE annual_income_summary (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    family_id BIGINT NOT NULL COMMENT '家庭ID',
+    summary_year INT NOT NULL COMMENT '汇总年份',
+    major_category_id BIGINT NOT NULL COMMENT '大类ID (0=总计)',
+    minor_category_id BIGINT COMMENT '小类ID (NULL=大类汇总)',
+    actual_income_amount DECIMAL(18, 2) NOT NULL DEFAULT 0 COMMENT '实际收入金额',
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD' COMMENT '货币类型',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-#### 多币种支持
-
-**换算逻辑**：
-- 所有金额都保存原币种金额（amount）和USD等值金额（amount_usd）
-- USD金额自动计算：`amount_usd = amount * exchange_rate`
-- 汇率来源：`ExchangeRateService.getExchangeRate(currency, date)`
-- 汇率日期：使用收入期间的第一天（如"2024-12" → "2024-12-01"）
-
-**支持币种**：USD, CNY, EUR, GBP, JPY, AUD, CAD
-
-### 4. API设计
-
-#### 月度批量录入
-
-**场景**：用户每月录入当月所有收入
-
-**接口**：`POST /api/incomes/records/batch`
-
-**请求示例**：
-```json
-{
-  "familyId": 1,
-  "userId": 1,
-  "period": "2024-12",
-  "records": [
-    {
-      "majorCategoryId": 1,
-      "minorCategoryId": 1,
-      "assetAccountId": 5,
-      "amount": 10000.00,
-      "currency": "USD",
-      "description": "基本工资"
-    },
-    {
-      "majorCategoryId": 2,
-      "minorCategoryId": 4,
-      "amount": 5000.00,
-      "currency": "USD",
-      "description": "年终奖"
-    }
-  ]
-}
+    UNIQUE KEY uk_family_year_category (family_id, summary_year, major_category_id, minor_category_id, currency),
+    INDEX idx_family_year (family_id, summary_year),
+    INDEX idx_major_category (major_category_id),
+    INDEX idx_currency (currency)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+**数据说明**：
+- major_category_id = 0：总计行
+- minor_category_id = NULL：大类汇总行
+- 其他：小类明细行
+
+#### 2.1.5 收入预算表 (income_budgets)
+
+```sql
+CREATE TABLE income_budgets (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    family_id BIGINT NOT NULL COMMENT '家庭ID',
+    budget_year INT NOT NULL COMMENT '预算年份',
+    major_category_id BIGINT NOT NULL COMMENT '大类ID',
+    minor_category_id BIGINT COMMENT '小类ID',
+    budget_amount DECIMAL(18, 2) NOT NULL DEFAULT 0 COMMENT '预算金额',
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD' COMMENT '货币类型',
+    description TEXT COMMENT '说明',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (major_category_id) REFERENCES income_categories_major(id),
+    FOREIGN KEY (minor_category_id) REFERENCES income_categories_minor(id),
+    UNIQUE KEY uk_family_year_category (family_id, budget_year, major_category_id, minor_category_id, currency),
+    INDEX idx_family_year (family_id, budget_year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+### 2.2 索引设计
+
+**查询场景优化**：
+
+1. **按家庭和期间查询**：`idx_family_period` (income_records)
+2. **按期间查询**：`idx_period` (income_records)
+3. **按大类分组**：`idx_major_category` (多表)
+4. **年度汇总查询**：`uk_family_year_category` (annual_income_summary)
+5. **货币过滤**：`idx_currency` (多表)
+
+### 2.3 存储过程
+
+#### sp_refresh_annual_income_summary
+
+**功能**：刷新年度收入汇总数据
+
+**参数**：
+- `p_family_id` BIGINT：家庭ID
+- `p_year` INT：年份
+- `p_currency` VARCHAR(10)：货币代码
 
 **逻辑**：
-1. 验证大类是否存在，排除"投资收益"类别
-2. 检查是否已存在记录（唯一性约束）
-3. 如存在则更新，否则创建
-4. 自动计算USD金额（查询汇率）
-5. 批量保存到数据库
+1. 删除旧的汇总数据
+2. 从 income_records 汇总计算大类、小类、总计
+3. 插入新的汇总数据到 annual_income_summary
 
-#### 收入记录查询
+**调用方式**：
+```sql
+CALL sp_refresh_annual_income_summary(1, 2025, 'USD');
+```
 
-**按期间查询**：`GET /api/incomes/records?familyId=1&period=2024-12`
-- 返回指定家庭、指定月份的所有收入记录
+---
 
-**按期间范围查询**：`GET /api/incomes/records/range?familyId=1&startPeriod=2024-01&endPeriod=2024-12`
-- 返回指定时间段内的所有收入记录
-- 用于年度汇总、趋势分析
+## 3. 后端API设计
 
-## 数据库表结构
+### 3.1 实体层 (Entity)
 
-### income_categories_major（收入大类表）
+#### 3.1.1 IncomeCategoryMajor
 
-| 字段 | 类型 | 说明 |
+```java
+@Entity
+@Table(name = "income_categories_major")
+@Data
+public class IncomeCategoryMajor {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
+
+    @Column(name = "chinese_name", nullable = false, length = 100)
+    private String chineseName;
+
+    @Column(length = 50)
+    private String icon;
+
+    @Column(length = 20)
+    private String color;
+
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+#### 3.1.2 IncomeRecord
+
+```java
+@Entity
+@Table(name = "income_records",
+    uniqueConstraints = @UniqueConstraint(
+        columnNames = {"family_id", "period", "major_category_id",
+                      "minor_category_id", "currency"}
+    )
+)
+@Data
+public class IncomeRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "family_id", nullable = false)
+    private Long familyId;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "major_category_id", nullable = false)
+    private Long majorCategoryId;
+
+    @Column(name = "minor_category_id", nullable = false)
+    private Long minorCategoryId;
+
+    @Column(nullable = false, length = 7)
+    private String period;  // YYYY-MM
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal amount;
+
+    @Column(nullable = false, length = 10)
+    private String currency = "USD";
+
+    @Column(name = "amount_usd", precision = 18, scale = 2)
+    private BigDecimal amountUsd;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+### 3.2 仓储层 (Repository)
+
+#### IncomeCategoryMajorRepository
+
+```java
+@Repository
+public interface IncomeCategoryMajorRepository
+        extends JpaRepository<IncomeCategoryMajor, Long> {
+
+    List<IncomeCategoryMajor> findByIsActiveTrueOrderByDisplayOrderAsc();
+
+    Optional<IncomeCategoryMajor> findByName(String name);
+}
+```
+
+#### IncomeRecordRepository
+
+```java
+@Repository
+public interface IncomeRecordRepository
+        extends JpaRepository<IncomeRecord, Long> {
+
+    List<IncomeRecord> findByFamilyIdAndPeriod(Long familyId, String period);
+
+    List<IncomeRecord> findByFamilyIdAndPeriodBetween(
+        Long familyId, String startPeriod, String endPeriod
+    );
+
+    @Query("SELECT ir FROM IncomeRecord ir WHERE ir.familyId = :familyId " +
+           "AND ir.period LIKE CONCAT(:year, '%') AND ir.currency = :currency")
+    List<IncomeRecord> findByFamilyIdAndYearAndCurrency(
+        @Param("familyId") Long familyId,
+        @Param("year") Integer year,
+        @Param("currency") String currency
+    );
+}
+```
+
+### 3.3 服务层 (Service)
+
+#### 3.3.1 IncomeRecordService
+
+**核心方法**：
+
+```java
+@Service
+@Transactional
+public class IncomeRecordService {
+
+    @Autowired
+    private IncomeRecordRepository incomeRecordRepository;
+
+    @Autowired
+    private ExchangeRateService exchangeRateService;
+
+    /**
+     * 批量保存收入记录（支持新增和更新）
+     */
+    public List<IncomeRecord> batchSave(List<IncomeRecord> records) {
+        List<IncomeRecord> savedRecords = new ArrayList<>();
+
+        for (IncomeRecord record : records) {
+            // 自动设置 USD 金额
+            if (!"USD".equals(record.getCurrency())) {
+                BigDecimal usdAmount = exchangeRateService.convertToUSD(
+                    record.getAmount(),
+                    record.getCurrency(),
+                    parsePeriodToDate(record.getPeriod())
+                );
+                record.setAmountUsd(usdAmount);
+            } else {
+                record.setAmountUsd(record.getAmount());
+            }
+
+            // 检查是否已存在记录
+            Optional<IncomeRecord> existing = findExisting(record);
+
+            if (existing.isPresent()) {
+                if (BigDecimal.ZERO.compareTo(record.getAmount()) == 0) {
+                    // 金额为0，删除记录
+                    incomeRecordRepository.delete(existing.get());
+                } else {
+                    // 更新记录
+                    IncomeRecord existingRecord = existing.get();
+                    existingRecord.setAmount(record.getAmount());
+                    existingRecord.setAmountUsd(record.getAmountUsd());
+                    existingRecord.setDescription(record.getDescription());
+                    savedRecords.add(incomeRecordRepository.save(existingRecord));
+                }
+            } else if (BigDecimal.ZERO.compareTo(record.getAmount()) != 0) {
+                // 新增记录（金额不为0）
+                savedRecords.add(incomeRecordRepository.save(record));
+            }
+        }
+
+        return savedRecords;
+    }
+
+    private Optional<IncomeRecord> findExisting(IncomeRecord record) {
+        return incomeRecordRepository.findOne(Example.of(record,
+            ExampleMatcher.matching()
+                .withIgnorePaths("id", "amount", "amountUsd", "description",
+                               "createdAt", "updatedAt")
+        ));
+    }
+}
+```
+
+#### 3.3.2 IncomeAnalysisService
+
+**关键特性**：Investment 大类使用 InvestmentAnalysisService 实时计算
+
+```java
+@Service
+public class IncomeAnalysisService {
+
+    @Autowired
+    private IncomeRecordRepository incomeRecordRepository;
+
+    @Autowired
+    private IncomeCategoryMajorRepository majorCategoryRepository;
+
+    @Autowired
+    private InvestmentAnalysisService investmentAnalysisService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    /**
+     * 获取年度大类汇总（Investment使用实时计算）
+     */
+    public List<AnnualMajorCategoryDTO> getAnnualMajorCategories(
+            Long familyId, Integer year, String currency) {
+
+        // 1. 获取所有大类
+        List<IncomeCategoryMajor> majorCategories =
+            majorCategoryRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
+
+        // 2. 获取收入记录
+        List<IncomeRecord> records = incomeRecordRepository
+            .findByFamilyIdAndYearAndCurrency(familyId, year, currency);
+
+        // 3. 按大类ID分组求和
+        Map<Long, BigDecimal> majorCategoryTotals = records.stream()
+            .collect(Collectors.groupingBy(
+                IncomeRecord::getMajorCategoryId,
+                Collectors.reducing(
+                    BigDecimal.ZERO,
+                    IncomeRecord::getAmount,
+                    BigDecimal::add
+                )
+            ));
+
+        // 4. 查找Investment大类
+        IncomeCategoryMajor investmentCategory =
+            majorCategoryRepository.findByName("Investment").orElse(null);
+
+        // 5. 特殊处理：Investment大类使用实时投资回报
+        if (investmentCategory != null) {
+            try {
+                List<InvestmentCategoryAnalysisDTO> investmentAnalysis =
+                    investmentAnalysisService.getAnnualByCategory(
+                        familyId, year, currency
+                    );
+
+                BigDecimal totalInvestmentReturn = investmentAnalysis.stream()
+                    .map(dto -> dto.getReturns() != null ?
+                        dto.getReturns() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // 覆盖Investment大类的金额
+                majorCategoryTotals.put(
+                    investmentCategory.getId(),
+                    totalInvestmentReturn
+                );
+
+                log.info("Investment大类使用实时计算: {}", totalInvestmentReturn);
+            } catch (Exception e) {
+                log.error("获取投资回报失败，使用income_records中的数据", e);
+            }
+        }
+
+        // 6. 构建DTO
+        return majorCategories.stream()
+            .map(major -> {
+                AnnualMajorCategoryDTO dto = new AnnualMajorCategoryDTO();
+                dto.setMajorCategoryId(major.getId());
+                dto.setMajorCategoryName(major.getName());
+                dto.setMajorCategoryChineseName(major.getChineseName());
+                dto.setMajorCategoryIcon(major.getIcon());
+                dto.setTotalAmount(
+                    majorCategoryTotals.getOrDefault(major.getId(), BigDecimal.ZERO)
+                );
+                dto.setCurrency(currency);
+                return dto;
+            })
+            .filter(dto -> dto.getTotalAmount().compareTo(BigDecimal.ZERO) > 0)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 刷新年度收入汇总（调用存储过程）
+     */
+    @Transactional
+    public void refreshAnnualIncomeSummary(
+            Long familyId, Integer year, String currency) {
+
+        entityManager.createNativeQuery(
+            "CALL sp_refresh_annual_income_summary(:familyId, :year, :currency)"
+        )
+        .setParameter("familyId", familyId)
+        .setParameter("year", year)
+        .setParameter("currency", currency)
+        .executeUpdate();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        log.info("年度收入汇总刷新完成: familyId={}, year={}, currency={}",
+                familyId, year, currency);
+    }
+}
+```
+
+### 3.4 控制器层 (Controller)
+
+#### IncomeAnalysisController
+
+```java
+@RestController
+@RequestMapping("/api/incomes-analysis")
+public class IncomeAnalysisController {
+
+    @Autowired
+    private IncomeAnalysisService analysisService;
+
+    /**
+     * 获取年度大类汇总
+     * GET /api/incomes-analysis/annual/major-categories
+     */
+    @GetMapping("/annual/major-categories")
+    public ApiResponse<List<AnnualMajorCategoryDTO>> getAnnualMajorCategories(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam(defaultValue = "USD") String currency) {
+
+        List<AnnualMajorCategoryDTO> data =
+            analysisService.getAnnualMajorCategories(familyId, year, currency);
+
+        return ApiResponse.success(data);
+    }
+
+    /**
+     * 获取年度小类汇总
+     * GET /api/incomes-analysis/annual/minor-categories
+     */
+    @GetMapping("/annual/minor-categories")
+    public ApiResponse<List<AnnualMinorCategoryDTO>> getAnnualMinorCategories(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam Long majorCategoryId,
+            @RequestParam(defaultValue = "USD") String currency) {
+
+        List<AnnualMinorCategoryDTO> data =
+            analysisService.getAnnualMinorCategories(
+                familyId, year, majorCategoryId, currency
+            );
+
+        return ApiResponse.success(data);
+    }
+
+    /**
+     * 获取年度月度趋势
+     * GET /api/incomes-analysis/annual/monthly-trend
+     */
+    @GetMapping("/annual/monthly-trend")
+    public ApiResponse<List<MonthlyTrendDTO>> getAnnualMonthlyTrend(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam Long majorCategoryId,
+            @RequestParam Long minorCategoryId,
+            @RequestParam(defaultValue = "USD") String currency) {
+
+        List<MonthlyTrendDTO> data =
+            analysisService.getAnnualMonthlyTrend(
+                familyId, year, majorCategoryId, minorCategoryId, currency
+            );
+
+        return ApiResponse.success(data);
+    }
+
+    /**
+     * 刷新年度收入汇总
+     * POST /api/incomes-analysis/annual/refresh
+     */
+    @PostMapping("/annual/refresh")
+    public ApiResponse<Void> refreshAnnualSummary(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam(defaultValue = "All") String currency) {
+
+        analysisService.refreshAnnualIncomeSummary(familyId, year, currency);
+
+        return ApiResponse.success(null);
+    }
+}
+```
+
+---
+
+## 4. 前端设计
+
+### 4.1 API封装 (api/income.js)
+
+```javascript
+import request from '@/utils/request'
+
+// 收入分类管理
+export const incomeCategoryAPI = {
+  // 获取所有分类（大类+小类树形结构）
+  getAll() {
+    return request.get('/incomes-categories')
+  },
+
+  // 新增大类
+  createMajor(data) {
+    return request.post('/incomes-categories/major', data)
+  },
+
+  // 新增小类
+  createMinor(data) {
+    return request.post('/incomes-categories/minor', data)
+  }
+}
+
+// 收入记录管理
+export const incomeRecordAPI = {
+  // 批量保存收入记录
+  batchSave(records) {
+    return request.post('/incomes/batch', records)
+  },
+
+  // 查询收入记录（按期间）
+  getByPeriod(familyId, period) {
+    return request.get('/incomes/period', {
+      params: { familyId, period }
+    })
+  },
+
+  // 查询收入记录（按期间范围）
+  getByPeriodRange(familyId, startPeriod, endPeriod) {
+    return request.get('/incomes/period-range', {
+      params: { familyId, startPeriod, endPeriod }
+    })
+  }
+}
+
+// 收入分析
+export const incomeAnalysisAPI = {
+  // 获取年度大类汇总
+  getAnnualMajorCategories(familyId, year, currency = 'USD') {
+    return request.get('/incomes-analysis/annual/major-categories', {
+      params: { familyId, year, currency }
+    })
+  },
+
+  // 获取年度小类汇总
+  getAnnualMinorCategories(familyId, year, majorCategoryId, currency = 'USD') {
+    return request.get('/incomes-analysis/annual/minor-categories', {
+      params: { familyId, year, majorCategoryId, currency }
+    })
+  },
+
+  // 获取年度月度趋势
+  getAnnualMonthlyTrend(familyId, year, majorCategoryId, minorCategoryId, currency = 'USD') {
+    return request.get('/incomes-analysis/annual/monthly-trend', {
+      params: { familyId, year, majorCategoryId, minorCategoryId, currency }
+    })
+  },
+
+  // 刷新年度收入汇总数据
+  refreshAnnualSummary(familyId, year, currency = 'All') {
+    return request.post('/incomes-analysis/annual/refresh', null, {
+      params: { familyId, year, currency }
+    })
+  }
+}
+```
+
+### 4.2 核心组件
+
+#### 4.2.1 IncomeBatchUpdate.vue（批量录入）
+
+**功能**：按月批量录入收入记录
+
+**技术要点**：
+- 表格形式展示所有小类
+- 显示前3个月历史数据供参考
+- 实时计算本月总收入
+- 支持同一期间+同一分类+同一货币的记录更新
+
+**代码片段**：
+```vue
+<template>
+  <div class="batch-update">
+    <!-- 选择器 -->
+    <div class="controls">
+      <select v-model="selectedFamilyId">...</select>
+      <select v-model="selectedCurrency">...</select>
+      <input type="month" v-model="selectedPeriod" />
+      <button @click="saveBatch">保存全部</button>
+    </div>
+
+    <!-- 统计汇总 -->
+    <div class="summary">
+      <div>11月总收入: {{ formatCurrency(history[0].total) }}</div>
+      <div>12月总收入: {{ formatCurrency(history[1].total) }}</div>
+      <div>01月总收入: {{ formatCurrency(history[2].total) }}</div>
+      <div>本月总收入: {{ formatCurrency(currentTotal) }}</div>
+    </div>
+
+    <!-- 录入表格 -->
+    <table>
+      <thead>
+        <tr>
+          <th>分类</th>
+          <th>11月</th>
+          <th>12月</th>
+          <th>01月</th>
+          <th>本月金额</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="category in categories" :key="category.id">
+          <td>{{ category.icon }} {{ category.name }}</td>
+          <td>{{ formatCurrency(getHistory(category, 0)) }}</td>
+          <td>{{ formatCurrency(getHistory(category, 1)) }}</td>
+          <td>{{ formatCurrency(getHistory(category, 2)) }}</td>
+          <td>
+            <input
+              type="number"
+              v-model="category.amount"
+              @input="calculateTotal"
+            />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { incomeRecordAPI, incomeCategoryAPI } from '@/api/income'
+
+const selectedFamilyId = ref(null)
+const selectedCurrency = ref('USD')
+const selectedPeriod = ref(getCurrentPeriod())
+const categories = ref([])
+const history = ref([])
+
+const currentTotal = computed(() => {
+  return categories.value.reduce((sum, cat) =>
+    sum + (parseFloat(cat.amount) || 0), 0
+  )
+})
+
+async function loadCategories() {
+  const response = await incomeCategoryAPI.getAll()
+  categories.value = response.data.flatMap(major =>
+    major.minorCategories.map(minor => ({
+      majorId: major.id,
+      minorId: minor.id,
+      icon: major.icon,
+      name: `${major.chineseName} - ${minor.chineseName}`,
+      amount: 0
+    }))
+  )
+}
+
+async function saveBatch() {
+  const records = categories.value
+    .filter(cat => parseFloat(cat.amount) > 0)
+    .map(cat => ({
+      familyId: selectedFamilyId.value,
+      userId: 1, // TODO: 从登录状态获取
+      majorCategoryId: cat.majorId,
+      minorCategoryId: cat.minorId,
+      period: selectedPeriod.value,
+      amount: parseFloat(cat.amount),
+      currency: selectedCurrency.value
+    }))
+
+  await incomeRecordAPI.batchSave(records)
+  alert('保存成功！')
+}
+
+onMounted(() => {
+  loadCategories()
+  // loadHistory() - 加载前3个月历史数据
+})
+</script>
+```
+
+#### 4.2.2 IncomeAnnual.vue（年度分析）
+
+**功能**：年度收入分析（大类分布 + 小类钻取 + 月度趋势）
+
+**技术要点**：
+- Chart.js 饼图展示大类占比
+- 点击大类钻取到小类分布
+- 点击小类展示月度趋势柱状图
+- 支持同比增长率计算
+
+**组件结构**：
+```vue
+<template>
+  <div class="income-annual">
+    <!-- 筛选控制 -->
+    <div class="controls">
+      <select v-model="selectedYear">...</select>
+      <select v-model="selectedCurrency">...</select>
+      <button @click="refreshData">刷新数据</button>
+    </div>
+
+    <!-- 收入总览 -->
+    <div class="summary-cards">
+      <div class="card">总收入: {{ formatCurrency(totalIncome) }}</div>
+      <div class="card">平均月收入: {{ formatCurrency(totalIncome / 12) }}</div>
+      <div class="card">同比增长: {{ yearOverYearGrowth }}%</div>
+    </div>
+
+    <!-- 大类分布 -->
+    <div class="major-category-section">
+      <div class="chart">
+        <canvas ref="majorCategoryChart"></canvas>
+      </div>
+      <table class="category-table">
+        <tr v-for="cat in majorCategoryData"
+            @click="selectMajorCategory(cat)"
+            :class="{ selected: selectedMajorCategoryId === cat.id }">
+          <td>{{ cat.icon }} {{ cat.name }}</td>
+          <td>{{ formatCurrency(cat.amount) }}</td>
+          <td>{{ cat.percentage }}%</td>
+          <td>{{ cat.yoyGrowth }}%</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- 小类分布（钻取） -->
+    <div v-if="selectedMajorCategoryId" class="minor-category-section">
+      <h3>{{ selectedMajorCategoryName }} - 小类分布</h3>
+      <canvas ref="minorCategoryChart"></canvas>
+      <table>...</table>
+    </div>
+
+    <!-- 月度趋势（钻取） -->
+    <div v-if="selectedMinorCategoryId" class="monthly-trend-section">
+      <h3>{{ selectedMinorCategoryName }} - 月度趋势</h3>
+      <canvas ref="monthlyTrendChart"></canvas>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { Chart } from 'chart.js'
+import { incomeAnalysisAPI } from '@/api/income'
+
+const selectedYear = ref(new Date().getFullYear())
+const majorCategoryData = ref([])
+const selectedMajorCategoryId = ref(null)
+
+async function loadMajorCategoryData() {
+  const response = await incomeAnalysisAPI.getAnnualMajorCategories(
+    selectedFamilyId.value,
+    selectedYear.value,
+    selectedCurrency.value
+  )
+  majorCategoryData.value = response.data
+  updateMajorCategoryChart()
+}
+
+function updateMajorCategoryChart() {
+  const ctx = majorCategoryChart.value.getContext('2d')
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: majorCategoryData.value.map(d => d.name),
+      datasets: [{
+        data: majorCategoryData.value.map(d => d.amount),
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', ...]
+      }]
+    },
+    options: {
+      plugins: {
+        datalabels: {
+          formatter: (value, context) => {
+            const percentage = ((value / totalIncome.value) * 100).toFixed(1)
+            return percentage > 5 ? `${percentage}%` : ''
+          }
+        }
+      }
+    }
+  })
+}
+
+async function selectMajorCategory(category) {
+  selectedMajorCategoryId.value = category.id
+  selectedMajorCategoryName.value = category.name
+
+  const response = await incomeAnalysisAPI.getAnnualMinorCategories(
+    selectedFamilyId.value,
+    selectedYear.value,
+    category.id,
+    selectedCurrency.value
+  )
+  minorCategoryData.value = response.data
+  updateMinorCategoryChart()
+}
+
+onMounted(() => {
+  loadMajorCategoryData()
+})
+
+watch([selectedYear, selectedCurrency], () => {
+  loadMajorCategoryData()
+})
+</script>
+```
+
+### 4.3 路由配置
+
+```javascript
+// router/index.js
+const routes = [
+  {
+    path: '/incomes',
+    component: Layout,
+    meta: { title: '收入管理' },
+    children: [
+      {
+        path: 'batch-update',
+        component: () => import('@/views/incomes/IncomeBatchUpdate.vue'),
+        meta: { title: '批量录入收入' }
+      },
+      {
+        path: 'categories',
+        component: () => import('@/views/incomes/IncomeCategories.vue'),
+        meta: { title: '收入分类管理' }
+      }
+    ]
+  },
+  {
+    path: '/analysis',
+    component: Layout,
+    meta: { title: '数据分析' },
+    children: [
+      {
+        path: 'income-annual',
+        component: () => import('@/views/analysis/IncomeAnnual.vue'),
+        meta: { title: '年度收入分析' }
+      }
+    ]
+  }
+]
+```
+
+---
+
+## 5. 性能优化
+
+### 5.1 数据库层优化
+
+1. **索引优化**：
+   - 复合索引 `idx_family_period` 支持按家庭和期间快速查询
+   - `uk_family_year_category` 唯一索引避免重复数据
+   - `idx_major_category` 支持按大类分组聚合
+
+2. **预聚合表**：
+   - `annual_income_summary` 存储预计算的年度汇总
+   - 减少实时查询 `income_records` 表的复杂聚合
+   - 存储过程批量计算提高效率
+
+3. **冗余字段**：
+   - `amount_usd` 字段避免实时汇率转换
+   - 批量保存时自动计算并存储
+
+### 5.2 服务层优化
+
+1. **批量操作**：
+   ```java
+   @Transactional
+   public List<IncomeRecord> batchSave(List<IncomeRecord> records) {
+       // 单次事务处理多条记录
+       // 减少数据库往返次数
+   }
+   ```
+
+2. **Investment特殊处理**：
+   ```java
+   // 使用InvestmentAnalysisService实时计算
+   // 避免手工维护投资收益记录
+   BigDecimal totalInvestmentReturn = investmentAnalysisService
+       .getAnnualByCategory(familyId, year, currency)
+       .stream()
+       .map(InvestmentCategoryAnalysisDTO::getReturns)
+       .reduce(BigDecimal.ZERO, BigDecimal::add);
+   ```
+
+3. **存储过程调用**：
+   ```java
+   // 使用存储过程批量刷新汇总数据
+   // 比Java代码逐条计算快10-100倍
+   entityManager.createNativeQuery(
+       "CALL sp_refresh_annual_income_summary(:familyId, :year, :currency)"
+   ).executeUpdate();
+   ```
+
+### 5.3 前端优化
+
+1. **懒加载路由**：
+   ```javascript
+   component: () => import('@/views/analysis/IncomeAnnual.vue')
+   ```
+
+2. **图表按需渲染**：
+   ```javascript
+   // 只在用户选择大类后才渲染小类饼图
+   watch(selectedMajorCategoryId, () => {
+     if (selectedMajorCategoryId.value) {
+       updateMinorCategoryChart()
+     }
+   })
+   ```
+
+3. **防抖保存**：
+   ```javascript
+   const debouncedSave = debounce(async () => {
+     await incomeRecordAPI.batchSave(records)
+   }, 1000)
+   ```
+
+---
+
+## 6. 错误处理
+
+### 6.1 后端异常处理
+
+#### 自定义异常
+
+```java
+public class IncomeRecordException extends RuntimeException {
+    private String errorCode;
+
+    public IncomeRecordException(String message) {
+        super(message);
+    }
+
+    public IncomeRecordException(String errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+}
+```
+
+#### 全局异常处理
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(IncomeRecordException.class)
+    public ApiResponse<Void> handleIncomeRecordException(
+            IncomeRecordException ex) {
+        log.error("收入记录异常: {}", ex.getMessage(), ex);
+        return ApiResponse.error(ex.getErrorCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ApiResponse<Void> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+        log.error("数据完整性异常: {}", ex.getMessage(), ex);
+        return ApiResponse.error("DATA_INTEGRITY_ERROR",
+            "违反唯一约束，请检查是否重复记录");
+    }
+}
+```
+
+### 6.2 前端错误处理
+
+#### Axios拦截器
+
+```javascript
+// utils/request.js
+import axios from 'axios'
+
+const request = axios.create({
+  baseURL: '/api',
+  timeout: 30000
+})
+
+request.interceptors.response.use(
+  response => {
+    if (response.data.success) {
+      return response.data
+    } else {
+      throw new Error(response.data.message || '请求失败')
+    }
+  },
+  error => {
+    console.error('请求错误:', error)
+
+    if (error.response?.status === 401) {
+      // 跳转登录页
+      router.push('/login')
+    } else if (error.response?.status === 500) {
+      alert('服务器内部错误，请稍后重试')
+    } else {
+      alert(error.message || '网络错误')
+    }
+
+    return Promise.reject(error)
+  }
+)
+```
+
+#### 组件错误边界
+
+```vue
+<script setup>
+import { ref, onErrorCaptured } from 'vue'
+
+const error = ref(null)
+
+onErrorCaptured((err, instance, info) => {
+  console.error('组件错误:', err, info)
+  error.value = err.message
+  return false // 阻止错误向上传播
+})
+</script>
+
+<template>
+  <div v-if="error" class="error-boundary">
+    <p>发生错误: {{ error }}</p>
+    <button @click="() => error = null">重试</button>
+  </div>
+  <slot v-else />
+</template>
+```
+
+---
+
+## 7. 测试
+
+### 7.1 单元测试
+
+#### Service层测试
+
+```java
+@SpringBootTest
+@Transactional
+class IncomeAnalysisServiceTest {
+
+    @Autowired
+    private IncomeAnalysisService analysisService;
+
+    @Autowired
+    private IncomeRecordRepository incomeRecordRepository;
+
+    @Test
+    void testGetAnnualMajorCategories() {
+        // Given
+        Long familyId = 1L;
+        Integer year = 2025;
+        String currency = "USD";
+
+        // 准备测试数据
+        IncomeRecord record = new IncomeRecord();
+        record.setFamilyId(familyId);
+        record.setPeriod("2025-01");
+        record.setMajorCategoryId(1L);
+        record.setMinorCategoryId(1L);
+        record.setAmount(new BigDecimal("5000"));
+        record.setCurrency(currency);
+        incomeRecordRepository.save(record);
+
+        // When
+        List<AnnualMajorCategoryDTO> result =
+            analysisService.getAnnualMajorCategories(familyId, year, currency);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.size() > 0);
+
+        AnnualMajorCategoryDTO firstCategory = result.get(0);
+        assertEquals(new BigDecimal("5000"), firstCategory.getTotalAmount());
+    }
+
+    @Test
+    void testInvestmentCategorySpecialHandling() {
+        // Given
+        Long familyId = 1L;
+        Integer year = 2025;
+
+        // Mock InvestmentAnalysisService
+        // 验证Investment大类使用实时计算
+
+        // When
+        List<AnnualMajorCategoryDTO> result =
+            analysisService.getAnnualMajorCategories(familyId, year, "USD");
+
+        // Then
+        Optional<AnnualMajorCategoryDTO> investmentCategory = result.stream()
+            .filter(dto -> "Investment".equals(dto.getMajorCategoryName()))
+            .findFirst();
+
+        assertTrue(investmentCategory.isPresent());
+        // 验证金额来自InvestmentAnalysisService而非income_records
+    }
+}
+```
+
+### 7.2 集成测试
+
+#### Controller层测试
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class IncomeAnalysisControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void testGetAnnualMajorCategoriesEndpoint() throws Exception {
+        mockMvc.perform(get("/api/incomes-analysis/annual/major-categories")
+                .param("familyId", "1")
+                .param("year", "2025")
+                .param("currency", "USD"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void testRefreshAnnualSummary() throws Exception {
+        mockMvc.perform(post("/api/incomes-analysis/annual/refresh")
+                .param("familyId", "1")
+                .param("year", "2025")
+                .param("currency", "USD"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+}
+```
+
+### 7.3 前端测试（待完善）
+
+```javascript
+// tests/unit/IncomeAnnual.spec.js
+import { mount } from '@vue/test-utils'
+import IncomeAnnual from '@/views/analysis/IncomeAnnual.vue'
+
+describe('IncomeAnnual.vue', () => {
+  it('renders major category data', async () => {
+    const wrapper = mount(IncomeAnnual, {
+      data() {
+        return {
+          majorCategoryData: [
+            { id: 1, name: 'Salary', amount: 80000 },
+            { id: 2, name: 'Investment', amount: 15000 }
+          ]
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('Salary')
+    expect(wrapper.text()).toContain('Investment')
+  })
+})
+```
+
+---
+
+## 8. 部署
+
+### 8.1 数据库迁移
+
+**Flyway版本控制**：
+
+```
+backend/src/main/resources/db/migration/
+  V16__create_income_tables.sql
+  V17__create_income_stored_procedures.sql
+```
+
+**迁移步骤**：
+1. Spring Boot启动时自动执行Flyway迁移
+2. 检查 `flyway_schema_history` 表确认迁移成功
+3. 验证表结构和初始数据
+
+### 8.2 环境配置
+
+**backend/.env**:
+```properties
+DB_URL=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC
+DB_USERNAME=finance_user
+DB_PASSWORD=your_password
+```
+
+**frontend/.env.production**:
+```properties
+VITE_API_BASE_URL=/api
+```
+
+### 8.3 打包部署
+
+**后端**:
+```bash
+cd backend
+mvn clean package -DskipTests
+java -jar target/finance-backend-1.0.0.jar
+```
+
+**前端**:
+```bash
+cd frontend
+npm run build
+# 部署 dist/ 目录到Nginx或其他静态服务器
+```
+
+### 8.4 监控和日志
+
+**应用日志**:
+```java
+@Slf4j
+public class IncomeAnalysisService {
+    public void refreshAnnualIncomeSummary(...) {
+        log.info("开始刷新年度收入汇总: familyId={}, year={}", familyId, year);
+        // ...
+        log.info("年度收入汇总刷新完成");
+    }
+}
+```
+
+**性能监控**:
+- Spring Boot Actuator: `/actuator/health`, `/actuator/metrics`
+- 数据库慢查询日志: `slow_query_log = ON`
+
+---
+
+## 9. 常见问题 (FAQ)
+
+### Q1: Investment大类为什么使用实时计算？
+
+**A**: 投资收益具有波动性，需要根据最新的资产价格和汇率计算。手工记录无法及时反映市场变化，因此通过 `InvestmentAnalysisService` 实时计算更准确。
+
+### Q2: 如何处理同一期间多货币记录？
+
+**A**: 系统支持同一期间多货币记录。唯一约束包含 `currency` 字段，因此可以同时记录 USD、CNY、EUR 等不同货币的收入。分析时可选择单一货币或 'All' 模式（自动转USD）。
+
+### Q3: 批量保存时如何处理重复记录？
+
+**A**: `batchSave` 方法会检查唯一约束（family_id + period + category + currency）：
+- 如果已存在：更新金额
+- 如果金额为0：删除记录
+- 如果不存在且金额不为0：新增记录
+
+### Q4: 年度汇总刷新的时机？
+
+**A**: 建议在以下情况刷新：
+- 批量录入收入记录后
+- 修改历史收入数据后
+- 定时任务每日凌晨自动刷新（可选）
+
+### Q5: 如何扩展新的大类？
+
+**A**:
+1. 使用 `IncomeCategoryAPI.createMajor()` 添加新大类
+2. 为新大类添加小类
+3. 新大类会自动包含在分析和报表中
+4. 如需特殊处理（如Investment），修改 `IncomeAnalysisService` 添加逻辑
+
+---
+
+## 10. 未来扩展
+
+### 10.1 智能分析
+
+- **收入预测**：基于历史数据预测未来收入趋势
+- **异常检测**：识别异常收入波动并提醒
+- **收入来源优化建议**：根据收入结构提供多元化建议
+
+### 10.2 多维度分析
+
+- **按成员分析**：支持家庭成员维度的收入分析
+- **同期对比**：多年度同期对比分析
+- **与支出关联分析**：收支平衡和储蓄率分析
+
+### 10.3 第三方集成
+
+- **银行流水导入**：自动识别收入类型并导入
+- **工资单OCR**：扫描工资单自动录入
+- **投资账户同步**：自动同步券商账户数据计算投资收益
+
+---
+
+## 附录
+
+### A. API端点汇总
+
+| 端点 | 方法 | 说明 |
 |------|------|------|
-| id | BIGINT | 主键 |
-| name | VARCHAR(100) | 英文名称（唯一） |
-| chinese_name | VARCHAR(100) | 中文名称 |
-| icon | VARCHAR(50) | 图标emoji |
-| color | VARCHAR(20) | 显示颜色（Hex） |
-| display_order | INT | 显示顺序 |
-| is_active | BOOLEAN | 是否启用 |
-| created_at | TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | 更新时间 |
+| `/api/incomes-categories` | GET | 获取所有分类 |
+| `/api/incomes-categories/major` | POST | 新增大类 |
+| `/api/incomes-categories/minor` | POST | 新增小类 |
+| `/api/incomes/batch` | POST | 批量保存记录 |
+| `/api/incomes/period` | GET | 按期间查询 |
+| `/api/incomes-analysis/annual/major-categories` | GET | 年度大类汇总 |
+| `/api/incomes-analysis/annual/minor-categories` | GET | 年度小类汇总 |
+| `/api/incomes-analysis/annual/monthly-trend` | GET | 年度月度趋势 |
+| `/api/incomes-analysis/annual/refresh` | POST | 刷新年度汇总 |
 
-### income_categories_minor（收入小类表）
+### B. 数据库表汇总
 
-| 字段 | 类型 | 说明 |
+| 表名 | 说明 | 行数估算 |
+|------|------|---------|
+| `income_categories_major` | 大类 | 10-20 |
+| `income_categories_minor` | 小类 | 30-100 |
+| `income_records` | 收入记录 | 1000+ |
+| `annual_income_summary` | 年度汇总 | 100+ |
+| `income_budgets` | 预算 | 50+ |
+
+### C. 组件汇总
+
+| 组件 | 路径 | 功能 |
 |------|------|------|
-| id | BIGINT | 主键 |
-| major_category_id | BIGINT | 所属大类ID（外键） |
-| name | VARCHAR(100) | 英文名称 |
-| chinese_name | VARCHAR(100) | 中文名称 |
-| is_active | BOOLEAN | 是否启用 |
-| created_at | TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | 更新时间 |
-
-**唯一约束**：`UNIQUE KEY uk_major_name (major_category_id, name)`
-
-### income_records（收入记录表）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGINT | 主键 |
-| family_id | BIGINT | 家庭ID（外键） |
-| user_id | BIGINT | 用户ID（外键） |
-| asset_account_id | BIGINT | 关联的资产账户ID（外键，可选） |
-| major_category_id | BIGINT | 收入大类ID（外键） |
-| minor_category_id | BIGINT | 收入小类ID（外键，可选） |
-| period | VARCHAR(7) | 周期（YYYY-MM） |
-| amount | DECIMAL(18,2) | 金额（税后实际到账） |
-| currency | VARCHAR(10) | 币种 |
-| amount_usd | DECIMAL(18,2) | 换算成USD的金额 |
-| description | TEXT | 备注 |
-| created_at | TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | 更新时间 |
-
-**唯一约束**：`UNIQUE KEY uk_income (family_id, user_id, period, major_category_id, minor_category_id, currency)`
-
-**索引**：
-- `INDEX idx_family_period (family_id, period)`
-- `INDEX idx_user_period (user_id, period)`
-
-### income_budgets（年度收入预算表）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGINT | 主键 |
-| family_id | BIGINT | 家庭ID（外键） |
-| user_id | BIGINT | 用户ID（外键，NULL表示全家庭） |
-| major_category_id | BIGINT | 收入大类ID（外键） |
-| minor_category_id | BIGINT | 收入小类ID（外键，可选） |
-| year | INT | 年份 |
-| budgeted_amount | DECIMAL(18,2) | 预算金额 |
-| currency | VARCHAR(10) | 币种 |
-| created_at | TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | 更新时间 |
-
-**唯一约束**：`UNIQUE KEY uk_budget (family_id, user_id, major_category_id, minor_category_id, year, currency)`
-
-**索引**：`INDEX idx_family_year (family_id, year)`
-
-## 前端实现要点
-
-### 1. 月度录入界面
-
-**布局**：
-- 左侧：分类树（大类→小类）
-- 右侧：录入表格（金额、币种、资产账户、备注）
-- 顶部：期间选择器（YYYY-MM格式）、家庭成员选择器
-
-**交互**：
-- 点击分类树节点，右侧表格自动添加对应行
-- 支持批量编辑（同时编辑多条记录）
-- 自动保存（失焦/切换焦点时保存）
-- 实时计算USD金额（显示汇率）
-
-### 2. 收入汇总分析
-
-**年度汇总**：
-- 按大类汇总年度收入（柱状图）
-- 按小类钻取查看明细（饼图）
-- 月度趋势分析（折线图）
-
-**预算执行**：
-- 预算vs实际对比（进度条）
-- 超预算/低于预算警示
-
-### 3. 投资收益展示
-
-**特殊处理**：
-- 投资收益记录显示"（系统自动计算）"标签
-- 禁用编辑/删除按钮
-- 点击后跳转到投资管理模块查看详情
-
-## 测试要点
-
-### 1. 唯一性约束测试
-
-**场景**：同一家庭、同一用户、同一期间、同一分类、同一币种
-- 批量保存时应更新现有记录，而非报错
-- 手动创建时应提示"记录已存在"
-
-### 2. 投资收益保护测试
-
-**场景**：尝试手动操作"投资收益"类别
-- 创建：应拒绝并提示"投资收益由系统自动计算"
-- 更新：应拒绝并提示"不能手动更新"
-- 删除：应拒绝并提示"不能手动删除"
-
-### 3. 汇率计算测试
-
-**场景**：录入非USD币种的收入
-- 应自动查询对应日期的汇率
-- 如汇率不存在，应提示用户先添加汇率
-- amount_usd应为 amount * exchange_rate
-
-### 4. 资产账户关联测试
-
-**场景**：关联的资产账户被删除
-- 应仍然保留收入记录
-- asset_account_id变为NULL
-- 不影响收入统计
-
-## 未来扩展
-
-### 1. 收入预测
-
-**基于历史数据**：
-- 分析近12个月的收入趋势
-- 预测下个月的收入范围
-- 识别季节性波动（如年终奖）
-
-### 2. 收入目标管理
-
-**年度目标**：
-- 设置年度收入目标（如"2025年总收入达到$200,000"）
-- 按月追踪进度
-- 预警偏离轨道的情况
-
-### 3. 税务优化建议
-
-**税收分析**：
-- 识别应税收入（工资、奖金）
-- 识别免税收入（部分退休基金贡献）
-- 提供税务优化建议（如增加退休金贡献以降低应税收入）
-
-### 4. 收入vs支出对比
-
-**现金流分析**：
-- 月度收入vs支出对比
-- 净现金流趋势
-- 识别入不敷出的月份
-
-## 总结
-
-收入管理模块的核心设计原则：
-1. **预设分类**：10大类+30+小类，不可修改，确保数据一致性
-2. **投资收益隔离**：自动汇总，禁止手动操作，避免数据冲突
-3. **批量录入**：月度批量保存，提升录入效率
-4. **多币种支持**：自动换算USD金额，便于汇总分析
-5. **资产关联**：追踪资金流向，验证账户余额
-
-这些设计确保收入数据的准确性、一致性和可追溯性，为后续的财务分析和决策提供可靠的数据基础。
+| IncomeBatchUpdate | `/incomes/batch-update` | 批量录入 |
+| IncomeCategories | `/incomes/categories` | 分类管理 |
+| IncomeAnnual | `/analysis/income-annual` | 年度分析 |
+| Dashboard | `/` | 首页（包含收入卡片） |

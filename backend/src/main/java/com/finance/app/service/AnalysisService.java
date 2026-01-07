@@ -2,6 +2,7 @@ package com.finance.app.service;
 
 import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.AssetSummaryDTO;
+import com.finance.app.dto.EnhancedFinancialMetricsDTO;
 import com.finance.app.dto.FinancialMetricsDTO;
 import com.finance.app.dto.OptimizationRecommendationDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
@@ -53,6 +54,7 @@ public class AnalysisService {
     private final ExchangeRateService exchangeRateService;
     private final InvestmentAnalysisService investmentAnalysisService;
     private final com.finance.app.service.expense.ExpenseAnalysisService expenseAnalysisService;
+    private final com.finance.app.service.income.IncomeAnalysisService incomeAnalysisService;
 
     // 获取资产总览
     public AssetSummaryDTO getAssetSummary(Long userId) {
@@ -2925,5 +2927,393 @@ public class AnalysisService {
         result.put("asOfDate", asOfDate != null ? asOfDate.toString() : LocalDate.now().toString());
 
         return result;
+    }
+
+    // ==================== 增强的财务指标计算方法 ====================
+
+    /**
+     * 获取增强的财务指标
+     * 整合资产、负债、收入、支出、投资等全维度数据
+     */
+    public EnhancedFinancialMetricsDTO getEnhancedFinancialMetrics(Long userId, Long familyId, LocalDate asOfDate) {
+        LocalDate targetDate = (asOfDate != null) ? asOfDate : LocalDate.now();
+        Integer currentYear = targetDate.getYear();
+
+        EnhancedFinancialMetricsDTO metrics = new EnhancedFinancialMetricsDTO();
+        metrics.setAsOfDate(targetDate);
+        metrics.setYear(currentYear);
+
+        // 1. 获取基础资产负债数据(复用现有方法)
+        AssetSummaryDTO currentSummary = getAssetSummary(userId, familyId, targetDate);
+        metrics.setTotalAssets(currentSummary.getTotalAssets());
+        metrics.setTotalLiabilities(currentSummary.getTotalLiabilities());
+        metrics.setNetWorth(currentSummary.getNetWorth());
+
+        // 2. 计算资产负债率和流动性比率
+        if (currentSummary.getTotalAssets().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal debtRatio = currentSummary.getTotalLiabilities()
+                .divide(currentSummary.getTotalAssets(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setDebtToAssetRatio(debtRatio);
+        } else {
+            metrics.setDebtToAssetRatio(BigDecimal.ZERO);
+        }
+
+        BigDecimal cashAmount = currentSummary.getAssetsByType().getOrDefault("CASH", BigDecimal.ZERO);
+        metrics.setCashAmount(cashAmount);
+        if (currentSummary.getTotalAssets().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal liquidityRatio = cashAmount
+                .divide(currentSummary.getTotalAssets(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setLiquidityRatio(liquidityRatio);
+        } else {
+            metrics.setLiquidityRatio(BigDecimal.ZERO);
+        }
+
+        // 3. 计算月度和年度变化
+        calculateAssetChanges(metrics, userId, familyId, targetDate);
+
+        // 4. 计算现金流指标
+        calculateCashFlowMetrics(metrics, familyId, currentYear);
+
+        // 5. 计算投资收益指标
+        calculateInvestmentMetrics(metrics, familyId, currentYear);
+
+        // 6. 计算财务健康评分
+        EnhancedFinancialMetricsDTO.HealthScoreDTO healthScore = calculateHealthScore(metrics);
+        metrics.setHealthScore(healthScore);
+
+        return metrics;
+    }
+
+    /**
+     * 计算资产变化(月度和年度)
+     */
+    private void calculateAssetChanges(EnhancedFinancialMetricsDTO metrics, Long userId, Long familyId, LocalDate targetDate) {
+        // 月度变化
+        LocalDate previousMonth = targetDate.minusMonths(1);
+        metrics.setPreviousMonthDate(previousMonth);
+        AssetSummaryDTO previousMonthSummary = getAssetSummary(userId, familyId, previousMonth);
+        metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
+        BigDecimal monthlyChange = metrics.getNetWorth().subtract(previousMonthSummary.getNetWorth());
+        metrics.setMonthlyChange(monthlyChange);
+
+        if (previousMonthSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal monthlyChangeRate = monthlyChange
+                .divide(previousMonthSummary.getNetWorth(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setMonthlyChangeRate(monthlyChangeRate);
+        } else {
+            metrics.setMonthlyChangeRate(BigDecimal.ZERO);
+        }
+
+        // 年度变化
+        LocalDate previousYear = LocalDate.of(targetDate.getYear() - 1, 12, 31);
+        metrics.setPreviousYearDate(previousYear);
+        AssetSummaryDTO previousYearSummary = getAssetSummary(userId, familyId, previousYear);
+        metrics.setPreviousYearNetWorth(previousYearSummary.getNetWorth());
+        BigDecimal yearlyChange = metrics.getNetWorth().subtract(previousYearSummary.getNetWorth());
+        metrics.setYearlyChange(yearlyChange);
+
+        if (previousYearSummary.getNetWorth().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal yearlyChangeRate = yearlyChange
+                .divide(previousYearSummary.getNetWorth(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setYearlyChangeRate(yearlyChangeRate);
+        } else {
+            metrics.setYearlyChangeRate(BigDecimal.ZERO);
+        }
+    }
+
+    /**
+     * 计算现金流指标
+     */
+    private void calculateCashFlowMetrics(EnhancedFinancialMetricsDTO metrics, Long familyId, Integer year) {
+        try {
+            // 1. 获取年度收入汇总
+            List<com.finance.app.dto.income.IncomeAnnualMajorCategoryDTO> incomeSummary =
+                incomeAnalysisService.getAnnualMajorCategorySummary(familyId, year, "USD");
+
+            BigDecimal totalIncome = BigDecimal.ZERO;
+            BigDecimal workIncome = BigDecimal.ZERO;
+            BigDecimal investmentIncome = BigDecimal.ZERO;
+
+            for (com.finance.app.dto.income.IncomeAnnualMajorCategoryDTO category : incomeSummary) {
+                totalIncome = totalIncome.add(category.getTotalAmount());
+
+                // Salary大类 (ID=1)
+                if ("Salary".equals(category.getMajorCategoryName())) {
+                    workIncome = category.getTotalAmount();
+                }
+                // Investment大类 (ID=3)
+                else if ("Investment".equals(category.getMajorCategoryName())) {
+                    investmentIncome = category.getTotalAmount();
+                }
+            }
+
+            metrics.setAnnualTotalIncome(totalIncome);
+            metrics.setAnnualWorkIncome(workIncome);
+            metrics.setAnnualInvestmentIncome(investmentIncome);
+            metrics.setAnnualOtherIncome(totalIncome.subtract(workIncome).subtract(investmentIncome));
+
+        } catch (Exception e) {
+            metrics.setAnnualTotalIncome(BigDecimal.ZERO);
+            metrics.setAnnualWorkIncome(BigDecimal.ZERO);
+            metrics.setAnnualInvestmentIncome(BigDecimal.ZERO);
+            metrics.setAnnualOtherIncome(BigDecimal.ZERO);
+        }
+
+        try {
+            // 2. 获取年度支出汇总
+            List<com.finance.app.dto.expense.AnnualExpenseSummaryDTO> expenseSummary =
+                expenseAnalysisService.getAnnualExpenseSummaryWithAdjustments(familyId, year, "USD", true);
+
+            // 查找总计行 (majorCategoryId == 0)
+            com.finance.app.dto.expense.AnnualExpenseSummaryDTO totalRow = expenseSummary.stream()
+                .filter(item -> item.getMajorCategoryId() != null && item.getMajorCategoryId() == 0L)
+                .findFirst()
+                .orElse(null);
+
+            if (totalRow != null && totalRow.getActualExpenseAmount() != null) {
+                metrics.setAnnualTotalExpense(totalRow.getActualExpenseAmount());
+            } else {
+                metrics.setAnnualTotalExpense(BigDecimal.ZERO);
+            }
+
+        } catch (Exception e) {
+            metrics.setAnnualTotalExpense(BigDecimal.ZERO);
+        }
+
+        // 3. 计算净现金流和储蓄率
+        BigDecimal netCashFlow = metrics.getAnnualTotalIncome().subtract(metrics.getAnnualTotalExpense());
+        metrics.setNetCashFlow(netCashFlow);
+
+        if (metrics.getAnnualTotalIncome().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal savingsRate = netCashFlow
+                .divide(metrics.getAnnualTotalIncome(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setSavingsRate(savingsRate);
+
+            BigDecimal expenseRatio = metrics.getAnnualTotalExpense()
+                .divide(metrics.getAnnualTotalIncome(), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+            metrics.setExpenseRatio(expenseRatio);
+        } else {
+            metrics.setSavingsRate(BigDecimal.ZERO);
+            metrics.setExpenseRatio(BigDecimal.ZERO);
+        }
+
+        // 4. 计算去年同期数据和增长率
+        try {
+            List<com.finance.app.dto.income.IncomeAnnualMajorCategoryDTO> lastYearIncome =
+                incomeAnalysisService.getAnnualMajorCategorySummary(familyId, year - 1, "USD");
+
+            BigDecimal lastYearTotalIncome = lastYearIncome.stream()
+                .map(com.finance.app.dto.income.IncomeAnnualMajorCategoryDTO::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            metrics.setLastYearTotalIncome(lastYearTotalIncome);
+
+            if (lastYearTotalIncome.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal incomeGrowth = metrics.getAnnualTotalIncome()
+                    .subtract(lastYearTotalIncome)
+                    .divide(lastYearTotalIncome, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                metrics.setIncomeGrowthRate(incomeGrowth);
+            }
+
+        } catch (Exception e) {
+            metrics.setLastYearTotalIncome(BigDecimal.ZERO);
+            metrics.setIncomeGrowthRate(BigDecimal.ZERO);
+        }
+
+        try {
+            List<com.finance.app.dto.expense.AnnualExpenseSummaryDTO> lastYearExpense =
+                expenseAnalysisService.getAnnualExpenseSummaryWithAdjustments(familyId, year - 1, "USD", true);
+
+            com.finance.app.dto.expense.AnnualExpenseSummaryDTO lastYearTotal = lastYearExpense.stream()
+                .filter(item -> item.getMajorCategoryId() != null && item.getMajorCategoryId() == 0L)
+                .findFirst()
+                .orElse(null);
+
+            if (lastYearTotal != null && lastYearTotal.getActualExpenseAmount() != null) {
+                metrics.setLastYearTotalExpense(lastYearTotal.getActualExpenseAmount());
+
+                if (lastYearTotal.getActualExpenseAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal expenseGrowth = metrics.getAnnualTotalExpense()
+                        .subtract(lastYearTotal.getActualExpenseAmount())
+                        .divide(lastYearTotal.getActualExpenseAmount(), 4, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"));
+                    metrics.setExpenseGrowthRate(expenseGrowth);
+                }
+            }
+
+        } catch (Exception e) {
+            metrics.setLastYearTotalExpense(BigDecimal.ZERO);
+            metrics.setExpenseGrowthRate(BigDecimal.ZERO);
+        }
+    }
+
+    /**
+     * 计算投资收益指标
+     */
+    private void calculateInvestmentMetrics(EnhancedFinancialMetricsDTO metrics, Long familyId, Integer year) {
+        try {
+            // 1. 获取年度投资大类分析
+            List<com.finance.app.dto.InvestmentCategoryAnalysisDTO> categoryAnalysis =
+                investmentAnalysisService.getAnnualByCategory(familyId, year, "USD");
+
+            BigDecimal totalInvested = BigDecimal.ZERO;
+            BigDecimal currentValue = BigDecimal.ZERO;
+            BigDecimal totalReturns = BigDecimal.ZERO;
+
+            for (com.finance.app.dto.InvestmentCategoryAnalysisDTO category : categoryAnalysis) {
+                // netDeposits = 累计投入, currentAssets = 当前市值, returns = 投资回报
+                totalInvested = totalInvested.add(category.getNetDeposits() != null ? category.getNetDeposits() : BigDecimal.ZERO);
+                currentValue = currentValue.add(category.getCurrentAssets() != null ? category.getCurrentAssets() : BigDecimal.ZERO);
+                totalReturns = totalReturns.add(category.getReturns() != null ? category.getReturns() : BigDecimal.ZERO);
+            }
+
+            metrics.setTotalInvested(totalInvested);
+            metrics.setCurrentInvestmentValue(currentValue);
+            metrics.setTotalInvestmentReturn(totalReturns);
+
+            // 计算收益率
+            if (totalInvested.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal returnRate = totalReturns
+                    .divide(totalInvested, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                metrics.setInvestmentReturnRate(returnRate);
+            } else {
+                metrics.setInvestmentReturnRate(BigDecimal.ZERO);
+            }
+
+            // 2. 提取表现最好的前3个大类
+            List<EnhancedFinancialMetricsDTO.TopInvestmentCategory> topCategories = categoryAnalysis.stream()
+                .filter(cat -> cat.getReturnRate() != null)
+                .sorted((a, b) -> b.getReturnRate().compareTo(a.getReturnRate()))
+                .limit(3)
+                .map(cat -> {
+                    EnhancedFinancialMetricsDTO.TopInvestmentCategory top = new EnhancedFinancialMetricsDTO.TopInvestmentCategory();
+                    top.setCategoryName(cat.getCategoryName());
+                    top.setValue(cat.getCurrentAssets());
+                    top.setReturnRate(cat.getReturnRate());
+                    return top;
+                })
+                .collect(Collectors.toList());
+
+            metrics.setTopCategories(topCategories);
+
+        } catch (Exception e) {
+            metrics.setTotalInvested(BigDecimal.ZERO);
+            metrics.setCurrentInvestmentValue(BigDecimal.ZERO);
+            metrics.setTotalInvestmentReturn(BigDecimal.ZERO);
+            metrics.setInvestmentReturnRate(BigDecimal.ZERO);
+            metrics.setTopCategories(new ArrayList<>());
+        }
+    }
+
+    /**
+     * 计算财务健康评分
+     */
+    private EnhancedFinancialMetricsDTO.HealthScoreDTO calculateHealthScore(EnhancedFinancialMetricsDTO metrics) {
+        EnhancedFinancialMetricsDTO.HealthScoreDTO healthScore = new EnhancedFinancialMetricsDTO.HealthScoreDTO();
+        EnhancedFinancialMetricsDTO.HealthScoreDTO.ScoreBreakdown scores = new EnhancedFinancialMetricsDTO.HealthScoreDTO.ScoreBreakdown();
+        List<String> recommendations = new ArrayList<>();
+
+        // 1. 资产负债管理 (0-25分)
+        BigDecimal debtRatio = metrics.getDebtToAssetRatio();
+        if (debtRatio.compareTo(new BigDecimal("30")) < 0) {
+            scores.setDebtManagement(new BigDecimal("25"));
+        } else if (debtRatio.compareTo(new BigDecimal("50")) < 0) {
+            scores.setDebtManagement(new BigDecimal("20"));
+        } else if (debtRatio.compareTo(new BigDecimal("70")) < 0) {
+            scores.setDebtManagement(new BigDecimal("15"));
+            recommendations.add("资产负债率偏高，建议加快债务偿还");
+        } else {
+            scores.setDebtManagement(new BigDecimal("10"));
+            recommendations.add("资产负债率过高,需优先处理债务问题");
+        }
+
+        // 2. 流动性管理 (0-20分)
+        BigDecimal liquidityRatio = metrics.getLiquidityRatio();
+        if (liquidityRatio.compareTo(new BigDecimal("20")) >= 0) {
+            scores.setLiquidity(new BigDecimal("20"));
+        } else if (liquidityRatio.compareTo(new BigDecimal("15")) >= 0) {
+            scores.setLiquidity(new BigDecimal("16"));
+        } else if (liquidityRatio.compareTo(new BigDecimal("10")) >= 0) {
+            scores.setLiquidity(new BigDecimal("12"));
+            recommendations.add("流动性比率" + liquidityRatio.setScale(1, RoundingMode.HALF_UP) + "%，建议提升至20%以上");
+        } else {
+            scores.setLiquidity(new BigDecimal("8"));
+            recommendations.add("流动性不足，建议增加应急资金储备");
+        }
+
+        // 3. 储蓄能力 (0-25分)
+        BigDecimal savingsRate = metrics.getSavingsRate();
+        if (savingsRate.compareTo(new BigDecimal("30")) > 0) {
+            scores.setSavings(new BigDecimal("25"));
+        } else if (savingsRate.compareTo(new BigDecimal("20")) >= 0) {
+            scores.setSavings(new BigDecimal("20"));
+        } else if (savingsRate.compareTo(new BigDecimal("10")) >= 0) {
+            scores.setSavings(new BigDecimal("15"));
+            recommendations.add("储蓄率偏低，建议提升至20%以上");
+        } else {
+            scores.setSavings(new BigDecimal("10"));
+            recommendations.add("储蓄率过低，建议控制支出并增加储蓄");
+        }
+
+        // 4. 投资收益 (0-20分)
+        BigDecimal investmentReturn = metrics.getInvestmentReturnRate();
+        if (investmentReturn.compareTo(new BigDecimal("15")) > 0) {
+            scores.setInvestment(new BigDecimal("20"));
+        } else if (investmentReturn.compareTo(new BigDecimal("10")) >= 0) {
+            scores.setInvestment(new BigDecimal("16"));
+        } else if (investmentReturn.compareTo(new BigDecimal("5")) >= 0) {
+            scores.setInvestment(new BigDecimal("12"));
+            recommendations.add("投资收益率" + investmentReturn.setScale(1, RoundingMode.HALF_UP) + "%，考虑优化投资组合");
+        } else {
+            scores.setInvestment(new BigDecimal("8"));
+            recommendations.add("投资收益率偏低，建议重新评估投资策略");
+        }
+
+        // 5. 资产增长 (0-10分)
+        BigDecimal growthRate = metrics.getYearlyChangeRate();
+        if (growthRate.compareTo(new BigDecimal("15")) > 0) {
+            scores.setGrowth(new BigDecimal("10"));
+        } else if (growthRate.compareTo(new BigDecimal("10")) >= 0) {
+            scores.setGrowth(new BigDecimal("8"));
+        } else if (growthRate.compareTo(new BigDecimal("5")) >= 0) {
+            scores.setGrowth(new BigDecimal("6"));
+        } else {
+            scores.setGrowth(new BigDecimal("4"));
+            recommendations.add("资产增长缓慢，建议优化资产配置");
+        }
+
+        // 计算总分
+        BigDecimal totalScore = scores.getDebtManagement()
+            .add(scores.getLiquidity())
+            .add(scores.getSavings())
+            .add(scores.getInvestment())
+            .add(scores.getGrowth());
+
+        healthScore.setTotalScore(totalScore);
+        healthScore.setScores(scores);
+
+        // 确定等级
+        if (totalScore.compareTo(new BigDecimal("90")) >= 0) {
+            healthScore.setGrade("A+");
+        } else if (totalScore.compareTo(new BigDecimal("80")) >= 0) {
+            healthScore.setGrade("A");
+        } else if (totalScore.compareTo(new BigDecimal("70")) >= 0) {
+            healthScore.setGrade("B");
+        } else if (totalScore.compareTo(new BigDecimal("60")) >= 0) {
+            healthScore.setGrade("C");
+        } else {
+            healthScore.setGrade("D");
+        }
+
+        healthScore.setRecommendations(recommendations);
+
+        return healthScore;
     }
 }

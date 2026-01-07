@@ -5,6 +5,7 @@ import com.finance.app.dto.AIAdviceResponseDTO;
 import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.ApiResponse;
 import com.finance.app.dto.AssetSummaryDTO;
+import com.finance.app.dto.EnhancedFinancialMetricsDTO;
 import com.finance.app.dto.FinancialMetricsDTO;
 import com.finance.app.dto.OptimizationRecommendationDTO;
 import com.finance.app.dto.OverallTrendDataPointDTO;
@@ -239,6 +240,16 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
         FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, familyId, asOfDate);
+        return ApiResponse.success(metrics);
+    }
+
+    // 获取增强的财务指标（整合收入、支出、投资等全维度数据）
+    @GetMapping("/financial-metrics/enhanced")
+    public ApiResponse<EnhancedFinancialMetricsDTO> getEnhancedFinancialMetrics(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long familyId,
+            @RequestParam(required = false) LocalDate asOfDate) {
+        EnhancedFinancialMetricsDTO metrics = analysisService.getEnhancedFinancialMetrics(userId, familyId, asOfDate);
         return ApiResponse.success(metrics);
     }
 
