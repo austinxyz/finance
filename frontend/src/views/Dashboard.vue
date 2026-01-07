@@ -35,40 +35,40 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">当前净资产</div>
-        <div class="text-2xl font-bold text-blue-600">${{ formatAmount(financialMetrics.currentNetWorth) }}</div>
-        <p class="text-xs text-gray-500 mt-1">Current Net Worth</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">当前净资产</div>
+        <div class="text-lg font-bold text-blue-600">${{ formatAmount(summaryData.netWorth) }}</div>
       </div>
 
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">去年净资产</div>
-        <div class="text-2xl font-bold text-gray-600">${{ formatAmount(financialMetrics.lastYearNetWorth) }}</div>
-        <p class="text-xs text-gray-500 mt-1">Last Year Net Worth</p>
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">{{ currentYear }}年职业收入</div>
+        <div class="text-lg font-bold text-green-600">${{ formatAmount(careerIncome) }}</div>
       </div>
 
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年实际支出</div>
-        <div class="text-2xl font-bold text-orange-600">${{ formatAmount(financialMetrics.annualExpense) }}</div>
-        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Expense</p>
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">{{ currentYear }}年实际支出</div>
+        <div class="text-lg font-bold text-orange-600">${{ formatAmount(actualExpense) }}</div>
       </div>
 
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年投资回报</div>
-        <div class="text-2xl font-bold" :class="getReturnColor(financialMetrics.annualInvestmentReturn)">${{ formatAmountWithSign(financialMetrics.annualInvestmentReturn) }}</div>
-        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Investment Return</p>
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">{{ currentYear }}年投资回报</div>
+        <div class="text-lg font-bold" :class="getReturnColor(investmentReturn)">${{ formatAmountWithSign(investmentReturn) }}</div>
       </div>
 
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div class="text-sm font-medium text-gray-600 mb-2">{{ currentYear }}年工作收入</div>
-        <div class="text-2xl font-bold text-green-600">${{ formatAmount(financialMetrics.annualWorkIncome) }}</div>
-        <p class="text-xs text-gray-500 mt-1">{{ currentYear }} Work Income</p>
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">当前总资产</div>
+        <div class="text-lg font-bold text-emerald-600">${{ formatAmount(summaryData.totalAssets) }}</div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-600 mb-1">当前总负债</div>
+        <div class="text-lg font-bold text-red-600">${{ formatAmount(summaryData.totalLiabilities) }}</div>
       </div>
     </div>
 
-    <!-- 净资产分布 + 本年度实际支出 (优先显示) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- 分布图表 - 第一行 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- 净资产分布 -->
       <div class="bg-white rounded-lg shadow border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -96,6 +96,36 @@
             <div class="flex items-center justify-between text-sm pt-2 border-t border-gray-200 font-semibold">
               <span class="text-gray-700">净资产总计</span>
               <span class="text-blue-600">${{ formatAmount(netWorth) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 职业收入分布 -->
+      <div class="bg-white rounded-lg shadow border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">{{ currentYear }}年职业收入</h2>
+          <p class="text-xs text-gray-500 mt-1">排除投资收益</p>
+        </div>
+        <div class="p-6">
+          <div v-if="loadingIncome" class="text-sm text-gray-500 text-center py-8">
+            加载中...
+          </div>
+          <div v-else-if="incomeCategories.length === 0" class="text-sm text-gray-500 text-center py-8">
+            暂无收入数据
+          </div>
+          <div v-else>
+            <div class="h-48">
+              <canvas ref="incomeChartCanvas"></canvas>
+            </div>
+            <div class="mt-4 space-y-1 max-h-40 overflow-y-auto text-xs">
+              <div v-for="category in incomeCategories" :key="category.id" class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: category.color }"></div>
+                  <span class="text-gray-700">{{ category.name }}</span>
+                </div>
+                <span class="text-gray-900 font-medium">${{ formatAmount(category.amount) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -402,6 +432,7 @@ import { assetAccountAPI, liabilityAccountAPI, familyAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
 import { annualSummaryAPI } from '@/api/annualSummary'
 import { expenseAnalysisAPI } from '@/api/expense'
+import { incomeAnalysisAPI } from '@/api/income'
 import GoogleSheetsSync from '@/components/GoogleSheetsSync.vue'
 import {
   Chart as ChartJS,
@@ -538,6 +569,7 @@ const summaryData = ref({ totalAssets: 0, totalLiabilities: 0, netWorth: 0 })
 const loading = ref(false)
 const loadingTrend = ref(false)
 const loadingExpense = ref(false)
+const loadingIncome = ref(false)
 
 // 财务指标数据
 const financialMetrics = ref({
@@ -554,15 +586,18 @@ const liabilityChartCanvas = ref(null)
 const netWorthChartCanvas = ref(null)
 const annualNetWorthChartCanvas = ref(null)
 const expenseChartCanvas = ref(null)
+const incomeChartCanvas = ref(null)
 let assetChartInstance = null
 let liabilityChartInstance = null
 let netWorthChartInstance = null
 let annualNetWorthChartInstance = null
 let expenseChartInstance = null
+let incomeChartInstance = null
 
 // 使用当前年份
 const currentYear = ref(new Date().getFullYear())
 const annualExpenseSummary = ref([])
+const annualIncomeSummary = ref([])
 
 const selectedTimeRange = ref('3y')
 const timeRanges = [
@@ -762,6 +797,43 @@ const expenseCategories = computed(() => {
 // 总支出
 const totalExpense = computed(() => {
   return expenseCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
+})
+
+// 收入分类统计（本年度职业收入，排除投资收益）
+const incomeCategories = computed(() => {
+  // 过滤出大类汇总（minorCategoryName为null或minorCategoryId为null）
+  // 排除投资收益 (majorCategoryName 包含 "投资" 或 "Investment")
+  const majorCategories = annualIncomeSummary.value.filter(
+    item => !item.minorCategoryName && item.majorCategoryId !== 0 &&
+      !item.majorCategoryName?.includes('投资') && !item.majorCategoryName?.includes('Investment')
+  )
+
+  if (majorCategories.length === 0) return []
+
+  const total = majorCategories.reduce((sum, cat) => sum + Number(cat.actualIncomeAmount || 0), 0)
+
+  return majorCategories.map((cat, index) => ({
+    id: cat.majorCategoryId,
+    name: cat.majorCategoryChineseName || cat.majorCategoryName,
+    amount: Number(cat.actualIncomeAmount || 0),
+    color: CHART_COLORS[index % CHART_COLORS.length],
+    percentage: total > 0 ? ((Number(cat.actualIncomeAmount || 0) / total) * 100).toFixed(1) : '0.0'
+  })).filter(cat => cat.amount > 0).sort((a, b) => b.amount - a.amount)
+})
+
+// 职业收入总计（排除投资收益）
+const careerIncome = computed(() => {
+  return incomeCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
+})
+
+// 实际支出总计
+const actualExpense = computed(() => {
+  return totalExpense.value
+})
+
+// 投资回报（使用财务指标中的数据）
+const investmentReturn = computed(() => {
+  return financialMetrics.value.annualInvestmentReturn || 0
 })
 
 // 获取变化百分比的颜色类
@@ -1285,6 +1357,41 @@ function updateExpenseChart() {
   })
 }
 
+// 更新收入分布图表
+function updateIncomeChart() {
+  if (!incomeChartCanvas.value || incomeCategories.value.length === 0) {
+    if (incomeChartInstance) {
+      incomeChartInstance.destroy()
+      incomeChartInstance = null
+    }
+    return
+  }
+
+  if (incomeChartInstance) {
+    incomeChartInstance.destroy()
+    incomeChartInstance = null
+  }
+
+  const ctx = incomeChartCanvas.value.getContext('2d')
+
+  incomeChartInstance = new ChartJS(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: incomeCategories.value.map(c => c.name),
+      datasets: [{
+        data: incomeCategories.value.map(c => c.amount),
+        backgroundColor: incomeCategories.value.map(c => c.color),
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff',
+        hoverOffset: 10
+      }]
+    },
+    options: createDoughnutChartOptions(formatAmount, true)
+  })
+}
+
 // 加载年度支出汇总数据
 async function loadAnnualExpenseSummary() {
   loadingExpense.value = true
@@ -1315,6 +1422,38 @@ async function loadAnnualExpenseSummary() {
     annualExpenseSummary.value = []
   } finally {
     loadingExpense.value = false
+  }
+}
+
+// 加载年度收入汇总数据
+async function loadAnnualIncomeSummary() {
+  loadingIncome.value = true
+  try {
+    console.log('开始加载年度收入汇总, familyId:', familyId.value, 'year:', currentYear.value)
+    const response = await incomeAnalysisAPI.getAnnualMajorCategories(
+      familyId.value,
+      currentYear.value,
+      'USD'
+    )
+    console.log('年度收入响应:', response)
+
+    if (response.success) {
+      annualIncomeSummary.value = response.data || []
+      console.log('年度收入数据已设置:', annualIncomeSummary.value.length, '条记录')
+      // 使用setTimeout确保DOM完全渲染后再更新图表
+      setTimeout(() => {
+        if (incomeChartCanvas.value && incomeCategories.value.length > 0) {
+          updateIncomeChart()
+        }
+      }, 200)
+    } else {
+      console.warn('年度收入响应失败或无数据:', response)
+    }
+  } catch (error) {
+    console.error('加载年度收入汇总失败:', error)
+    annualIncomeSummary.value = []
+  } finally {
+    loadingIncome.value = false
   }
 }
 
@@ -1390,6 +1529,7 @@ function onFamilyChange() {
   loadAccounts()
   loadOverallTrend()
   loadAnnualExpenseSummary()
+  loadAnnualIncomeSummary()
 }
 
 
@@ -1407,12 +1547,21 @@ watch(expenseCategories, async () => {
   }
 }, { deep: true })
 
+// 监听收入数据变化，自动更新图表
+watch(incomeCategories, async () => {
+  if (incomeCategories.value.length > 0) {
+    await nextTick()
+    updateIncomeChart()
+  }
+}, { deep: true })
+
 // 监听familyId变化，自动加载数据
 watch(familyId, (newId) => {
   if (newId) {
     loadAccounts()
     loadOverallTrend()
     loadAnnualExpenseSummary()
+    loadAnnualIncomeSummary()
   }
 })
 
@@ -1434,6 +1583,10 @@ function destroyAllCharts() {
     expenseChartInstance.destroy()
     expenseChartInstance = null
   }
+  if (incomeChartInstance) {
+    incomeChartInstance.destroy()
+    incomeChartInstance = null
+  }
   if (annualNetWorthChartInstance) {
     annualNetWorthChartInstance.destroy()
     annualNetWorthChartInstance = null
@@ -1450,6 +1603,7 @@ function handleResize() {
     if (netAssetCategories.value.length > 0) updateNetWorthChart()
     if (assetCategories.value.length > 0) updateAssetChart()
     if (liabilityCategories.value.length > 0) updateLiabilityChart()
+    if (incomeCategories.value.length > 0) updateIncomeChart()
     if (expenseCategories.value.length > 0) updateExpenseChart()
     if (overallTrendData.value.length > 0) updateAnnualNetWorthChart()
   }, 250) // 250ms 防抖
