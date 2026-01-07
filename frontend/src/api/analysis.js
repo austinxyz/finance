@@ -167,6 +167,15 @@ export const analysisAPI = {
     return request.get('/analysis/financial-metrics', { params })
   },
 
+  // 获取增强的财务指标（整合收入、支出、投资等全维度数据）
+  getEnhancedFinancialMetrics(userId = null, familyId = null, asOfDate = null) {
+    const params = {}
+    if (userId) params.userId = userId
+    if (familyId) params.familyId = familyId
+    if (asOfDate) params.asOfDate = asOfDate
+    return request.get('/analysis/financial-metrics/enhanced', { params })
+  },
+
   // 获取风险评估
   getRiskAssessment(userId = null, familyId = null, asOfDate = null) {
     const params = {}

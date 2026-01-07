@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="text-xs md:text-sm text-gray-600">
-        <span v-if="!selectedDate && metrics.asOfDate" class="flex items-center gap-2">
+        <span v-if="!selectedDate && enhancedMetrics.asOfDate" class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -45,15 +45,15 @@
           </svg>
           <span>
             <span class="font-medium text-gray-700">数据日期:</span>
-            <span class="text-blue-600 font-semibold">{{ formatDate(metrics.asOfDate) }}</span>
+            <span class="text-blue-600 font-semibold">{{ formatDate(enhancedMetrics.asOfDate) }}</span>
             <span class="text-gray-500 ml-2">(显示最新可用数据)</span>
           </span>
         </span>
         <span v-else-if="selectedDate">
           <span class="font-medium text-gray-700">查询日期:</span> {{ selectedDate }}
-          <span v-if="metrics.asOfDate && metrics.asOfDate !== selectedDate" class="ml-2">
+          <span v-if="enhancedMetrics.asOfDate && enhancedMetrics.asOfDate !== selectedDate" class="ml-2">
             <span class="text-gray-500">→ 实际数据日期: </span>
-            <span class="text-blue-600 font-semibold">{{ formatDate(metrics.asOfDate) }}</span>
+            <span class="text-blue-600 font-semibold">{{ formatDate(enhancedMetrics.asOfDate) }}</span>
           </span>
         </span>
       </div>
@@ -72,7 +72,7 @@
         <div class="bg-white rounded-lg shadow p-4 md:p-6 border-l-4 border-green-500">
           <div class="text-xs md:text-sm text-gray-500 mb-1">总资产</div>
           <div class="text-lg md:text-2xl font-bold text-green-600">
-            ${{ formatNumber(metrics.totalAssets) }}
+            ${{ formatNumber(enhancedMetrics.totalAssets) }}
           </div>
         </div>
 
@@ -80,7 +80,7 @@
         <div class="bg-white rounded-lg shadow p-4 md:p-6 border-l-4 border-red-500">
           <div class="text-xs md:text-sm text-gray-500 mb-1">总负债</div>
           <div class="text-lg md:text-2xl font-bold text-red-600">
-            ${{ formatNumber(metrics.totalLiabilities) }}
+            ${{ formatNumber(enhancedMetrics.totalLiabilities) }}
           </div>
         </div>
 
@@ -88,7 +88,7 @@
         <div class="bg-white rounded-lg shadow p-4 md:p-6 border-l-4 border-blue-500">
           <div class="text-xs md:text-sm text-gray-500 mb-1">净资产</div>
           <div class="text-lg md:text-2xl font-bold text-blue-600">
-            ${{ formatNumber(metrics.netWorth) }}
+            ${{ formatNumber(enhancedMetrics.netWorth) }}
           </div>
         </div>
       </div>
@@ -104,10 +104,10 @@
               <div class="text-xs text-gray-500 mt-1">总负债 / 总资产</div>
             </div>
             <div class="text-right">
-              <div class="text-lg md:text-2xl font-bold" :class="getDebtRatioColor(metrics.debtToAssetRatio)">
-                {{ formatNumber(metrics.debtToAssetRatio) }}%
+              <div class="text-lg md:text-2xl font-bold" :class="getDebtRatioColor(enhancedMetrics.debtToAssetRatio)">
+                {{ formatNumber(enhancedMetrics.debtToAssetRatio) }}%
               </div>
-              <div class="text-xs text-gray-500 mt-1">{{ getDebtRatioLevel(metrics.debtToAssetRatio) }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ getDebtRatioLevel(enhancedMetrics.debtToAssetRatio) }}</div>
             </div>
           </div>
 
@@ -118,10 +118,10 @@
               <div class="text-xs text-gray-500 mt-1">现金类资产 / 总资产</div>
             </div>
             <div class="text-right">
-              <div class="text-lg md:text-2xl font-bold" :class="getLiquidityRatioColor(metrics.liquidityRatio)">
-                {{ formatNumber(metrics.liquidityRatio) }}%
+              <div class="text-lg md:text-2xl font-bold" :class="getLiquidityRatioColor(enhancedMetrics.liquidityRatio)">
+                {{ formatNumber(enhancedMetrics.liquidityRatio) }}%
               </div>
-              <div class="text-xs text-gray-500 mt-1">现金: ${{ formatNumber(metrics.cashAmount) }}</div>
+              <div class="text-xs text-gray-500 mt-1">现金: ${{ formatNumber(enhancedMetrics.cashAmount) }}</div>
             </div>
           </div>
         </div>
@@ -136,25 +136,25 @@
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-3">
               <div class="text-xs md:text-sm font-medium text-gray-700">月度变化</div>
               <div class="text-xs text-gray-500">
-                {{ metrics.previousMonthDate ? formatDate(metrics.previousMonthDate) : '-' }} → {{ formatDate(metrics.asOfDate) }}
+                {{ enhancedMetrics.previousMonthDate ? formatDate(enhancedMetrics.previousMonthDate) : '-' }} → {{ formatDate(enhancedMetrics.asOfDate) }}
               </div>
             </div>
             <div class="space-y-2">
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
                 <span class="text-xs md:text-sm text-gray-600">变化金额</span>
-                <span class="font-semibold" :class="getChangeColor(metrics.monthlyChange)">
-                  {{ metrics.monthlyChange >= 0 ? '+' : '' }}${{ formatNumber(metrics.monthlyChange) }}
+                <span class="font-semibold" :class="getChangeColor(enhancedMetrics.monthlyChange)">
+                  {{ enhancedMetrics.monthlyChange >= 0 ? '+' : '' }}${{ formatNumber(enhancedMetrics.monthlyChange) }}
                 </span>
               </div>
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
                 <span class="text-xs md:text-sm text-gray-600">变化率</span>
-                <span class="font-semibold" :class="getChangeColor(metrics.monthlyChange)">
-                  {{ metrics.monthlyChangeRate >= 0 ? '+' : '' }}{{ formatNumber(metrics.monthlyChangeRate) }}%
+                <span class="font-semibold" :class="getChangeColor(enhancedMetrics.monthlyChange)">
+                  {{ enhancedMetrics.monthlyChangeRate >= 0 ? '+' : '' }}{{ formatNumber(enhancedMetrics.monthlyChangeRate) }}%
                 </span>
               </div>
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 pt-2 border-t border-gray-100">
                 <span class="text-xs text-gray-500">上月净资产</span>
-                <span class="text-xs text-gray-600">${{ formatNumber(metrics.previousMonthNetWorth) }}</span>
+                <span class="text-xs text-gray-600">${{ formatNumber(enhancedMetrics.previousMonthNetWorth) }}</span>
               </div>
             </div>
           </div>
@@ -164,69 +164,78 @@
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-3">
               <div class="text-xs md:text-sm font-medium text-gray-700">年度变化</div>
               <div class="text-xs text-gray-500">
-                {{ metrics.previousYearDate ? formatDate(metrics.previousYearDate) : '-' }} → {{ formatDate(metrics.asOfDate) }}
+                {{ enhancedMetrics.previousYearDate ? formatDate(enhancedMetrics.previousYearDate) : '-' }} → {{ formatDate(enhancedMetrics.asOfDate) }}
               </div>
             </div>
             <div class="space-y-2">
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
                 <span class="text-xs md:text-sm text-gray-600">变化金额</span>
-                <span class="font-semibold" :class="getChangeColor(metrics.yearlyChange)">
-                  {{ metrics.yearlyChange >= 0 ? '+' : '' }}${{ formatNumber(metrics.yearlyChange) }}
+                <span class="font-semibold" :class="getChangeColor(enhancedMetrics.yearlyChange)">
+                  {{ enhancedMetrics.yearlyChange >= 0 ? '+' : '' }}${{ formatNumber(enhancedMetrics.yearlyChange) }}
                 </span>
               </div>
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
                 <span class="text-xs md:text-sm text-gray-600">变化率</span>
-                <span class="font-semibold" :class="getChangeColor(metrics.yearlyChange)">
-                  {{ metrics.yearlyChangeRate >= 0 ? '+' : '' }}{{ formatNumber(metrics.yearlyChangeRate) }}%
+                <span class="font-semibold" :class="getChangeColor(enhancedMetrics.yearlyChange)">
+                  {{ enhancedMetrics.yearlyChangeRate >= 0 ? '+' : '' }}{{ formatNumber(enhancedMetrics.yearlyChangeRate) }}%
                 </span>
               </div>
               <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 pt-2 border-t border-gray-100">
                 <span class="text-xs text-gray-500">去年同期净资产</span>
-                <span class="text-xs text-gray-600">${{ formatNumber(metrics.previousYearNetWorth) }}</span>
+                <span class="text-xs text-gray-600">${{ formatNumber(enhancedMetrics.previousYearNetWorth) }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 财务健康度评估 -->
+      <!-- 财务健康度评估（简化版） -->
       <div class="bg-white rounded-lg shadow p-3 md:p-6">
-        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">财务健康度评估</h3>
+        <h3 class="text-md md:text-lg font-semibold text-gray-900 mb-4">财务健康度评估（简化版）</h3>
         <div class="space-y-4">
           <!-- 负债压力 -->
           <div class="flex items-start gap-2 md:gap-3">
-            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getDebtPressureIcon(metrics.debtToAssetRatio).bgClass">
-              <span class="text-base md:text-lg">{{ getDebtPressureIcon(metrics.debtToAssetRatio).icon }}</span>
+            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getDebtPressureIcon(enhancedMetrics.debtToAssetRatio).bgClass">
+              <span class="text-base md:text-lg">{{ getDebtPressureIcon(enhancedMetrics.debtToAssetRatio).icon }}</span>
             </div>
             <div class="flex-1">
               <div class="text-sm md:text-base font-medium text-gray-900">负债压力</div>
-              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getDebtPressureMessage(metrics.debtToAssetRatio) }}</div>
+              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getDebtPressureMessage(enhancedMetrics.debtToAssetRatio) }}</div>
             </div>
           </div>
 
           <!-- 流动性状况 -->
           <div class="flex items-start gap-2 md:gap-3">
-            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getLiquidityIcon(metrics.liquidityRatio).bgClass">
-              <span class="text-base md:text-lg">{{ getLiquidityIcon(metrics.liquidityRatio).icon }}</span>
+            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getLiquidityIcon(enhancedMetrics.liquidityRatio).bgClass">
+              <span class="text-base md:text-lg">{{ getLiquidityIcon(enhancedMetrics.liquidityRatio).icon }}</span>
             </div>
             <div class="flex-1">
               <div class="text-sm md:text-base font-medium text-gray-900">流动性状况</div>
-              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getLiquidityMessage(metrics.liquidityRatio) }}</div>
+              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getLiquidityMessage(enhancedMetrics.liquidityRatio) }}</div>
             </div>
           </div>
 
           <!-- 资产增长 -->
           <div class="flex items-start gap-2 md:gap-3">
-            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getGrowthIcon(metrics.yearlyChangeRate).bgClass">
-              <span class="text-base md:text-lg">{{ getGrowthIcon(metrics.yearlyChangeRate).icon }}</span>
+            <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center" :class="getGrowthIcon(enhancedMetrics.yearlyChangeRate).bgClass">
+              <span class="text-base md:text-lg">{{ getGrowthIcon(enhancedMetrics.yearlyChangeRate).icon }}</span>
             </div>
             <div class="flex-1">
               <div class="text-sm md:text-base font-medium text-gray-900">资产增长</div>
-              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getGrowthMessage(metrics.yearlyChangeRate) }}</div>
+              <div class="text-xs md:text-sm text-gray-600 mt-1">{{ getGrowthMessage(enhancedMetrics.yearlyChangeRate) }}</div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- 现金流分析 -->
+      <CashFlowMetrics :metrics="enhancedMetrics" />
+
+      <!-- 投资收益概览 -->
+      <InvestmentMetrics :metrics="enhancedMetrics" />
+
+      <!-- 财务健康评分 -->
+      <HealthScoreCard :health-score="enhancedMetrics.healthScore" />
     </div>
   </div>
 </template>
@@ -235,12 +244,16 @@
 import { ref, onMounted, watch } from 'vue'
 import { analysisAPI } from '@/api/analysis'
 import { familyAPI } from '@/api/family'
+import CashFlowMetrics from '@/components/metrics/CashFlowMetrics.vue'
+import InvestmentMetrics from '@/components/metrics/InvestmentMetrics.vue'
+import HealthScoreCard from '@/components/metrics/HealthScoreCard.vue'
 
 const loading = ref(false)
 const selectedDate = ref('')
 const families = ref([])
 const selectedFamilyId = ref(null) // 将从默认家庭API获取
-const metrics = ref({
+const enhancedMetrics = ref({
+  // 基础指标
   totalAssets: 0,
   totalLiabilities: 0,
   netWorth: 0,
@@ -255,7 +268,37 @@ const metrics = ref({
   previousMonthDate: '',
   previousYearDate: '',
   previousMonthNetWorth: 0,
-  previousYearNetWorth: 0
+  previousYearNetWorth: 0,
+  // 现金流指标
+  annualTotalIncome: 0,
+  annualWorkIncome: 0,
+  annualInvestmentIncome: 0,
+  annualOtherIncome: 0,
+  annualTotalExpense: 0,
+  netCashFlow: 0,
+  savingsRate: 0,
+  expenseRatio: 0,
+  incomeGrowthRate: 0,
+  expenseGrowthRate: 0,
+  // 投资指标
+  totalInvested: 0,
+  currentInvestmentValue: 0,
+  totalInvestmentReturn: 0,
+  investmentReturnRate: 0,
+  topCategories: [],
+  // 健康评分
+  healthScore: {
+    totalScore: 0,
+    grade: 'D',
+    scores: {
+      debtManagement: 0,
+      liquidity: 0,
+      savings: 0,
+      investment: 0,
+      growth: 0
+    },
+    recommendations: []
+  }
 })
 
 // 格式化数字
@@ -353,9 +396,9 @@ const getGrowthMessage = (rate) => {
 const loadMetrics = async () => {
   loading.value = true
   try {
-    const response = await analysisAPI.getFinancialMetrics(null, selectedFamilyId.value, selectedDate.value || null)
+    const response = await analysisAPI.getEnhancedFinancialMetrics(null, selectedFamilyId.value, selectedDate.value || null)
     if (response.success) {
-      metrics.value = response.data
+      enhancedMetrics.value = response.data
     }
   } catch (error) {
     console.error('加载财务指标失败:', error)
