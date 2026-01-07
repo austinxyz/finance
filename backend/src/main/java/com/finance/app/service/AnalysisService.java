@@ -1,6 +1,5 @@
 package com.finance.app.service;
 
-import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.dto.AssetSummaryDTO;
 import com.finance.app.dto.EnhancedFinancialMetricsDTO;
 import com.finance.app.dto.FinancialMetricsDTO;
@@ -9,6 +8,7 @@ import com.finance.app.dto.OverallTrendDataPointDTO;
 import com.finance.app.dto.RiskAssessmentDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
+import com.finance.app.dto.AccountTrendDataPointDTO;
 import com.finance.app.model.AssetAccount;
 import com.finance.app.model.AssetRecord;
 import com.finance.app.model.LiabilityAccount;
@@ -27,6 +27,8 @@ import com.finance.app.model.NetAssetCategory;
 import com.finance.app.model.NetAssetCategoryAssetTypeMapping;
 import com.finance.app.model.NetAssetCategoryLiabilityTypeMapping;
 import com.finance.app.model.UserProfile;
+import com.finance.app.service.asset.AssetAnalysisService;
+import com.finance.app.service.liability.LiabilityAnalysisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -56,452 +58,212 @@ public class AnalysisService {
     private final com.finance.app.service.expense.ExpenseAnalysisService expenseAnalysisService;
     private final com.finance.app.service.income.IncomeAnalysisService incomeAnalysisService;
 
-    // 获取资产总览
+    // Inject the new services
+    private final AssetAnalysisService assetAnalysisService;
+    private final LiabilityAnalysisService liabilityAnalysisService;
+
+    // ==============================================
+    // Asset methods - delegated to AssetAnalysisService
+    // ==============================================
+
     public AssetSummaryDTO getAssetSummary(Long userId) {
-        return getAssetSummary(userId, null, null);
+        return assetAnalysisService.getAssetSummary(userId);
     }
 
-    // 获取指定日期的资产总览
     public AssetSummaryDTO getAssetSummary(Long userId, LocalDate asOfDate) {
-        return getAssetSummary(userId, null, asOfDate, false);
+        return assetAnalysisService.getAssetSummary(userId, asOfDate);
     }
 
-    // 获取指定日期的资产总览（支持familyId）
     public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate) {
-        return getAssetSummary(userId, familyId, asOfDate, false);
+        return assetAnalysisService.getAssetSummary(userId, familyId, asOfDate);
     }
 
-    // 获取指定日期的资产总览（可选择是否包含自住房）
     public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence) {
-        return getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence, "All");
+        return assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence);
     }
 
-    // 获取指定日期的资产总览（支持货币筛选）
     public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence, String currency) {
-        // 优先级：familyId > userId > 所有账户
-        List<AssetAccount> accounts;
-        if (familyId != null) {
-            // 按家庭ID查询
-            accounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
-        } else if (userId != null) {
-            // 按用户ID查询
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            // 获取所有活跃账户
-            accounts = accountRepository.findByIsActiveTrue();
-        }
+        // Get asset data from AssetAnalysisService
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence, currency);
 
-        // 货币筛选：如果不是"All"，则只包含指定货币的账户
-        if (!"All".equalsIgnoreCase(currency)) {
-            accounts = accounts.stream()
-                .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
-                .collect(java.util.stream.Collectors.toList());
-        }
+        // Add liability data to get complete summary with net worth
+        BigDecimal totalLiabilities = calculateTotalLiabilities(userId, familyId, asOfDate, currency);
+        summary.setTotalLiabilities(totalLiabilities);
+        summary.setNetWorth(summary.getTotalAssets().subtract(totalLiabilities));
 
-        BigDecimal totalAssets = BigDecimal.ZERO;
-        Map<String, BigDecimal> assetsByCategory = new HashMap<>();
-        Map<String, BigDecimal> assetsByType = new HashMap<>();
-        LocalDate actualDate = null;  // 追踪实际使用的数据日期（最新记录的日期）
+        return summary;
+    }
 
-        for (AssetAccount account : accounts) {
-            // 如果不包含自住房，跳过标记为自住房的账户
-            if (!includePrimaryResidence && Boolean.TRUE.equals(account.getIsPrimaryResidence())) {
-                continue;
-            }
+    public List<TrendDataDTO> getTotalAssetTrend(Long userId, LocalDate startDate, LocalDate endDate) {
+        return assetAnalysisService.getTotalAssetTrend(userId, startDate, endDate);
+    }
 
-            // 根据asOfDate获取记录
-            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                // 使用查询日期的汇率重新计算金额，而不是使用记录时的amountInBaseCurrency
-                AssetRecord assetRecord = record.get();
-                BigDecimal amount;
-                if ("All".equalsIgnoreCase(currency)) {
-                    // All模式：转换为USD
-                    amount = convertToUSD(
-                        assetRecord.getAmount(),
-                        assetRecord.getCurrency(),
-                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
-                    );
-                } else {
-                    // 单货币模式：使用原始金额，不转换
-                    amount = assetRecord.getAmount();
-                }
-                totalAssets = totalAssets.add(amount);
+    public List<TrendDataDTO> getAccountTrend(Long accountId) {
+        return assetAnalysisService.getAccountTrend(accountId);
+    }
 
-                // 追踪实际使用的最新数据日期
-                LocalDate recordDate = record.get().getRecordDate();
-                if (actualDate == null || recordDate.isAfter(actualDate)) {
-                    actualDate = recordDate;
-                }
+    public Map<String, Object> getAssetAllocationByCategory(Long userId) {
+        return assetAnalysisService.getAssetAllocationByCategory(userId);
+    }
 
-                // 按分类汇总
-                String categoryName = account.getAssetType() != null ?
-                    account.getAssetType().getChineseName() : "未分类";
-                assetsByCategory.merge(categoryName, amount, BigDecimal::add);
+    public Map<String, Object> getAssetAllocationByType(Long userId) {
+        return assetAnalysisService.getAssetAllocationByType(userId);
+    }
 
-                // 按类型汇总
-                String typeName = account.getAssetType() != null ?
-                    account.getAssetType().getType() : "OTHER";
-                assetsByType.merge(typeName, amount, BigDecimal::add);
-            }
-        }
+    public Map<String, Object> getAssetAllocationByType(Long userId, LocalDate asOfDate) {
+        return assetAnalysisService.getAssetAllocationByType(userId, asOfDate);
+    }
 
-        // 计算总负债（优先级：familyId > userId > 所有账户）
+    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
+        return assetAnalysisService.getAssetAllocationByType(userId, familyId, asOfDate);
+    }
+
+    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
+        return assetAnalysisService.getAssetAllocationByType(userId, familyId, asOfDate, currency);
+    }
+
+    public List<TrendDataPointDTO> getAssetCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
+        return assetAnalysisService.getAssetCategoryTrend(categoryType, startDateStr, endDateStr, familyId);
+    }
+
+    public List<Map<String, Object>> getAssetAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
+        return assetAnalysisService.getAssetAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
+    }
+
+    public Map<String, List<AccountTrendDataPointDTO>> getAssetAccountsTrendByCategory(
+            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
+        return assetAnalysisService.getAssetAccountsTrendByCategory(categoryType, startDateStr, endDateStr, userId, familyId);
+    }
+
+    // ==============================================
+    // Liability methods - delegated to LiabilityAnalysisService
+    // ==============================================
+
+    public Map<String, Object> getLiabilityAllocationByType(Long userId) {
+        return liabilityAnalysisService.getLiabilityAllocationByType(userId);
+    }
+
+    public Map<String, Object> getLiabilityAllocationByType(Long userId, LocalDate asOfDate) {
+        return liabilityAnalysisService.getLiabilityAllocationByType(userId, asOfDate);
+    }
+
+    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
+        return liabilityAnalysisService.getLiabilityAllocationByType(userId, familyId, asOfDate);
+    }
+
+    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
+        return liabilityAnalysisService.getLiabilityAllocationByType(userId, familyId, asOfDate, currency);
+    }
+
+    public List<TrendDataPointDTO> getLiabilityCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
+        return liabilityAnalysisService.getLiabilityCategoryTrend(categoryType, startDateStr, endDateStr, familyId);
+    }
+
+    public List<Map<String, Object>> getLiabilityAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
+        return liabilityAnalysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
+    }
+
+    public Map<String, List<AccountTrendDataPointDTO>> getLiabilityAccountsTrendByCategory(
+            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
+        return liabilityAnalysisService.getLiabilityAccountsTrendByCategory(categoryType, startDateStr, endDateStr, userId, familyId);
+    }
+
+    // ==============================================
+    // Net asset methods - combine asset and liability data
+    // ==============================================
+
+    // Helper method to calculate total liabilities
+    private BigDecimal calculateTotalLiabilities(Long userId, Long familyId, LocalDate asOfDate, String currency) {
         List<LiabilityAccount> liabilityAccounts;
         if (familyId != null) {
-            // 按家庭ID查询
             liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
         } else if (userId != null) {
-            // 按用户ID查询
             liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
         } else {
-            // 获取所有活跃账户
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
-        // 货币筛选：如果不是"All"，则只包含指定货币的负债账户
         if (!"All".equalsIgnoreCase(currency)) {
             liabilityAccounts = liabilityAccounts.stream()
                 .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         }
 
         BigDecimal totalLiabilities = BigDecimal.ZERO;
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                // 使用查询日期的汇率重新计算金额，而不是使用记录时的balanceInBaseCurrency
                 LiabilityRecord liabilityRecord = record.get();
                 BigDecimal balance;
                 if ("All".equalsIgnoreCase(currency)) {
-                    // All模式：转换为USD
                     balance = convertToUSD(
                         liabilityRecord.getOutstandingBalance(),
                         liabilityRecord.getCurrency(),
                         asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
                     );
                 } else {
-                    // 单货币模式：使用原始金额，不转换
                     balance = liabilityRecord.getOutstandingBalance();
                 }
                 totalLiabilities = totalLiabilities.add(balance);
-
-                // 追踪实际使用的最新数据日期
-                LocalDate recordDate = liabilityRecord.getRecordDate();
-                if (actualDate == null || recordDate.isAfter(actualDate)) {
-                    actualDate = recordDate;
-                }
             }
         }
 
-        AssetSummaryDTO summary = new AssetSummaryDTO();
-        summary.setTotalAssets(totalAssets);
-        summary.setTotalLiabilities(totalLiabilities);
-        summary.setNetWorth(totalAssets.subtract(totalLiabilities));
-        summary.setAssetsByCategory(assetsByCategory);
-        summary.setAssetsByType(assetsByType);
-        summary.setActualDate(actualDate);  // 设置实际使用的数据日期
-
-        return summary;
+        return totalLiabilities;
     }
 
-    // 获取指定日期或之前最近的资产记录
-    private Optional<AssetRecord> getAssetRecordAsOfDate(Long accountId, LocalDate asOfDate) {
-        if (asOfDate == null) {
-            // 如果没有指定日期，获取最新记录
-            return recordRepository.findLatestByAccountId(accountId);
-        } else {
-            // 获取指定日期或之前最近的记录
-            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBeforeOrEqual(accountId, asOfDate);
-            return records.isEmpty() ? Optional.empty() : Optional.of(records.get(0));
-        }
-    }
-
-    // 获取指定日期或之前最近的负债记录
-    private Optional<LiabilityRecord> getLiabilityRecordAsOfDate(Long accountId, LocalDate asOfDate) {
-        if (asOfDate == null) {
-            // 如果没有指定日期，获取最新记录
-            return liabilityRecordRepository.findLatestByAccountId(accountId);
-        } else {
-            // 获取指定日期或之前最近的记录
-            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBeforeOrEqual(accountId, asOfDate);
-            return records.isEmpty() ? Optional.empty() : Optional.of(records.get(0));
-        }
-    }
-
-    /**
-     * 根据指定日期的汇率将金额转换为基准货币（USD）
-     * @param amount 原始金额
-     * @param currency 原始货币
-     * @param asOfDate 查询日期（使用该日期的汇率）
-     * @param baseCurrency 基准货币（默认USD）
-     * @return 转换后的金额
-     */
-    private BigDecimal convertToBaseCurrency(BigDecimal amount, String currency, LocalDate asOfDate, String baseCurrency) {
-        if (amount == null) {
-            return BigDecimal.ZERO;
-        }
-
-        // 如果没有指定日期，使用当前日期
-        LocalDate conversionDate = (asOfDate != null) ? asOfDate : LocalDate.now();
-
-        // 如果货币相同，直接返回
-        if (currency == null || currency.equalsIgnoreCase(baseCurrency)) {
-            return amount;
-        }
-
-        // 如果基准货币是USD
-        if (baseCurrency == null || baseCurrency.equalsIgnoreCase("USD")) {
-            // 获取原始货币到USD的汇率
-            BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
-            return amount.multiply(rateToUsd).setScale(2, RoundingMode.HALF_UP);
-        }
-
-        // 如果基准货币不是USD，需要两步转换
-        // 1. 原始货币 -> USD
-        BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
-        BigDecimal amountInUsd = amount.multiply(rateToUsd);
-
-        // 2. USD -> 基准货币
-        BigDecimal baseRateToUsd = exchangeRateService.getExchangeRate(baseCurrency, conversionDate);
-        return amountInUsd.divide(baseRateToUsd, 2, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * 根据指定日期的汇率将金额转换为USD（简化版本）
-     */
-    private BigDecimal convertToUSD(BigDecimal amount, String currency, LocalDate asOfDate) {
-        return convertToBaseCurrency(amount, currency, asOfDate, "USD");
-    }
-
-    // 获取总资产趋势
-    public List<TrendDataDTO> getTotalAssetTrend(Long userId, LocalDate startDate, LocalDate endDate) {
-        final LocalDate finalStartDate = (startDate == null) ? LocalDate.now().minusMonths(12) : startDate;
-        final LocalDate finalEndDate = (endDate == null) ? LocalDate.now() : endDate;
-
-        // 如果userId为null，获取所有活跃账户；否则只获取该用户的账户
-        List<AssetAccount> accounts;
-        if (userId == null) {
-            accounts = accountRepository.findByIsActiveTrue();
-        } else {
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
-        }
-        List<Long> accountIds = accounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
-
-        if (accountIds.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // 获取所有记录
-        List<AssetRecord> allRecords = new ArrayList<>();
-        for (Long accountId : accountIds) {
-            List<AssetRecord> records = recordRepository.findByAccountIdOrderByRecordDateDesc(accountId);
-            allRecords.addAll(records);
-        }
-
-        // 按日期分组并汇总
-        Map<LocalDate, BigDecimal> dailyTotals = allRecords.stream()
-            .filter(r -> !r.getRecordDate().isBefore(finalStartDate) && !r.getRecordDate().isAfter(finalEndDate))
-            .collect(Collectors.groupingBy(
-                AssetRecord::getRecordDate,
-                Collectors.reducing(
-                    BigDecimal.ZERO,
-                    record -> convertToUSD(record.getAmount(), record.getCurrency(), record.getRecordDate()),
-                    BigDecimal::add
-                )
-            ));
-
-        // 转换为DTO并排序
-        return dailyTotals.entrySet().stream()
-            .map(entry -> new TrendDataDTO(entry.getKey(), entry.getValue(), null, null))
-            .sorted(Comparator.comparing(TrendDataDTO::getDate))
-            .collect(Collectors.toList());
-    }
-
-    // 获取单个账户趋势
-    public List<TrendDataDTO> getAccountTrend(Long accountId) {
-        List<AssetRecord> records = recordRepository.findByAccountIdOrderByRecordDateDesc(accountId);
-        AssetAccount account = accountRepository.findById(accountId).orElse(null);
-
-        return records.stream()
-            .map(record -> {
-                TrendDataDTO dto = new TrendDataDTO();
-                dto.setDate(record.getRecordDate());
-                // 使用记录日期的汇率重新计算金额
-                BigDecimal amount = convertToUSD(
-                    record.getAmount(),
-                    record.getCurrency(),
-                    record.getRecordDate()
-                );
-                dto.setAmount(amount);
-                if (account != null) {
-                    dto.setAccountName(account.getAccountName());
-                    if (account.getAssetType() != null) {
-                        dto.setCategoryName(account.getAssetType().getChineseName());
-                    }
-                }
-                return dto;
-            })
-            .sorted(Comparator.comparing(TrendDataDTO::getDate))
-            .collect(Collectors.toList());
-    }
-
-    // 获取按分类的资产配置
-    public Map<String, Object> getAssetAllocationByCategory(Long userId) {
-        AssetSummaryDTO summary = getAssetSummary(userId);
-        Map<String, BigDecimal> assetsByCategory = summary.getAssetsByCategory();
-
-        List<Map<String, Object>> data = new ArrayList<>();
-        BigDecimal total = summary.getTotalAssets();
-
-        for (Map.Entry<String, BigDecimal> entry : assetsByCategory.entrySet()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("name", entry.getKey());
-            item.put("value", entry.getValue());
-
-            // 计算百分比
-            if (total.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal percentage = entry.getValue()
-                    .divide(total, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-                item.put("percentage", percentage);
-            } else {
-                item.put("percentage", BigDecimal.ZERO);
-            }
-
-            data.add(item);
-        }
-
-        // 按金额降序排序
-        data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", total);
-        result.put("data", data);
-
-        return result;
-    }
-
-    // 获取按类型的资产配置
-    public Map<String, Object> getAssetAllocationByType(Long userId) {
-        return getAssetAllocationByType(userId, null, null, "All");
-    }
-
-    // 获取指定日期的按类型的资产配置
-    public Map<String, Object> getAssetAllocationByType(Long userId, LocalDate asOfDate) {
-        return getAssetAllocationByType(userId, null, asOfDate, "All");
-    }
-
-    // 获取指定家庭和日期的按类型的资产配置
-    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        return getAssetAllocationByType(userId, familyId, asOfDate, "All");
-    }
-
-    // 获取指定家庭、日期和货币的按类型的资产配置
-    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate, false, currency);
-        Map<String, BigDecimal> assetsByType = summary.getAssetsByType();
-
-        List<Map<String, Object>> data = new ArrayList<>();
-        BigDecimal total = summary.getTotalAssets();
-
-        // 类型中文名映射
-        Map<String, String> typeNames = Map.of(
-            "CASH", "现金类",
-            "STOCKS", "股票投资",
-            "RETIREMENT_FUND", "退休基金",
-            "INSURANCE", "保险",
-            "REAL_ESTATE", "房地产",
-            "CRYPTOCURRENCY", "数字货币",
-            "PRECIOUS_METALS", "贵金属",
-            "OTHER", "其他"
-        );
-
-        for (Map.Entry<String, BigDecimal> entry : assetsByType.entrySet()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("name", typeNames.getOrDefault(entry.getKey(), entry.getKey()));
-            item.put("value", entry.getValue());
-
-            // 计算百分比
-            if (total.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal percentage = entry.getValue()
-                    .divide(total, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-                item.put("percentage", percentage);
-            } else {
-                item.put("percentage", BigDecimal.ZERO);
-            }
-
-            data.add(item);
-        }
-
-        // 按金额降序排序
-        data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", total);
-        result.put("data", data);
-
-        return result;
-    }
-
-    // 获取净资产配置（资产减去对应负债）
     public Map<String, Object> getNetAssetAllocation(Long userId) {
         return getNetAssetAllocation(userId, null, null, "All");
     }
 
-    // 获取指定日期的净资产配置
     public Map<String, Object> getNetAssetAllocation(Long userId, LocalDate asOfDate) {
         return getNetAssetAllocation(userId, null, asOfDate, "All");
     }
 
-    // 获取指定日期的净资产配置（支持familyId）
     public Map<String, Object> getNetAssetAllocation(Long userId, Long familyId, LocalDate asOfDate) {
         return getNetAssetAllocation(userId, familyId, asOfDate, "All");
     }
 
-    // 获取指定日期的净资产配置（支持familyId和货币筛选）
     public Map<String, Object> getNetAssetAllocation(Long userId, Long familyId, LocalDate asOfDate, String currency) {
-        // 获取所有净资产类别
+        // Get all net asset categories
         List<NetAssetCategory> netAssetCategories = netAssetCategoryRepository.findAllByOrderByDisplayOrderAsc();
 
-        // 获取资产和负债数据（支持familyId和货币筛选）
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, asOfDate, false, currency);
+        // Get asset data from AssetAnalysisService
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
         Map<String, BigDecimal> assetsByType = summary.getAssetsByType();
 
-        // 计算每个负债类型的总额（支持familyId和货币筛选）
+        // Calculate liabilities by type
         Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate, currency);
 
         List<Map<String, Object>> data = new ArrayList<>();
         BigDecimal totalNetAssets = BigDecimal.ZERO;
 
         for (NetAssetCategory netCategory : netAssetCategories) {
-            // 获取该净资产类别对应的资产类型
+            // Get asset type mappings for this net asset category
             List<NetAssetCategoryAssetTypeMapping> assetMappings =
                 assetTypeMappingRepository.findByNetAssetCategoryId(netCategory.getId());
 
-            // 获取该净资产类别对应的负债类型
+            // Get liability type mappings for this net asset category
             List<NetAssetCategoryLiabilityTypeMapping> liabilityMappings =
                 liabilityTypeMappingRepository.findByNetAssetCategoryId(netCategory.getId());
 
-            // 计算该类别的总资产
+            // Calculate total assets for this category
             BigDecimal categoryAssets = BigDecimal.ZERO;
             for (NetAssetCategoryAssetTypeMapping mapping : assetMappings) {
                 BigDecimal assetAmount = assetsByType.getOrDefault(mapping.getAssetType(), BigDecimal.ZERO);
                 categoryAssets = categoryAssets.add(assetAmount);
             }
 
-            // 计算该类别的总负债
+            // Calculate total liabilities for this category
             BigDecimal categoryLiabilities = BigDecimal.ZERO;
             for (NetAssetCategoryLiabilityTypeMapping mapping : liabilityMappings) {
                 BigDecimal liabilityAmount = liabilitiesByType.getOrDefault(mapping.getLiabilityType(), BigDecimal.ZERO);
                 categoryLiabilities = categoryLiabilities.add(liabilityAmount);
             }
 
-            // 计算净资产（资产 - 负债）
+            // Calculate net asset (assets - liabilities)
             BigDecimal netAsset = categoryAssets.subtract(categoryLiabilities);
 
-            // 只添加净值非零的类别（包括负值）
+            // Only add categories with non-zero net value (including negative values)
             if (netAsset.compareTo(BigDecimal.ZERO) != 0) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("name", netCategory.getName());
@@ -516,7 +278,7 @@ public class AnalysisService {
             }
         }
 
-        // 计算百分比
+        // Calculate percentages
         for (Map<String, Object> item : data) {
             BigDecimal netValue = (BigDecimal) item.get("netValue");
             if (totalNetAssets.compareTo(BigDecimal.ZERO) > 0) {
@@ -529,7 +291,7 @@ public class AnalysisService {
             }
         }
 
-        // 按净值降序排序
+        // Sort by net value descending
         data.sort((a, b) -> ((BigDecimal)b.get("netValue")).compareTo((BigDecimal)a.get("netValue")));
 
         Map<String, Object> result = new HashMap<>();
@@ -539,90 +301,21 @@ public class AnalysisService {
         return result;
     }
 
-    // 获取按类型的负债配置
-    public Map<String, Object> getLiabilityAllocationByType(Long userId) {
-        return getLiabilityAllocationByType(userId, null, null, "All");
-    }
-
-    // 获取指定日期的按类型的负债配置
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, LocalDate asOfDate) {
-        return getLiabilityAllocationByType(userId, null, asOfDate, "All");
-    }
-
-    // 获取指定家庭和日期的按类型的负债配置
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        return getLiabilityAllocationByType(userId, familyId, asOfDate, "All");
-    }
-
-    // 获取指定家庭、日期和货币的按类型的负债配置
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
-        Map<String, BigDecimal> liabilitiesByType = calculateLiabilitiesByType(userId, familyId, asOfDate, currency);
-
-        List<Map<String, Object>> data = new ArrayList<>();
-        BigDecimal total = BigDecimal.ZERO;
-
-        // 类型中文名映射
-        Map<String, String> typeNames = Map.ofEntries(
-            entry("MORTGAGE", "房贷"),
-            entry("AUTO_LOAN", "车贷"),
-            entry("CREDIT_CARD", "信用卡"),
-            entry("PERSONAL_LOAN", "个人借债"),
-            entry("STUDENT_LOAN", "学生贷款"),
-            entry("BUSINESS_LOAN", "商业贷款"),
-            entry("OTHER", "其他")
-        );
-
-        for (Map.Entry<String, BigDecimal> entry : liabilitiesByType.entrySet()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("name", typeNames.getOrDefault(entry.getKey(), entry.getKey()));
-            item.put("value", entry.getValue());
-
-            total = total.add(entry.getValue());
-            data.add(item);
-        }
-
-        // 计算百分比
-        for (Map<String, Object> item : data) {
-            BigDecimal value = (BigDecimal) item.get("value");
-            if (total.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal percentage = value
-                    .divide(total, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-                item.put("percentage", percentage);
-            } else {
-                item.put("percentage", BigDecimal.ZERO);
-            }
-        }
-
-        // 按金额降序排序
-        data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", total);
-        result.put("data", data);
-
-        return result;
-    }
-
-    // 计算每个负债类型的总额
+    // Calculate liabilities by type
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId) {
         return calculateLiabilitiesByType(userId, null, null, "All");
     }
 
-    // 计算指定日期的每个负债类型的总额
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, LocalDate asOfDate) {
         return calculateLiabilitiesByType(userId, null, asOfDate, "All");
     }
 
-    // 计算指定日期的每个负债类型的总额（支持familyId）
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, Long familyId, LocalDate asOfDate) {
         return calculateLiabilitiesByType(userId, familyId, asOfDate, "All");
     }
 
-    // 计算指定日期的每个负债类型的总额（支持familyId和货币筛选）
     private Map<String, BigDecimal> calculateLiabilitiesByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
         List<LiabilityAccount> liabilityAccounts;
-        // 优先级：familyId > userId > 所有账户
         if (familyId != null) {
             liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
         } else if (userId != null) {
@@ -631,11 +324,10 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
-        // 货币筛选：如果不是"All"，则只包含指定货币的账户
         if (!"All".equalsIgnoreCase(currency)) {
             liabilityAccounts = liabilityAccounts.stream()
                 .filter(acc -> acc.getCurrency().equalsIgnoreCase(currency))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         }
 
         Map<String, BigDecimal> liabilitiesByType = new HashMap<>();
@@ -646,14 +338,12 @@ public class AnalysisService {
                 LiabilityRecord liabilityRecord = record.get();
                 BigDecimal balance;
                 if ("All".equalsIgnoreCase(currency)) {
-                    // All模式：转换为USD
                     balance = convertToUSD(
                         liabilityRecord.getOutstandingBalance(),
                         liabilityRecord.getCurrency(),
                         asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
                     );
                 } else {
-                    // 单货币模式：使用原始金额，不转换
                     balance = liabilityRecord.getOutstandingBalance();
                 }
 
@@ -666,15 +356,14 @@ public class AnalysisService {
         return liabilitiesByType;
     }
 
-    // 获取综合趋势数据（净资产、总资产、总负债）
+    // Get overall trend (combines assets and liabilities)
     public List<OverallTrendDataPointDTO> getOverallTrend(String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
-        // 获取所有资产账户
+        // Get all asset accounts
         List<AssetAccount> assetAccounts;
         if (familyId != null) {
-            // 获取该家庭所有成员的账户
             List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
             List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
             assetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
@@ -682,10 +371,9 @@ public class AnalysisService {
             assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
-        // 获取所有负债账户
+        // Get all liability accounts
         List<LiabilityAccount> liabilityAccounts;
         if (familyId != null) {
-            // 获取该家庭所有成员的账户
             List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
             List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
             liabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
@@ -693,13 +381,12 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
-        // 获取日期范围内所有资产记录
+        // Get asset records by date
         Map<LocalDate, BigDecimal> assetsByDate = new HashMap<>();
         for (AssetAccount account : assetAccounts) {
             List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (AssetRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
                 BigDecimal amount = convertToUSD(
                     record.getAmount(),
                     record.getCurrency(),
@@ -709,13 +396,12 @@ public class AnalysisService {
             }
         }
 
-        // 获取日期范围内所有负债记录
+        // Get liability records by date
         Map<LocalDate, BigDecimal> liabilitiesByDate = new HashMap<>();
         for (LiabilityAccount account : liabilityAccounts) {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (LiabilityRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
                 BigDecimal balance = convertToUSD(
                     record.getOutstandingBalance(),
                     record.getCurrency(),
@@ -725,12 +411,12 @@ public class AnalysisService {
             }
         }
 
-        // 合并所有日期
+        // Merge all dates
         Set<LocalDate> allDates = new HashSet<>();
         allDates.addAll(assetsByDate.keySet());
         allDates.addAll(liabilitiesByDate.keySet());
 
-        // 创建趋势数据点（按日期）
+        // Create trend data points
         Map<LocalDate, OverallTrendDataPointDTO> dailyData = new HashMap<>();
         for (LocalDate date : allDates) {
             BigDecimal assets = assetsByDate.getOrDefault(date, BigDecimal.ZERO);
@@ -746,145 +432,40 @@ public class AnalysisService {
             dailyData.put(date, point);
         }
 
-        // 将所有日期的数据转换为列表并按日期排序（不进行年度聚合）
+        // Convert to list and sort by date
         List<OverallTrendDataPointDTO> result = new ArrayList<>(dailyData.values());
         result.sort(Comparator.comparing(OverallTrendDataPointDTO::getDate));
 
         return result;
     }
 
-    // 获取资产分类趋势数据
-    public List<TrendDataPointDTO> getAssetCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
-        LocalDate startDate = LocalDate.parse(startDateStr);
-        LocalDate endDate = LocalDate.parse(endDateStr);
-
-        // 获取该类型的所有资产账户
-        List<AssetAccount> accounts;
-        if (familyId != null) {
-            // 获取该家庭所有成员的账户
-            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
-            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
-            accounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
-        } else {
-            accounts = accountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
-            .collect(Collectors.toList());
-
-        // 获取日期范围内的记录并按日期汇总
-        Map<LocalDate, BigDecimal> totalByDate = new HashMap<>();
-        for (AssetAccount account : filteredAccounts) {
-            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-            for (AssetRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
-                BigDecimal amount = convertToUSD(
-                    record.getAmount(),
-                    record.getCurrency(),
-                    record.getRecordDate()
-                );
-                totalByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
-            }
-        }
-
-        // 转换为DTO列表
-        List<TrendDataPointDTO> result = new ArrayList<>();
-        for (Map.Entry<LocalDate, BigDecimal> entry : totalByDate.entrySet()) {
-            TrendDataPointDTO point = new TrendDataPointDTO();
-            point.setDate(entry.getKey().toString());
-            point.setTotal(entry.getValue());
-            result.add(point);
-        }
-
-        // 按日期排序
-        result.sort(Comparator.comparing(TrendDataPointDTO::getDate));
-
-        return result;
-    }
-
-    // 获取负债分类趋势数据
-    public List<TrendDataPointDTO> getLiabilityCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
-        LocalDate startDate = LocalDate.parse(startDateStr);
-        LocalDate endDate = LocalDate.parse(endDateStr);
-
-        // 获取该类型的所有负债账户
-        List<LiabilityAccount> accounts;
-        if (familyId != null) {
-            // 获取该家庭所有成员的账户
-            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
-            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
-            accounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
-        } else {
-            accounts = liabilityAccountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
-            .collect(Collectors.toList());
-
-        // 获取日期范围内的记录并按日期汇总
-        Map<LocalDate, BigDecimal> totalByDate = new HashMap<>();
-        for (LiabilityAccount account : filteredAccounts) {
-            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-            for (LiabilityRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
-                BigDecimal balance = convertToUSD(
-                    record.getOutstandingBalance(),
-                    record.getCurrency(),
-                    record.getRecordDate()
-                );
-                totalByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
-            }
-        }
-
-        // 转换为DTO列表
-        List<TrendDataPointDTO> result = new ArrayList<>();
-        for (Map.Entry<LocalDate, BigDecimal> entry : totalByDate.entrySet()) {
-            TrendDataPointDTO point = new TrendDataPointDTO();
-            point.setDate(entry.getKey().toString());
-            point.setTotal(entry.getValue());
-            result.add(point);
-        }
-
-        // 按日期排序
-        result.sort(Comparator.comparing(TrendDataPointDTO::getDate));
-
-        return result;
-    }
-
-    // 获取净资产分类趋势数据
+    // Get net asset category trend
     public List<TrendDataPointDTO> getNetAssetCategoryTrend(String categoryCode, String startDateStr, String endDateStr, Long familyId) {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
-        // 获取净资产分类
+        // Get net asset category
         Optional<NetAssetCategory> categoryOpt = netAssetCategoryRepository.findByCode(categoryCode);
         if (categoryOpt.isEmpty()) {
             return new ArrayList<>();
         }
         NetAssetCategory category = categoryOpt.get();
 
-        // 获取该分类关联的资产类型
+        // Get asset type mappings
         List<NetAssetCategoryAssetTypeMapping> assetMappings = assetTypeMappingRepository.findByNetAssetCategoryId(category.getId());
         Set<String> assetTypes = assetMappings.stream()
             .map(NetAssetCategoryAssetTypeMapping::getAssetType)
             .collect(Collectors.toSet());
 
-        // 获取该分类关联的负债类型
+        // Get liability type mappings
         List<NetAssetCategoryLiabilityTypeMapping> liabilityMappings = liabilityTypeMappingRepository.findByNetAssetCategoryId(category.getId());
         Set<String> liabilityTypes = liabilityMappings.stream()
             .map(NetAssetCategoryLiabilityTypeMapping::getLiabilityType)
             .collect(Collectors.toSet());
 
-        // 获取所有资产账户
+        // Get all asset accounts
         List<AssetAccount> assetAccounts;
         if (familyId != null) {
-            // 获取该家庭所有成员的账户
             List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
             List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
             assetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
@@ -892,15 +473,14 @@ public class AnalysisService {
             assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
-        // 过滤出匹配类型的资产账户
+        // Filter matching asset accounts
         List<AssetAccount> filteredAssetAccounts = assetAccounts.stream()
             .filter(acc -> acc.getAssetType() != null && assetTypes.contains(acc.getAssetType().getType()))
             .collect(Collectors.toList());
 
-        // 获取所有负债账户
+        // Get all liability accounts
         List<LiabilityAccount> liabilityAccounts;
         if (familyId != null) {
-            // 获取该家庭所有成员的账户
             List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
             List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
             liabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
@@ -908,18 +488,17 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
-        // 过滤出匹配类型的负债账户
+        // Filter matching liability accounts
         List<LiabilityAccount> filteredLiabilityAccounts = liabilityAccounts.stream()
             .filter(acc -> acc.getLiabilityType() != null && liabilityTypes.contains(acc.getLiabilityType().getType()))
             .collect(Collectors.toList());
 
-        // 获取日期范围内的资产记录并按日期汇总
+        // Get asset records by date
         Map<LocalDate, BigDecimal> assetsByDate = new HashMap<>();
         for (AssetAccount account : filteredAssetAccounts) {
             List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (AssetRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
                 BigDecimal amount = convertToUSD(
                     record.getAmount(),
                     record.getCurrency(),
@@ -929,13 +508,12 @@ public class AnalysisService {
             }
         }
 
-        // 获取日期范围内的负债记录并按日期汇总
+        // Get liability records by date
         Map<LocalDate, BigDecimal> liabilitiesByDate = new HashMap<>();
         for (LiabilityAccount account : filteredLiabilityAccounts) {
             List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
                 account.getId(), startDate, endDate);
             for (LiabilityRecord record : records) {
-                // 使用记录日期的汇率重新计算金额
                 BigDecimal balance = convertToUSD(
                     record.getOutstandingBalance(),
                     record.getCurrency(),
@@ -945,12 +523,12 @@ public class AnalysisService {
             }
         }
 
-        // 合并所有日期
+        // Merge all dates
         Set<LocalDate> allDates = new HashSet<>();
         allDates.addAll(assetsByDate.keySet());
         allDates.addAll(liabilitiesByDate.keySet());
 
-        // 计算每个日期的净资产（资产 - 负债）
+        // Calculate net value for each date (assets - liabilities)
         List<TrendDataPointDTO> result = new ArrayList<>();
         for (LocalDate date : allDates) {
             BigDecimal assets = assetsByDate.getOrDefault(date, BigDecimal.ZERO);
@@ -963,213 +541,15 @@ public class AnalysisService {
             result.add(point);
         }
 
-        // 按日期排序
+        // Sort by date
         result.sort(Comparator.comparing(TrendDataPointDTO::getDate));
 
         return result;
     }
 
-    // 获取指定类型和日期的资产账户及其余额
-    public List<Map<String, Object>> getAssetAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
-        // 获取所有活跃账户
-        List<AssetAccount> accounts;
-        if (familyId != null) {
-            accounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
-        } else if (userId != null) {
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            accounts = accountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
-            .collect(Collectors.toList());
-
-        // 获取每个账户在指定日期的余额
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (AssetAccount account : filteredAccounts) {
-            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                AssetRecord assetRecord = record.get();
-                BigDecimal balance = convertToUSD(
-                    assetRecord.getAmount(),
-                    assetRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : assetRecord.getRecordDate()
-                );
-                Map<String, Object> accountData = new HashMap<>();
-                accountData.put("accountName", account.getAccountName());
-                accountData.put("balance", balance);
-                result.add(accountData);
-            }
-        }
-
-        return result;
-    }
-
-    // 获取指定类型和日期的负债账户及其余额
-    public List<Map<String, Object>> getLiabilityAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
-        // 获取所有活跃账户
-        List<LiabilityAccount> accounts;
-        if (familyId != null) {
-            accounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
-        } else if (userId != null) {
-            accounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            accounts = liabilityAccountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
-            .collect(Collectors.toList());
-
-        // 获取每个账户在指定日期的余额
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (LiabilityAccount account : filteredAccounts) {
-            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                LiabilityRecord liabilityRecord = record.get();
-                BigDecimal balance = convertToUSD(
-                    liabilityRecord.getOutstandingBalance(),
-                    liabilityRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
-                );
-                Map<String, Object> accountData = new HashMap<>();
-                accountData.put("accountName", account.getAccountName());
-                accountData.put("balance", balance);
-                result.add(accountData);
-            }
-        }
-
-        return result;
-    }
-
-    // 获取资产分类下所有账户的趋势数据
-    public Map<String, List<AccountTrendDataPointDTO>> getAssetAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
-        LocalDate startDate = LocalDate.parse(startDateStr);
-        LocalDate endDate = LocalDate.parse(endDateStr);
-
-        // 获取该类型的所有资产账户
-        List<AssetAccount> accounts;
-        if (familyId != null) {
-            // 如果提供了家庭ID，获取该家庭所有成员的账户
-            List<User> familyUsers = userRepository.findByFamilyId(familyId);
-            List<Long> userIds = familyUsers.stream().map(User::getId).collect(Collectors.toList());
-            accounts = new ArrayList<>();
-            for (Long uid : userIds) {
-                accounts.addAll(accountRepository.findByUserIdAndIsActiveTrue(uid));
-            }
-        } else if (userId != null) {
-            accounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            accounts = accountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<AssetAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getAssetType() != null && categoryType.equals(acc.getAssetType().getType()))
-            .collect(Collectors.toList());
-
-        // 为每个账户获取趋势数据
-        Map<String, List<AccountTrendDataPointDTO>> result = new HashMap<>();
-
-        for (AssetAccount account : filteredAccounts) {
-            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-
-            if (!records.isEmpty()) {
-                List<AccountTrendDataPointDTO> accountTrend = new ArrayList<>();
-                for (AssetRecord record : records) {
-                    AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
-                    point.setDate(record.getRecordDate().toString());
-                    // 使用记录日期的汇率重新计算金额
-                    BigDecimal balance = convertToUSD(
-                        record.getAmount(),
-                        record.getCurrency(),
-                        record.getRecordDate()
-                    );
-                    point.setBalance(balance);
-                    point.setAccountName(account.getAccountName());
-                    accountTrend.add(point);
-                }
-
-                // 按日期排序（升序）
-                accountTrend.sort(Comparator.comparing(AccountTrendDataPointDTO::getDate));
-
-                // 使用账户ID作为key
-                result.put(account.getId().toString(), accountTrend);
-            }
-        }
-
-        return result;
-    }
-
-    // 获取负债分类下所有账户的趋势数据
-    public Map<String, List<AccountTrendDataPointDTO>> getLiabilityAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
-        LocalDate startDate = LocalDate.parse(startDateStr);
-        LocalDate endDate = LocalDate.parse(endDateStr);
-
-        // 获取该类型的所有负债账户
-        List<LiabilityAccount> accounts;
-        if (familyId != null) {
-            // 如果提供了家庭ID,获取该家庭所有成员的账户
-            List<User> familyUsers = userRepository.findByFamilyId(familyId);
-            List<Long> userIds = familyUsers.stream().map(User::getId).collect(Collectors.toList());
-            accounts = new ArrayList<>();
-            for (Long uid : userIds) {
-                accounts.addAll(liabilityAccountRepository.findByUserIdAndIsActiveTrue(uid));
-            }
-        } else if (userId != null) {
-            accounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            accounts = liabilityAccountRepository.findByIsActiveTrue();
-        }
-
-        // 过滤出匹配类型的账户
-        List<LiabilityAccount> filteredAccounts = accounts.stream()
-            .filter(acc -> acc.getLiabilityType() != null && categoryType.equals(acc.getLiabilityType().getType()))
-            .collect(Collectors.toList());
-
-        // 为每个账户获取趋势数据
-        Map<String, List<AccountTrendDataPointDTO>> result = new HashMap<>();
-
-        for (LiabilityAccount account : filteredAccounts) {
-            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-
-            if (!records.isEmpty()) {
-                List<AccountTrendDataPointDTO> accountTrend = new ArrayList<>();
-                for (LiabilityRecord record : records) {
-                    AccountTrendDataPointDTO point = new AccountTrendDataPointDTO();
-                    point.setDate(record.getRecordDate().toString());
-                    // 使用记录日期的汇率重新计算金额
-                    BigDecimal balance = convertToUSD(
-                        record.getOutstandingBalance(),
-                        record.getCurrency(),
-                        record.getRecordDate()
-                    );
-                    point.setBalance(balance);
-                    point.setAccountName(account.getAccountName());
-                    accountTrend.add(point);
-                }
-
-                // 按日期排序（升序）
-                accountTrend.sort(Comparator.comparing(AccountTrendDataPointDTO::getDate));
-
-                // 使用账户ID作为key
-                result.put(account.getId().toString(), accountTrend);
-            }
-        }
-
-        return result;
-    }
-
-    // 获取净资产类别下的所有账户详情（包含资产账户和负债账户）
+    // Get net asset category accounts
     public Map<String, Object> getNetAssetCategoryAccounts(String categoryCode, Long userId, Long familyId, LocalDate asOfDate) {
-        // 获取净资产分类
+        // Get net asset category
         Optional<NetAssetCategory> categoryOpt = netAssetCategoryRepository.findByCode(categoryCode);
         if (categoryOpt.isEmpty()) {
             Map<String, Object> emptyResult = new HashMap<>();
@@ -1179,19 +559,19 @@ public class AnalysisService {
         }
         NetAssetCategory category = categoryOpt.get();
 
-        // 获取该分类关联的资产类型
+        // Get asset type mappings
         List<NetAssetCategoryAssetTypeMapping> assetMappings = assetTypeMappingRepository.findByNetAssetCategoryId(category.getId());
         Set<String> assetTypes = assetMappings.stream()
             .map(NetAssetCategoryAssetTypeMapping::getAssetType)
             .collect(Collectors.toSet());
 
-        // 获取该分类关联的负债类型
+        // Get liability type mappings
         List<NetAssetCategoryLiabilityTypeMapping> liabilityMappings = liabilityTypeMappingRepository.findByNetAssetCategoryId(category.getId());
         Set<String> liabilityTypes = liabilityMappings.stream()
             .map(NetAssetCategoryLiabilityTypeMapping::getLiabilityType)
             .collect(Collectors.toSet());
 
-        // 获取所有资产账户
+        // Get all asset accounts
         List<AssetAccount> assetAccounts;
         if (familyId != null) {
             assetAccounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
@@ -1201,7 +581,7 @@ public class AnalysisService {
             assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
-        // 过滤出匹配类型的资产账户并获取余额
+        // Filter and get balances for asset accounts
         List<Map<String, Object>> assetAccountsData = new ArrayList<>();
         for (AssetAccount account : assetAccounts) {
             if (account.getAssetType() != null && assetTypes.contains(account.getAssetType().getType())) {
@@ -1224,7 +604,7 @@ public class AnalysisService {
             }
         }
 
-        // 获取所有负债账户
+        // Get all liability accounts
         List<LiabilityAccount> liabilityAccounts;
         if (familyId != null) {
             liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
@@ -1234,7 +614,7 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
-        // 过滤出匹配类型的负债账户并获取余额
+        // Filter and get balances for liability accounts
         List<Map<String, Object>> liabilityAccountsData = new ArrayList<>();
         for (LiabilityAccount account : liabilityAccounts) {
             if (account.getLiabilityType() != null && liabilityTypes.contains(account.getLiabilityType().getType())) {
@@ -1257,7 +637,7 @@ public class AnalysisService {
             }
         }
 
-        // 按余额降序排序
+        // Sort by balance descending
         assetAccountsData.sort((a, b) -> ((BigDecimal)b.get("balance")).compareTo((BigDecimal)a.get("balance")));
         liabilityAccountsData.sort((a, b) -> ((BigDecimal)b.get("balance")).compareTo((BigDecimal)a.get("balance")));
 
@@ -1270,9 +650,9 @@ public class AnalysisService {
         return result;
     }
 
-    // 获取按税收状态的净资产配置
+    // Get net worth by tax status
     public Map<String, Object> getNetWorthByTaxStatus(Long userId, Long familyId, LocalDate asOfDate) {
-        // 获取所有资产账户
+        // Get all asset accounts
         List<AssetAccount> assetAccounts;
         if (familyId != null) {
             assetAccounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
@@ -1282,7 +662,7 @@ public class AnalysisService {
             assetAccounts = accountRepository.findByIsActiveTrue();
         }
 
-        // 按税收状态分组资产
+        // Group assets by tax status
         Map<String, BigDecimal> assetsByTaxStatus = new HashMap<>();
         assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
         assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
@@ -1291,7 +671,6 @@ public class AnalysisService {
         for (AssetAccount account : assetAccounts) {
             Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                // 使用查询日期的汇率重新计算金额
                 AssetRecord assetRecord = record.get();
                 BigDecimal amount = convertToUSD(
                     assetRecord.getAmount(),
@@ -1303,19 +682,20 @@ public class AnalysisService {
             }
         }
 
-        // 获取所有负债账户
+        // Get all liability accounts
         List<LiabilityAccount> liabilityAccounts;
-        if (userId == null) {
-            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
-        } else {
+        if (familyId != null) {
+            liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else if (userId != null) {
             liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
         BigDecimal totalLiabilities = BigDecimal.ZERO;
         for (LiabilityAccount account : liabilityAccounts) {
             Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
             if (record.isPresent()) {
-                // 使用查询日期的汇率重新计算金额
                 LiabilityRecord liabilityRecord = record.get();
                 BigDecimal balance = convertToUSD(
                     liabilityRecord.getOutstandingBalance(),
@@ -1326,75 +706,69 @@ public class AnalysisService {
             }
         }
 
-        // 负债优先抵扣应税资产，然后抵扣免税资产，最后抵扣延税资产
+        // Deduct liabilities from assets (taxable first, then tax-free, then tax-deferred)
         BigDecimal remainingLiabilities = totalLiabilities;
 
-        // 1. 先抵扣应税资产
+        // 1. Deduct from taxable assets first
         BigDecimal taxableAssets = assetsByTaxStatus.get("TAXABLE");
         if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxableAssets.compareTo(BigDecimal.ZERO) > 0) {
             if (taxableAssets.compareTo(remainingLiabilities) >= 0) {
-                // 应税资产足够抵扣所有负债
                 assetsByTaxStatus.put("TAXABLE", taxableAssets.subtract(remainingLiabilities));
                 remainingLiabilities = BigDecimal.ZERO;
             } else {
-                // 应税资产不够，全部用于抵扣
                 remainingLiabilities = remainingLiabilities.subtract(taxableAssets);
                 assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
             }
         }
 
-        // 2. 再抵扣免税资产
+        // 2. Deduct from tax-free assets
         BigDecimal taxFreeAssets = assetsByTaxStatus.get("TAX_FREE");
         if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxFreeAssets.compareTo(BigDecimal.ZERO) > 0) {
             if (taxFreeAssets.compareTo(remainingLiabilities) >= 0) {
-                // 免税资产足够抵扣剩余负债
                 assetsByTaxStatus.put("TAX_FREE", taxFreeAssets.subtract(remainingLiabilities));
                 remainingLiabilities = BigDecimal.ZERO;
             } else {
-                // 免税资产不够，全部用于抵扣
                 remainingLiabilities = remainingLiabilities.subtract(taxFreeAssets);
                 assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
             }
         }
 
-        // 3. 最后抵扣延税资产
+        // 3. Deduct from tax-deferred assets
         BigDecimal taxDeferredAssets = assetsByTaxStatus.get("TAX_DEFERRED");
         if (remainingLiabilities.compareTo(BigDecimal.ZERO) > 0 && taxDeferredAssets.compareTo(BigDecimal.ZERO) > 0) {
             if (taxDeferredAssets.compareTo(remainingLiabilities) >= 0) {
-                // 延税资产足够抵扣剩余负债
                 assetsByTaxStatus.put("TAX_DEFERRED", taxDeferredAssets.subtract(remainingLiabilities));
                 remainingLiabilities = BigDecimal.ZERO;
             } else {
-                // 延税资产不够，全部用于抵扣
                 remainingLiabilities = remainingLiabilities.subtract(taxDeferredAssets);
                 assetsByTaxStatus.put("TAX_DEFERRED", BigDecimal.ZERO);
             }
         }
 
-        // 计算净资产总额
+        // Calculate total net worth
         BigDecimal totalNetWorth = BigDecimal.ZERO;
         for (BigDecimal value : assetsByTaxStatus.values()) {
             totalNetWorth = totalNetWorth.add(value);
         }
 
-        // 税收状态中文名映射
+        // Tax status Chinese names
         Map<String, String> taxStatusNames = Map.of(
             "TAXABLE", "应税",
             "TAX_FREE", "免税",
             "TAX_DEFERRED", "延税"
         );
 
-        // 构建返回数据
+        // Build result data
         List<Map<String, Object>> data = new ArrayList<>();
         for (Map.Entry<String, BigDecimal> entry : assetsByTaxStatus.entrySet()) {
-            // 只添加净值大于0的类别
+            // Only add categories with value > 0
             if (entry.getValue().compareTo(BigDecimal.ZERO) > 0) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("taxStatus", entry.getKey());
                 item.put("name", taxStatusNames.getOrDefault(entry.getKey(), entry.getKey()));
                 item.put("value", entry.getValue());
 
-                // 计算百分比
+                // Calculate percentage
                 if (totalNetWorth.compareTo(BigDecimal.ZERO) > 0) {
                     BigDecimal percentage = entry.getValue()
                         .divide(totalNetWorth, 4, RoundingMode.HALF_UP)
@@ -1408,7 +782,7 @@ public class AnalysisService {
             }
         }
 
-        // 按金额降序排序
+        // Sort by value descending
         data.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
 
         Map<String, Object> result = new HashMap<>();
@@ -1418,14 +792,12 @@ public class AnalysisService {
         return result;
     }
 
-    // 获取按家庭成员的净资产配置
+    // Get net worth by family member
     public Map<String, Object> getNetWorthByMember(Long userId, Long familyId, LocalDate asOfDate) {
         List<User> users;
         if (familyId != null) {
-            // 获取指定家庭的所有活跃成员
             users = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
         } else {
-            // 如果没有指定家庭，获取所有活跃用户
             users = userRepository.findAll().stream()
                 .filter(User::getIsActive)
                 .collect(Collectors.toList());
@@ -1439,48 +811,46 @@ public class AnalysisService {
         List<Map<String, Object>> memberData = new ArrayList<>();
         BigDecimal totalNetWorth = BigDecimal.ZERO;
 
-        // 计算每个成员的净资产
+        // Calculate net worth for each member
         for (User user : users) {
-            // 获取该用户的所有资产账户
+            // Get user's asset accounts
             List<AssetAccount> assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(user.getId());
             BigDecimal userTotalAssets = BigDecimal.ZERO;
 
             for (AssetAccount account : assetAccounts) {
                 Optional<AssetRecord> recordOpt = getAssetRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    // 使用查询日期的汇率重新计算金额
                     AssetRecord assetRecord = recordOpt.get();
                     BigDecimal value = convertToUSD(
                         assetRecord.getAmount(),
                         assetRecord.getCurrency(),
-                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
+                        asOfDate
                     );
                     userTotalAssets = userTotalAssets.add(value);
                 }
             }
 
-            // 获取该用户的所有负债账户
+            // Get user's liability accounts
             List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(user.getId());
             BigDecimal userTotalLiabilities = BigDecimal.ZERO;
 
             for (LiabilityAccount account : liabilityAccounts) {
                 Optional<LiabilityRecord> recordOpt = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
                 if (recordOpt.isPresent()) {
-                    // 使用查询日期的汇率重新计算金额
                     LiabilityRecord liabilityRecord = recordOpt.get();
                     BigDecimal value = convertToUSD(
                         liabilityRecord.getOutstandingBalance(),
                         liabilityRecord.getCurrency(),
-                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                        asOfDate
                     );
                     userTotalLiabilities = userTotalLiabilities.add(value);
                 }
             }
 
-            // 计算该用户的净资产
+            // Calculate user's net worth
             BigDecimal userNetWorth = userTotalAssets.subtract(userTotalLiabilities);
 
-            // 只添加净资产不为零的成员
+            // Only add members with non-zero net worth
             if (userNetWorth.compareTo(BigDecimal.ZERO) != 0) {
                 Map<String, Object> memberInfo = new HashMap<>();
                 memberInfo.put("userId", user.getId());
@@ -1495,28 +865,174 @@ public class AnalysisService {
             }
         }
 
-        // 计算百分比
+        // Calculate percentages
         for (Map<String, Object> member : memberData) {
             BigDecimal value = (BigDecimal) member.get("value");
-            BigDecimal percentage = totalNetWorth.compareTo(BigDecimal.ZERO) == 0
-                ? BigDecimal.ZERO
-                : value.divide(totalNetWorth, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-            member.put("percentage", percentage);
+            if (totalNetWorth.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal percentage = value
+                    .divide(totalNetWorth, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                member.put("percentage", percentage);
+            } else {
+                member.put("percentage", BigDecimal.ZERO);
+            }
         }
 
-        // 按净资产值降序排序
-        memberData.sort((a, b) -> {
-            BigDecimal valueA = (BigDecimal) a.get("value");
-            BigDecimal valueB = (BigDecimal) b.get("value");
-            return valueB.compareTo(valueA);
-        });
+        // Sort by value descending
+        memberData.sort((a, b) -> ((BigDecimal)b.get("value")).compareTo((BigDecimal)a.get("value")));
 
         result.put("total", totalNetWorth);
         result.put("data", memberData);
-        result.put("currency", "USD");
-        result.put("asOfDate", asOfDate.toString());
 
         return result;
+    }
+
+    // Get net worth by currency
+    public Map<String, Object> getNetWorthByCurrency(Long userId, Long familyId, LocalDate asOfDate) {
+        // Get all asset accounts
+        List<AssetAccount> assetAccounts;
+        if (familyId != null) {
+            assetAccounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else if (userId != null) {
+            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            assetAccounts = accountRepository.findByIsActiveTrue();
+        }
+
+        // Get all liability accounts
+        List<LiabilityAccount> liabilityAccounts;
+        if (familyId != null) {
+            liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
+        } else if (userId != null) {
+            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
+        } else {
+            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        }
+
+        // Group assets by currency (without conversion)
+        Map<String, BigDecimal> assetsByCurrency = new HashMap<>();
+        for (AssetAccount account : assetAccounts) {
+            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                AssetRecord assetRecord = record.get();
+                String currency = assetRecord.getCurrency();
+                BigDecimal amount = assetRecord.getAmount();
+                assetsByCurrency.merge(currency, amount, BigDecimal::add);
+            }
+        }
+
+        // Group liabilities by currency (without conversion)
+        Map<String, BigDecimal> liabilitiesByCurrency = new HashMap<>();
+        for (LiabilityAccount account : liabilityAccounts) {
+            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
+            if (record.isPresent()) {
+                LiabilityRecord liabilityRecord = record.get();
+                String currency = liabilityRecord.getCurrency();
+                BigDecimal balance = liabilityRecord.getOutstandingBalance();
+                liabilitiesByCurrency.merge(currency, balance, BigDecimal::add);
+            }
+        }
+
+        // Calculate net worth per currency
+        Set<String> allCurrencies = new HashSet<>();
+        allCurrencies.addAll(assetsByCurrency.keySet());
+        allCurrencies.addAll(liabilitiesByCurrency.keySet());
+
+        List<Map<String, Object>> data = new ArrayList<>();
+        BigDecimal totalNetWorthInUSD = BigDecimal.ZERO;
+
+        for (String currency : allCurrencies) {
+            BigDecimal assets = assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal liabilities = liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+            BigDecimal netWorth = assets.subtract(liabilities);
+
+            // Only add currencies with non-zero net worth
+            if (netWorth.compareTo(BigDecimal.ZERO) != 0) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("currency", currency);
+                item.put("assets", assets);
+                item.put("liabilities", liabilities);
+                item.put("netWorth", netWorth);
+
+                // Convert to USD for total calculation
+                BigDecimal netWorthInUSD = convertToUSD(netWorth, currency, asOfDate != null ? asOfDate : LocalDate.now());
+                item.put("netWorthInUSD", netWorthInUSD);
+                totalNetWorthInUSD = totalNetWorthInUSD.add(netWorthInUSD);
+
+                data.add(item);
+            }
+        }
+
+        // Calculate percentages
+        for (Map<String, Object> item : data) {
+            BigDecimal netWorthInUSD = (BigDecimal) item.get("netWorthInUSD");
+            if (totalNetWorthInUSD.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal percentage = netWorthInUSD
+                    .divide(totalNetWorthInUSD, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+                item.put("percentage", percentage);
+            } else {
+                item.put("percentage", BigDecimal.ZERO);
+            }
+        }
+
+        // Sort by net worth in USD descending
+        data.sort((a, b) -> ((BigDecimal)b.get("netWorthInUSD")).compareTo((BigDecimal)a.get("netWorthInUSD")));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalInUSD", totalNetWorthInUSD);
+        result.put("data", data);
+
+        return result;
+    }
+
+    // ==============================================
+    // Helper methods (kept private in AnalysisService)
+    // ==============================================
+
+    private Optional<AssetRecord> getAssetRecordAsOfDate(Long accountId, LocalDate asOfDate) {
+        if (asOfDate == null) {
+            return recordRepository.findLatestByAccountId(accountId);
+        } else {
+            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBeforeOrEqual(accountId, asOfDate);
+            return records.isEmpty() ? Optional.empty() : Optional.of(records.get(0));
+        }
+    }
+
+    private Optional<LiabilityRecord> getLiabilityRecordAsOfDate(Long accountId, LocalDate asOfDate) {
+        if (asOfDate == null) {
+            return liabilityRecordRepository.findLatestByAccountId(accountId);
+        } else {
+            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBeforeOrEqual(accountId, asOfDate);
+            return records.isEmpty() ? Optional.empty() : Optional.of(records.get(0));
+        }
+    }
+
+    private BigDecimal convertToBaseCurrency(BigDecimal amount, String currency, LocalDate asOfDate, String baseCurrency) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+
+        LocalDate conversionDate = (asOfDate != null) ? asOfDate : LocalDate.now();
+
+        if (currency == null || currency.equalsIgnoreCase(baseCurrency)) {
+            return amount;
+        }
+
+        if (baseCurrency == null || baseCurrency.equalsIgnoreCase("USD")) {
+            BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
+            return amount.multiply(rateToUsd).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal rateToUsd = exchangeRateService.getExchangeRate(currency, conversionDate);
+        BigDecimal amountInUsd = amount.multiply(rateToUsd);
+
+        BigDecimal baseRateToUsd = exchangeRateService.getExchangeRate(baseCurrency, conversionDate);
+        return amountInUsd.divide(baseRateToUsd, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal convertToUSD(BigDecimal amount, String currency, LocalDate asOfDate) {
+        return convertToBaseCurrency(amount, currency, asOfDate, "USD");
     }
 
     // 获取财务指标
@@ -2743,191 +2259,6 @@ public class AnalysisService {
     }
 
     // 获取按货币的净资产配置
-    public Map<String, Object> getNetWorthByCurrency(Long userId, Long familyId, LocalDate asOfDate) {
-        // 获取所有资产账户
-        List<AssetAccount> assetAccounts;
-        if (familyId != null) {
-            assetAccounts = accountRepository.findByFamilyIdAndIsActiveTrue(familyId);
-        } else if (userId != null) {
-            assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            assetAccounts = accountRepository.findByIsActiveTrue();
-        }
-
-        // 按货币分组资产
-        Map<String, BigDecimal> assetsByCurrency = new HashMap<>();
-
-        for (AssetAccount account : assetAccounts) {
-            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                // 使用账户的原始货币和金额（不转换）
-                String currency = account.getCurrency() != null ? account.getCurrency() : "CNY";
-                BigDecimal amount = record.get().getAmount(); // 使用原始金额，不是基础货币金额
-                assetsByCurrency.merge(currency, amount, BigDecimal::add);
-            }
-        }
-
-        // 获取所有负债账户
-        List<LiabilityAccount> liabilityAccounts;
-        if (familyId != null) {
-            liabilityAccounts = liabilityAccountRepository.findByFamilyIdAndIsActiveTrue(familyId);
-        } else if (userId != null) {
-            liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(userId);
-        } else {
-            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
-        }
-
-        // 按货币分组负债
-        Map<String, BigDecimal> liabilitiesByCurrency = new HashMap<>();
-
-        for (LiabilityAccount account : liabilityAccounts) {
-            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                // 使用账户的原始货币和余额（不转换）
-                String currency = account.getCurrency() != null ? account.getCurrency() : "CNY";
-                BigDecimal balance = record.get().getOutstandingBalance(); // 使用原始余额，不是基础货币余额
-                liabilitiesByCurrency.merge(currency, balance, BigDecimal::add);
-            }
-        }
-
-        // 合并所有货币
-        Set<String> allCurrencies = new HashSet<>();
-        allCurrencies.addAll(assetsByCurrency.keySet());
-        allCurrencies.addAll(liabilitiesByCurrency.keySet());
-
-        // 计算每种货币的净资产
-        Map<String, BigDecimal> netWorthByCurrency = new HashMap<>();
-        BigDecimal totalNetWorthInBaseCurrency = BigDecimal.ZERO;
-
-        for (String currency : allCurrencies) {
-            BigDecimal assets = assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
-            BigDecimal liabilities = liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO);
-            BigDecimal netWorth = assets.subtract(liabilities);
-
-            if (netWorth.compareTo(BigDecimal.ZERO) != 0) {
-                netWorthByCurrency.put(currency, netWorth);
-            }
-        }
-
-        // 计算总净资产（使用基础货币金额进行汇总）
-        // 同时计算每种货币的净资产（基础货币金额）
-        Map<String, BigDecimal> netWorthInBaseCurrencyByOriginalCurrency = new HashMap<>();
-
-        for (String currency : allCurrencies) {
-            BigDecimal assetsInOriginal = assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
-            BigDecimal liabilitiesInOriginal = liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO);
-            BigDecimal netWorthInOriginal = assetsInOriginal.subtract(liabilitiesInOriginal);
-
-            // 只添加非零的净资产
-            if (netWorthInOriginal.compareTo(BigDecimal.ZERO) != 0) {
-                netWorthByCurrency.put(currency, netWorthInOriginal);
-            }
-
-            // 获取该货币的账户，计算基础货币金额
-            BigDecimal assetsInBase = BigDecimal.ZERO;
-            BigDecimal liabilitiesInBase = BigDecimal.ZERO;
-
-            // 计算资产的基础货币金额
-            List<AssetAccount> currencyAssetAccounts = assetAccounts.stream()
-                .filter(acc -> currency.equals(acc.getCurrency() != null ? acc.getCurrency() : "CNY"))
-                .collect(java.util.stream.Collectors.toList());
-
-            for (AssetAccount account : currencyAssetAccounts) {
-                Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-                if (record.isPresent()) {
-                    // 使用查询日期的汇率重新计算金额
-                    AssetRecord assetRecord = record.get();
-                    BigDecimal amountInUSD = convertToUSD(
-                        assetRecord.getAmount(),
-                        assetRecord.getCurrency(),
-                        asOfDate != null ? asOfDate : assetRecord.getRecordDate()
-                    );
-                    assetsInBase = assetsInBase.add(amountInUSD);
-                }
-            }
-
-            // 计算负债的基础货币金额
-            List<LiabilityAccount> currencyLiabilityAccounts = liabilityAccounts.stream()
-                .filter(acc -> currency.equals(acc.getCurrency() != null ? acc.getCurrency() : "CNY"))
-                .collect(java.util.stream.Collectors.toList());
-
-            for (LiabilityAccount account : currencyLiabilityAccounts) {
-                Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-                if (record.isPresent()) {
-                    // 使用查询日期的汇率重新计算金额
-                    LiabilityRecord liabilityRecord = record.get();
-                    BigDecimal balanceInUSD = convertToUSD(
-                        liabilityRecord.getOutstandingBalance(),
-                        liabilityRecord.getCurrency(),
-                        asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
-                    );
-                    liabilitiesInBase = liabilitiesInBase.add(balanceInUSD);
-                }
-            }
-
-            BigDecimal netWorthInBase = assetsInBase.subtract(liabilitiesInBase);
-            if (netWorthInBase.compareTo(BigDecimal.ZERO) != 0) {
-                netWorthInBaseCurrencyByOriginalCurrency.put(currency, netWorthInBase);
-                totalNetWorthInBaseCurrency = totalNetWorthInBaseCurrency.add(netWorthInBase);
-            }
-        }
-
-        // 货币中文名映射
-        Map<String, String> currencyNames = Map.of(
-            "CNY", "人民币",
-            "USD", "美元",
-            "EUR", "欧元",
-            "GBP", "英镑",
-            "JPY", "日元",
-            "HKD", "港币",
-            "AUD", "澳元",
-            "CAD", "加元"
-        );
-
-        // 构建返回数据
-        List<Map<String, Object>> data = new ArrayList<>();
-        for (Map.Entry<String, BigDecimal> entry : netWorthByCurrency.entrySet()) {
-            Map<String, Object> item = new HashMap<>();
-            String currency = entry.getKey();
-            BigDecimal netWorth = entry.getValue();
-
-            item.put("currency", currency);
-            item.put("name", currencyNames.getOrDefault(currency, currency));
-            item.put("value", netWorth);
-            item.put("assets", assetsByCurrency.getOrDefault(currency, BigDecimal.ZERO));
-            item.put("liabilities", liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO));
-
-            // 计算百分比（基于基础货币金额的总净资产）
-            BigDecimal netWorthInBase = netWorthInBaseCurrencyByOriginalCurrency.getOrDefault(currency, BigDecimal.ZERO);
-            if (totalNetWorthInBaseCurrency.compareTo(BigDecimal.ZERO) != 0) {
-                BigDecimal percentage = netWorthInBase
-                    .divide(totalNetWorthInBaseCurrency, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
-                item.put("percentage", percentage);
-            } else {
-                item.put("percentage", BigDecimal.ZERO);
-            }
-
-            // 添加基础货币金额，用于前端饼图的扇形大小计算
-            item.put("valueInBaseCurrency", netWorthInBase);
-
-            data.add(item);
-        }
-
-        // 按净值降序排序
-        data.sort((a, b) -> {
-            BigDecimal valueA = (BigDecimal) a.get("value");
-            BigDecimal valueB = (BigDecimal) b.get("value");
-            return valueB.compareTo(valueA);
-        });
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", totalNetWorthInBaseCurrency);
-        result.put("data", data);
-        result.put("asOfDate", asOfDate != null ? asOfDate.toString() : LocalDate.now().toString());
-
-        return result;
-    }
 
     // ==================== 增强的财务指标计算方法 ====================
 
