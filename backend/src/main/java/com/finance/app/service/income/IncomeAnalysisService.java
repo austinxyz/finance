@@ -15,7 +15,10 @@ import com.finance.app.service.InvestmentAnalysisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
@@ -39,6 +42,9 @@ public class IncomeAnalysisService {
 
     @Autowired
     private InvestmentAnalysisService investmentAnalysisService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * 获取年度大类汇总
@@ -337,6 +343,35 @@ public class IncomeAnalysisService {
         }
 
         return amount.multiply(rate);
+    }
+
+    /**
+     * 刷新年度收入汇总表（调用存储过程）
+     * @param familyId 家庭ID
+     * @param year 年份
+     * @param currency 币种（USD/CNY/All）
+     */
+    @Transactional
+    public void refreshAnnualIncomeSummary(Long familyId, Integer year, String currency) {
+        try {
+            log.info("刷新年度收入汇总: familyId={}, year={}, currency={}", familyId, year, currency);
+
+            // 调用存储过程 sp_refresh_annual_income_summary
+            entityManager.createNativeQuery("CALL sp_refresh_annual_income_summary(:familyId, :year, :currency)")
+                    .setParameter("familyId", familyId)
+                    .setParameter("year", year)
+                    .setParameter("currency", currency)
+                    .executeUpdate();
+
+            // 刷新实体管理器
+            entityManager.flush();
+            entityManager.clear();
+
+            log.info("刷新年度收入汇总成功");
+        } catch (Exception e) {
+            log.error("刷新年度收入汇总失败: familyId={}, year={}, currency={}", familyId, year, currency, e);
+            throw new RuntimeException("刷新年度收入汇总失败: " + e.getMessage(), e);
+        }
     }
 
 }

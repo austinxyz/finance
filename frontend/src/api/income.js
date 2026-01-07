@@ -91,5 +91,12 @@ export const incomeAnalysisAPI = {
     return request.get('/incomes-analysis/annual/monthly-trend', {
       params: { familyId, year, majorCategoryId, minorCategoryId, currency }
     })
+  },
+
+  // 刷新年度收入汇总数据
+  refreshAnnualSummary(familyId, year, currency = 'All') {
+    return request.post('/incomes-analysis/annual/refresh', null, {
+      params: { familyId, year, currency }
+    })
   }
 }

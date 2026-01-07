@@ -58,4 +58,16 @@ public class IncomeAnalysisController {
                 familyId, year, majorCategoryId, minorCategoryId, currency);
         return ApiResponse.success(result);
     }
+
+    /**
+     * 刷新年度收入汇总表
+     */
+    @PostMapping("/annual/refresh")
+    public ApiResponse<String> refreshAnnualIncomeSummary(
+            @RequestParam Long familyId,
+            @RequestParam Integer year,
+            @RequestParam(defaultValue = "USD") String currency) {
+        incomeAnalysisService.refreshAnnualIncomeSummary(familyId, year, currency);
+        return ApiResponse.success("年度收入汇总数据已刷新");
+    }
 }

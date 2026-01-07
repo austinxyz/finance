@@ -7,6 +7,21 @@
         <p class="text-xs md:text-sm text-gray-600 mt-1">分析年度收入结构和趋势</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
+        <!-- 刷新按钮 -->
+        <button
+          @click="refreshData"
+          :disabled="refreshing"
+          class="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <svg v-if="!refreshing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>{{ refreshing ? '刷新中...' : '刷新数据' }}</span>
+        </button>
         <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
         <select
           v-model="selectedFamilyId"
@@ -261,6 +276,7 @@ export default {
     const currencies = ref(['All'])
     const selectedCurrency = ref('USD')
     const loading = ref(false)
+    const refreshing = ref(false)
 
     // 大类数据
     const majorCategoryData = ref([])
@@ -417,6 +433,34 @@ export default {
         currencies.value = Array.from(currencySet).sort()
       } catch (error) {
         console.error('加载货币列表失败:', error)
+      }
+    }
+
+    // 刷新数据
+    const refreshData = async () => {
+      if (!selectedFamilyId.value) {
+        alert('请先选择家庭')
+        return
+      }
+
+      refreshing.value = true
+      try {
+        // 调用刷新API
+        await incomeAnalysisAPI.refreshAnnualSummary(
+          selectedFamilyId.value,
+          selectedYear.value,
+          selectedCurrency.value
+        )
+
+        // 刷新成功后重新加载数据
+        await loadMajorCategoryData()
+
+        alert('数据刷新成功！')
+      } catch (error) {
+        console.error('刷新数据失败:', error)
+        alert('刷新数据失败: ' + (error.message || '未知错误'))
+      } finally {
+        refreshing.value = false
       }
     }
 
@@ -839,6 +883,7 @@ export default {
       currencies,
       selectedCurrency,
       loading,
+      refreshing,
       majorCategoryData,
       minorCategoryData,
       monthlyTrendData,
@@ -863,7 +908,8 @@ export default {
       monthlyTrendChartCanvas,
       selectMajorCategory,
       selectMinorCategory,
-      formatCurrency
+      formatCurrency,
+      refreshData
     }
   }
 }
