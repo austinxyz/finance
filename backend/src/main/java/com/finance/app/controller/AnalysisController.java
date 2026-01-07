@@ -14,6 +14,8 @@ import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
 import com.finance.app.service.AnalysisService;
 import com.finance.app.service.ClaudeService;
+import com.finance.app.service.asset.AssetAnalysisService;
+import com.finance.app.service.liability.LiabilityAnalysisService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,8 @@ import java.util.Map;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final AssetAnalysisService assetAnalysisService;
+    private final LiabilityAnalysisService liabilityAnalysisService;
     private final ClaudeService claudeService;
     private final ObjectMapper objectMapper;
 
@@ -40,7 +44,7 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestParam(defaultValue = "All") String currency) {
-        AssetSummaryDTO summary = analysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
         return ApiResponse.success(summary);
     }
 
@@ -50,21 +54,21 @@ public class AnalysisController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
-        List<TrendDataDTO> trends = analysisService.getTotalAssetTrend(userId, startDate, endDate);
+        List<TrendDataDTO> trends = assetAnalysisService.getTotalAssetTrend(userId, startDate, endDate);
         return ApiResponse.success(trends);
     }
 
     // 获取单个账户趋势数据
     @GetMapping("/trends/account/{accountId}")
     public ApiResponse<List<TrendDataDTO>> getAccountTrend(@PathVariable Long accountId) {
-        List<TrendDataDTO> trends = analysisService.getAccountTrend(accountId);
+        List<TrendDataDTO> trends = assetAnalysisService.getAccountTrend(accountId);
         return ApiResponse.success(trends);
     }
 
     // 获取按分类汇总的资产数据
     @GetMapping("/allocation/category")
     public ApiResponse<Map<String, Object>> getAssetAllocationByCategory(@RequestParam(required = false) Long userId) {
-        Map<String, Object> allocation = analysisService.getAssetAllocationByCategory(userId);
+        Map<String, Object> allocation = assetAnalysisService.getAssetAllocationByCategory(userId);
         return ApiResponse.success(allocation);
     }
 
@@ -75,7 +79,7 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestParam(defaultValue = "All") String currency) {
-        Map<String, Object> allocation = analysisService.getAssetAllocationByType(userId, familyId, asOfDate, currency);
+        Map<String, Object> allocation = assetAnalysisService.getAssetAllocationByType(userId, familyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -97,7 +101,7 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestParam(defaultValue = "All") String currency) {
-        Map<String, Object> allocation = analysisService.getLiabilityAllocationByType(userId, familyId, asOfDate, currency);
+        Map<String, Object> allocation = liabilityAnalysisService.getLiabilityAllocationByType(userId, familyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -118,7 +122,7 @@ public class AnalysisController {
             @RequestParam String startDate,
             @RequestParam String endDate,
             @RequestParam(required = false) Long familyId) {
-        List<TrendDataPointDTO> trends = analysisService.getAssetCategoryTrend(categoryType, startDate, endDate, familyId);
+        List<TrendDataPointDTO> trends = assetAnalysisService.getAssetCategoryTrend(categoryType, startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -129,7 +133,7 @@ public class AnalysisController {
             @RequestParam String startDate,
             @RequestParam String endDate,
             @RequestParam(required = false) Long familyId) {
-        List<TrendDataPointDTO> trends = analysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, familyId);
+        List<TrendDataPointDTO> trends = liabilityAnalysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, familyId);
         return ApiResponse.success(trends);
     }
 
@@ -151,7 +155,7 @@ public class AnalysisController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        List<Map<String, Object>> accounts = analysisService.getAssetAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
+        List<Map<String, Object>> accounts = assetAnalysisService.getAssetAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -162,7 +166,7 @@ public class AnalysisController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate) {
-        List<Map<String, Object>> accounts = analysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
+        List<Map<String, Object>> accounts = liabilityAnalysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -174,7 +178,7 @@ public class AnalysisController {
             @RequestParam String endDate,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId) {
-        Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getAssetAccountsTrendByCategory(
+        Map<String, List<AccountTrendDataPointDTO>> trends = assetAnalysisService.getAssetAccountsTrendByCategory(
             categoryType, startDate, endDate, userId, familyId);
         return ApiResponse.success(trends);
     }
@@ -187,7 +191,7 @@ public class AnalysisController {
             @RequestParam String endDate,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId) {
-        Map<String, List<AccountTrendDataPointDTO>> trends = analysisService.getLiabilityAccountsTrendByCategory(
+        Map<String, List<AccountTrendDataPointDTO>> trends = liabilityAnalysisService.getLiabilityAccountsTrendByCategory(
             categoryType, startDate, endDate, userId, familyId);
         return ApiResponse.success(trends);
     }

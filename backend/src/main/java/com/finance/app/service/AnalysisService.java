@@ -63,112 +63,6 @@ public class AnalysisService {
     private final LiabilityAnalysisService liabilityAnalysisService;
 
     // ==============================================
-    // Asset methods - delegated to AssetAnalysisService
-    // ==============================================
-
-    public AssetSummaryDTO getAssetSummary(Long userId) {
-        return assetAnalysisService.getAssetSummary(userId);
-    }
-
-    public AssetSummaryDTO getAssetSummary(Long userId, LocalDate asOfDate) {
-        return assetAnalysisService.getAssetSummary(userId, asOfDate);
-    }
-
-    public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate) {
-        return assetAnalysisService.getAssetSummary(userId, familyId, asOfDate);
-    }
-
-    public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence) {
-        return assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence);
-    }
-
-    public AssetSummaryDTO getAssetSummary(Long userId, Long familyId, LocalDate asOfDate, boolean includePrimaryResidence, String currency) {
-        // Get asset data from AssetAnalysisService
-        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, includePrimaryResidence, currency);
-
-        // Add liability data to get complete summary with net worth
-        BigDecimal totalLiabilities = calculateTotalLiabilities(userId, familyId, asOfDate, currency);
-        summary.setTotalLiabilities(totalLiabilities);
-        summary.setNetWorth(summary.getTotalAssets().subtract(totalLiabilities));
-
-        return summary;
-    }
-
-    public List<TrendDataDTO> getTotalAssetTrend(Long userId, LocalDate startDate, LocalDate endDate) {
-        return assetAnalysisService.getTotalAssetTrend(userId, startDate, endDate);
-    }
-
-    public List<TrendDataDTO> getAccountTrend(Long accountId) {
-        return assetAnalysisService.getAccountTrend(accountId);
-    }
-
-    public Map<String, Object> getAssetAllocationByCategory(Long userId) {
-        return assetAnalysisService.getAssetAllocationByCategory(userId);
-    }
-
-    public Map<String, Object> getAssetAllocationByType(Long userId) {
-        return assetAnalysisService.getAssetAllocationByType(userId);
-    }
-
-    public Map<String, Object> getAssetAllocationByType(Long userId, LocalDate asOfDate) {
-        return assetAnalysisService.getAssetAllocationByType(userId, asOfDate);
-    }
-
-    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        return assetAnalysisService.getAssetAllocationByType(userId, familyId, asOfDate);
-    }
-
-    public Map<String, Object> getAssetAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
-        return assetAnalysisService.getAssetAllocationByType(userId, familyId, asOfDate, currency);
-    }
-
-    public List<TrendDataPointDTO> getAssetCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
-        return assetAnalysisService.getAssetCategoryTrend(categoryType, startDateStr, endDateStr, familyId);
-    }
-
-    public List<Map<String, Object>> getAssetAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
-        return assetAnalysisService.getAssetAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
-    }
-
-    public Map<String, List<AccountTrendDataPointDTO>> getAssetAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
-        return assetAnalysisService.getAssetAccountsTrendByCategory(categoryType, startDateStr, endDateStr, userId, familyId);
-    }
-
-    // ==============================================
-    // Liability methods - delegated to LiabilityAnalysisService
-    // ==============================================
-
-    public Map<String, Object> getLiabilityAllocationByType(Long userId) {
-        return liabilityAnalysisService.getLiabilityAllocationByType(userId);
-    }
-
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, LocalDate asOfDate) {
-        return liabilityAnalysisService.getLiabilityAllocationByType(userId, asOfDate);
-    }
-
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate) {
-        return liabilityAnalysisService.getLiabilityAllocationByType(userId, familyId, asOfDate);
-    }
-
-    public Map<String, Object> getLiabilityAllocationByType(Long userId, Long familyId, LocalDate asOfDate, String currency) {
-        return liabilityAnalysisService.getLiabilityAllocationByType(userId, familyId, asOfDate, currency);
-    }
-
-    public List<TrendDataPointDTO> getLiabilityCategoryTrend(String categoryType, String startDateStr, String endDateStr, Long familyId) {
-        return liabilityAnalysisService.getLiabilityCategoryTrend(categoryType, startDateStr, endDateStr, familyId);
-    }
-
-    public List<Map<String, Object>> getLiabilityAccountsWithBalancesByType(String categoryType, Long userId, Long familyId, LocalDate asOfDate) {
-        return liabilityAnalysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, familyId, asOfDate);
-    }
-
-    public Map<String, List<AccountTrendDataPointDTO>> getLiabilityAccountsTrendByCategory(
-            String categoryType, String startDateStr, String endDateStr, Long userId, Long familyId) {
-        return liabilityAnalysisService.getLiabilityAccountsTrendByCategory(categoryType, startDateStr, endDateStr, userId, familyId);
-    }
-
-    // ==============================================
     // Net asset methods - combine asset and liability data
     // ==============================================
 
@@ -1046,12 +940,12 @@ public class AnalysisService {
         metrics.setYear(currentYear);
 
         // 1. 获取当前净资产（当前日期的资产负债情况）
-        AssetSummaryDTO currentSummary = getAssetSummary(userId, familyId, targetDate);
+        AssetSummaryDTO currentSummary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
         metrics.setCurrentNetWorth(currentSummary.getNetWorth());
 
         // 2. 获取去年净资产（去年12月31日的资产负债情况）
         LocalDate lastYearEndDate = LocalDate.of(currentYear - 1, 12, 31);
-        AssetSummaryDTO lastYearSummary = getAssetSummary(userId, familyId, lastYearEndDate);
+        AssetSummaryDTO lastYearSummary = assetAnalysisService.getAssetSummary(userId, familyId, lastYearEndDate);
         metrics.setLastYearNetWorth(lastYearSummary.getNetWorth());
 
         // 3. 获取本年度投资回报（从投资分析服务）
@@ -1133,7 +1027,7 @@ public class AnalysisService {
         // 月度变化
         LocalDate previousMonth = targetDate.minusMonths(1);
         metrics.setPreviousMonthDate(previousMonth);
-        AssetSummaryDTO previousMonthSummary = getAssetSummary(userId, familyId, previousMonth);
+        AssetSummaryDTO previousMonthSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousMonth);
         metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
         BigDecimal monthlyChange = currentSummary.getNetWorth().subtract(previousMonthSummary.getNetWorth());
         metrics.setMonthlyChange(monthlyChange);
@@ -1176,7 +1070,7 @@ public class AnalysisService {
         assessment.setAsOfDate(targetDate);
 
         // 1. 获取基础财务数据
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, targetDate);
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
         BigDecimal totalAssets = summary.getTotalAssets();
         BigDecimal totalLiabilities = summary.getTotalLiabilities();
         BigDecimal netWorth = summary.getNetWorth();
@@ -1588,7 +1482,7 @@ public class AnalysisService {
         LocalDate targetDate = (asOfDate != null) ? asOfDate : LocalDate.now();
 
         // 获取基础数据
-        AssetSummaryDTO summary = getAssetSummary(userId, familyId, targetDate);
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
         RiskAssessmentDTO riskAssessment = getRiskAssessment(userId, familyId, targetDate);
         FinancialMetricsDTO metrics = getFinancialMetrics(userId, familyId, targetDate);
 
@@ -2275,7 +2169,7 @@ public class AnalysisService {
         metrics.setYear(currentYear);
 
         // 1. 获取基础资产负债数据(复用现有方法)
-        AssetSummaryDTO currentSummary = getAssetSummary(userId, familyId, targetDate);
+        AssetSummaryDTO currentSummary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
         metrics.setTotalAssets(currentSummary.getTotalAssets());
         metrics.setTotalLiabilities(currentSummary.getTotalLiabilities());
         metrics.setNetWorth(currentSummary.getNetWorth());
@@ -2324,7 +2218,7 @@ public class AnalysisService {
         // 月度变化
         LocalDate previousMonth = targetDate.minusMonths(1);
         metrics.setPreviousMonthDate(previousMonth);
-        AssetSummaryDTO previousMonthSummary = getAssetSummary(userId, familyId, previousMonth);
+        AssetSummaryDTO previousMonthSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousMonth);
         metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
         BigDecimal monthlyChange = metrics.getNetWorth().subtract(previousMonthSummary.getNetWorth());
         metrics.setMonthlyChange(monthlyChange);
@@ -2341,7 +2235,7 @@ public class AnalysisService {
         // 年度变化
         LocalDate previousYear = LocalDate.of(targetDate.getYear() - 1, 12, 31);
         metrics.setPreviousYearDate(previousYear);
-        AssetSummaryDTO previousYearSummary = getAssetSummary(userId, familyId, previousYear);
+        AssetSummaryDTO previousYearSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousYear);
         metrics.setPreviousYearNetWorth(previousYearSummary.getNetWorth());
         BigDecimal yearlyChange = metrics.getNetWorth().subtract(previousYearSummary.getNetWorth());
         metrics.setYearlyChange(yearlyChange);
