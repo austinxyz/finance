@@ -3,12 +3,10 @@
 -- ============================================================
 -- 包含财务计算相关的存储过程
 --
--- 生成时间: $(date '+%Y-%m-%d %H:%M:%S')
+-- 生成时间: 2026-01-07 22:28:27
 -- ============================================================
 
 DELIMITER //
-
-mysqldump: Error: 'Access denied; you need (at least one of) the PROCESS privilege(s) for this operation' when trying to dump tablespaces
 
 CREATE DEFINER=`austinxu`@`%` PROCEDURE `calculate_annual_expense_summary_v3`(
     IN p_family_id BIGINT,
@@ -24,6 +22,7 @@ BEGIN
     DECLARE v_adjustment_value DECIMAL(18,2);
     DECLARE v_current_year INT;
     DECLARE v_end_date DATE;
+
     -- 房产购买相关变量
     DECLARE v_property_record_id BIGINT;
     DECLARE v_asset_account_id BIGINT;
@@ -43,12 +42,14 @@ BEGIN
     DECLARE v_housing_category_id BIGINT;
     DECLARE v_property_currency VARCHAR(10);
     DECLARE v_property_exchange_rate DECIMAL(10,6);
+
     -- 游标: 遍历所有启用的调整配置
     DECLARE config_cursor CURSOR FOR
         SELECT major_category_id, adjustment_type, asset_type_code,
                liability_type, adjustment_direction
         FROM expense_category_adjustment_config
         WHERE is_active = 1;
+
     -- 游标: 遍历当年购买的房产
     DECLARE property_cursor CURSOR FOR
         SELECT
@@ -65,7 +66,9 @@ BEGIN
             SELECT id FROM users WHERE family_id = p_family_id
         )
         AND YEAR(pr.purchase_date) = p_summary_year;
+
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
     -- 确定截止日期: 历史年份用12-31, 当年用今天
     SET v_current_year = YEAR(CURDATE());
     IF p_summary_year < v_current_year THEN
@@ -73,19 +76,23 @@ BEGIN
     ELSE
         SET v_end_date = CURDATE();
     END IF;
+
     -- 获取住房大类ID
     SELECT id INTO v_housing_category_id
     FROM expense_categories_major
     WHERE code = 'HOUSING'
     LIMIT 1;
+
     -- 清空当年的汇总数据
     DELETE FROM annual_expense_summary
     WHERE family_id = p_family_id AND summary_year = p_summary_year;
+
     -- ========================================
     -- Part 1: 计算基础支出 (expense_records汇总)
     -- 优化：使用每笔支出当年的年末汇率
     -- 排除：单笔>=10000 USD的特殊支出
     -- ========================================
+
     -- 1.1 小类级别汇总（转换为USD基准货币，排除特殊支出）
     INSERT INTO annual_expense_summary (
         family_id, user_id, summary_year,
@@ -146,6 +153,7 @@ BEGIN
           END
       ) < 10000
     GROUP BY er.family_id, er.user_id, er.expense_year, er.major_category_id, er.minor_category_id;
+
     -- 1.2 大类级别汇总（转换为USD基准货币，排除特殊支出）
     INSERT INTO annual_expense_summary (
         family_id, user_id, summary_year,
@@ -206,9 +214,11 @@ BEGIN
           END
       ) < 10000
     GROUP BY er.family_id, er.expense_year, er.major_category_id;
+
     -- ========================================
     -- Part 1.5: 计算特殊支出（单笔>=10000 USD）
     -- ========================================
+
     -- 1.5.1 小类级别的特殊支出汇总（用于构建详情JSON）
     -- 创建临时表存储小类级别的特殊支出
     DROP TEMPORARY TABLE IF EXISTS temp_special_expenses_minor;
@@ -218,6 +228,7 @@ BEGIN
         minor_category_name VARCHAR(100),
         special_amount DECIMAL(18,2)
     );
+
     INSERT INTO temp_special_expenses_minor (major_category_id, minor_category_id, minor_category_name, special_amount)
     SELECT
         er.major_category_id,
@@ -257,6 +268,7 @@ BEGIN
           END
       ) >= 10000
     GROUP BY er.major_category_id, er.minor_category_id, ecm.name;
+
     -- 1.5.2 大类级别的特殊支出汇总并更新到annual_expense_summary
     -- 首先为那些只有特殊支出没有基础支出的大类创建记录
     INSERT INTO annual_expense_summary (
@@ -285,6 +297,7 @@ BEGIN
           AND major_category_id = special_summary.major_category_id
           AND minor_category_id IS NULL
     );
+
     -- 然后更新所有大类的特殊支出数据
     UPDATE annual_expense_summary aes
     JOIN (
@@ -314,13 +327,17 @@ BEGIN
     WHERE aes.family_id = p_family_id
       AND aes.summary_year = p_summary_year
       AND aes.minor_category_id IS NULL;  -- 仅更新大类级别的记录
+
     -- 清理临时表
     DROP TEMPORARY TABLE IF EXISTS temp_special_expenses_minor;
+
     -- ========================================
     -- Part 2: 处理房产购买年份的特殊调整
     -- ========================================
+
     SET done = FALSE;
     OPEN property_cursor;
+
     property_loop: LOOP
         FETCH property_cursor INTO
             v_property_record_id,
@@ -330,9 +347,11 @@ BEGIN
             v_mortgage_amount,
             v_initial_property_value,
             v_property_currency;
+
         IF done THEN
             LEAVE property_loop;
         END IF;
+
         -- 获取房产货币的汇率 (转换为USD，使用购买年份年末汇率)
         IF v_property_currency = 'USD' THEN
             SET v_property_exchange_rate = 1.0;
@@ -344,12 +363,15 @@ BEGIN
             ORDER BY effective_date DESC
             LIMIT 1;
         END IF;
+
         -- 将房产相关金额转换为USD
         SET v_down_payment = v_down_payment * v_property_exchange_rate;
         SET v_mortgage_amount = v_mortgage_amount * v_property_exchange_rate;
         SET v_initial_property_value = v_initial_property_value * v_property_exchange_rate;
+
         -- 1. 买房成本 = 首付 + 房贷金额 - 房产价值
         SET v_purchase_cost = v_down_payment + v_mortgage_amount - v_initial_property_value;
+
         -- 2. 获取当年最新房贷余额 (转换为USD，使用汇总年份年末汇率)
         SELECT COALESCE(
             CASE
@@ -373,6 +395,7 @@ BEGIN
           AND lr.record_date <= v_end_date
         ORDER BY lr.record_date DESC
         LIMIT 1;
+
         -- 2.1 获取前一年（p_summary_year - 1）年底的房贷余额 (转换为USD，使用前一年年末汇率)
         SELECT COALESCE(
             CASE
@@ -396,6 +419,7 @@ BEGIN
           AND lr.record_date <= CONCAT(p_summary_year - 1, '-12-31')
         ORDER BY lr.record_date DESC
         LIMIT 1;
+
         -- 3. 计算房贷支出年度总和（从expense_records中统计，使用当年年末汇率）
         SELECT COALESCE(
             SUM(
@@ -420,12 +444,16 @@ BEGIN
           AND er.expense_year = p_summary_year
           AND (ecm.name LIKE '%房贷%' OR ecm.name = '租房还贷')
           AND ecm.major_category_id = v_housing_category_id;
+
         -- 4. 累计房贷本金偿还 = (初始房贷金额 - 当年最新房贷余额) + 前一年房贷余额
         SET v_mortgage_principal_paid = (v_mortgage_amount - v_current_mortgage_balance) + v_previous_year_mortgage_balance;
+
         -- 5. 累计房贷利息 = 房贷支出年度总和 - 累计房贷本金偿还
         SET v_accumulated_interest = v_total_mortgage_expense - v_mortgage_principal_paid;
+
         -- 6. 调整支出 = (房贷金额 - 房产价值) - 累计房贷本金偿还
         SET v_adjusted_expense = (v_mortgage_amount - v_initial_property_value) - v_mortgage_principal_paid;
+
         -- 7. 获取当年最新房产价值（从asset_records获取，使用汇总年份年末汇率）
         SELECT COALESCE(
             CASE
@@ -448,8 +476,10 @@ BEGIN
           AND ar.record_date <= v_end_date
         ORDER BY ar.record_date DESC
         LIMIT 1;
+
         -- 8. 投资回报 = 当年最新房产价值 - 初始房产价值
         SET v_investment_return = v_current_property_value - v_initial_property_value;
+
         -- 9. 更新住房大类的调整数据
         UPDATE annual_expense_summary
         SET
@@ -480,20 +510,27 @@ BEGIN
           AND summary_year = p_summary_year
           AND major_category_id = v_housing_category_id
           AND minor_category_id IS NULL;
+
     END LOOP;
+
     CLOSE property_cursor;
+
     -- ========================================
     -- Part 3: 根据配置表进行通用调整（非购买年份使用现有逻辑）
     -- ========================================
+
     SET done = FALSE;
     OPEN config_cursor;
+
     config_loop: LOOP
         FETCH config_cursor INTO
             v_major_category_id, v_adjustment_type,
             v_asset_type_code, v_liability_type, v_adjustment_direction;
+
         IF done THEN
             LEAVE config_loop;
         END IF;
+
         -- 跳过住房类别的房贷调整（如果当年有房产购买）
         IF v_major_category_id = v_housing_category_id
            AND v_adjustment_type = 'LIABILITY'
@@ -509,7 +546,9 @@ BEGIN
                 ITERATE config_loop;
             END IF;
         END IF;
+
         SET v_adjustment_value = 0;
+
         -- 根据调整类型计算调整值
         IF v_adjustment_type = 'ASSET' THEN
             -- 计算资产变化: 当年截止日 - 去年底 (转换为USD，使用记录所在年份年末汇率)
@@ -587,6 +626,7 @@ BEGIN
                 ),
                 0
             ) INTO v_adjustment_value;
+
             -- 更新资产调整
             UPDATE annual_expense_summary
             SET
@@ -611,6 +651,7 @@ BEGIN
               AND summary_year = p_summary_year
               AND major_category_id = v_major_category_id
               AND minor_category_id IS NULL;
+
         ELSEIF v_adjustment_type = 'LIABILITY' THEN
             -- 计算负债变化: 去年底 - 当年截止日 (转换为USD，使用记录所在年份年末汇率)
             SELECT COALESCE(
@@ -687,6 +728,7 @@ BEGIN
                 ),
                 0
             ) INTO v_adjustment_value;
+
             -- 更新负债调整
             -- 负债调整值 = 去年底负债 - 当年底负债（负债减少为正数）
             -- 实际支出 = 基础支出 + 特殊支出 - 负债减少（扣除负债的减少）
@@ -706,8 +748,11 @@ BEGIN
               AND major_category_id = v_major_category_id
               AND minor_category_id IS NULL;
         END IF;
+
     END LOOP;
+
     CLOSE config_cursor;
+
     -- ========================================
     -- Part 4: 计算总计
     -- ========================================
@@ -730,6 +775,7 @@ BEGIN
     WHERE family_id = p_family_id
       AND summary_year = p_summary_year
       AND minor_category_id IS NULL;
+
     -- ========================================
     -- Part 4.5: 汇总调整详情到总计记录
     -- ========================================
@@ -744,12 +790,15 @@ BEGIN
       AND minor_category_id IS NULL
       AND adjustment_details IS NOT NULL
       AND JSON_LENGTH(adjustment_details) > 0;
+
     UPDATE annual_expense_summary
     SET adjustment_details = (SELECT aggregated_details FROM temp_adjustment_details)
     WHERE family_id = p_family_id
       AND summary_year = p_summary_year
       AND major_category_id = 0;
+
     DROP TEMPORARY TABLE IF EXISTS temp_adjustment_details;
+
     -- 返回汇总结果
     SELECT
         aes.id,
@@ -771,7 +820,8 @@ BEGIN
     ORDER BY
         CASE WHEN aes.major_category_id = 0 THEN 999 ELSE aes.major_category_id END,
         CASE WHEN aes.minor_category_id IS NULL THEN 0 ELSE aes.minor_category_id END;
-END ;;
+
+END //
 
 
 CREATE DEFINER=`austinxu`@`%` PROCEDURE `sp_calculate_annual_summary`(
@@ -792,17 +842,21 @@ BEGIN
     DECLARE v_real_estate_net_worth DECIMAL(18, 2) DEFAULT 0;
     DECLARE v_non_real_estate_net_worth DECIMAL(18, 2) DEFAULT 0;
     DECLARE v_base_rate DECIMAL(18, 6) DEFAULT 1;
+
     -- 计算该年度的12月31日
     SET v_year_end_date = DATE(CONCAT(p_year, '-12-31'));
+
     -- 获取家庭的基准货币
     SELECT up.base_currency INTO v_currency
     FROM user_preferences up
     INNER JOIN users u ON up.user_id = u.id
     WHERE u.family_id = p_family_id
     LIMIT 1;
+
     IF v_currency IS NULL THEN
         SET v_currency = 'USD';
     END IF;
+
     -- ========================================
     -- Step 1: 找到当年最晚的记录日期
     -- ========================================
@@ -821,10 +875,12 @@ BEGIN
             AND YEAR(lr.record_date) = p_year
     ) AS all_dates
     WHERE record_date <= v_year_end_date;
+
     -- 如果当年没有任何记录，使用12月31日
     IF v_summary_date IS NULL THEN
         SET v_summary_date = v_year_end_date;
     END IF;
+
     -- ========================================
     -- Step 2: 创建汇率快照临时表
     -- 获取截止到 v_summary_date 的所有货币最新汇率
@@ -844,11 +900,13 @@ BEGIN
             AND is_active = TRUE
     ) ranked
     WHERE rn = 1;
+
     -- 获取基准货币的汇率
     SELECT COALESCE(rate_to_usd, 1) INTO v_base_rate
     FROM temp_exchange_rates
     WHERE currency = v_currency
     LIMIT 1;
+
     -- ========================================
     -- Step 3: 计算总资产和资产分类汇总
     -- ========================================
@@ -885,6 +943,7 @@ BEGIN
             )
         GROUP BY ac.type
     ) AS asset_summary;
+
     -- 计算房产资产总额
     SELECT
         COALESCE(SUM(ar.amount * COALESCE(ter.rate_to_usd, 1) / v_base_rate), 0)
@@ -903,6 +962,7 @@ BEGIN
             WHERE ar2.account_id = ar.account_id
                 AND ar2.record_date <= v_summary_date
         );
+
     -- ========================================
     -- Step 4: 计算总负债和负债分类汇总
     -- ========================================
@@ -939,18 +999,22 @@ BEGIN
             )
         GROUP BY lc.type
     ) AS liability_summary;
+
     -- 清理临时表
     DROP TEMPORARY TABLE IF EXISTS temp_exchange_rates;
+
     -- ========================================
     -- Step 5: 计算净资产
     -- ========================================
     SET v_net_worth = v_total_assets - v_total_liabilities;
+
     -- 计算房产净资产和非房产净资产
     SET v_real_estate_net_worth = v_real_estate_assets - COALESCE(
         JSON_EXTRACT(v_liability_breakdown, '$.MORTGAGE'),
         0
     );
     SET v_non_real_estate_net_worth = v_net_worth - v_real_estate_net_worth;
+
     -- 计算净资产分类明细
     SET v_net_asset_breakdown = JSON_OBJECT(
         'REAL_ESTATE_NET', v_real_estate_assets - COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.MORTGAGE'), 0),
@@ -972,6 +1036,7 @@ BEGIN
             COALESCE(JSON_EXTRACT(v_liability_breakdown, '$.OTHER'), 0)
         )
     );
+
     -- ========================================
     -- Step 6: 插入或更新年度摘要（确保只有一笔记录）
     -- ========================================
@@ -1001,6 +1066,7 @@ BEGIN
         real_estate_net_worth = v_real_estate_net_worth,
         non_real_estate_net_worth = v_non_real_estate_net_worth,
         updated_at = CURRENT_TIMESTAMP;
+
     -- ========================================
     -- Step 7: 计算同比数据
     -- ========================================
@@ -1013,6 +1079,7 @@ BEGIN
         current.yoy_asset_change = IF(previous.id IS NOT NULL, current.total_assets - previous.total_assets, NULL),
         current.yoy_liability_change = IF(previous.id IS NOT NULL, current.total_liabilities - previous.total_liabilities, NULL),
         current.yoy_net_worth_change = IF(previous.id IS NOT NULL, current.net_worth - previous.net_worth, NULL),
+
         -- 同比百分比（限制在 -999.99 到 999.99 之间）
         current.yoy_asset_change_pct = IF(previous.id IS NOT NULL AND previous.total_assets > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.total_assets - previous.total_assets) / previous.total_assets) * 100)),
@@ -1023,18 +1090,21 @@ BEGIN
         current.yoy_net_worth_change_pct = IF(previous.id IS NOT NULL AND previous.net_worth > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.net_worth - previous.net_worth) / previous.net_worth) * 100)),
             NULL),
+
         -- 房产净值同比
         current.yoy_real_estate_net_worth_change = IF(previous.id IS NOT NULL,
             current.real_estate_net_worth - previous.real_estate_net_worth, NULL),
         current.yoy_real_estate_net_worth_change_pct = IF(previous.id IS NOT NULL AND previous.real_estate_net_worth > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.real_estate_net_worth - previous.real_estate_net_worth) / previous.real_estate_net_worth) * 100)),
             NULL),
+
         -- 非房产净值同比
         current.yoy_non_real_estate_net_worth_change = IF(previous.id IS NOT NULL,
             current.non_real_estate_net_worth - previous.non_real_estate_net_worth, NULL),
         current.yoy_non_real_estate_net_worth_change_pct = IF(previous.id IS NOT NULL AND previous.non_real_estate_net_worth > 0,
             LEAST(999.99, GREATEST(-999.99, ((current.non_real_estate_net_worth - previous.non_real_estate_net_worth) / previous.non_real_estate_net_worth) * 100)),
             NULL),
+
         -- 房产占比
         current.real_estate_asset_ratio = IF(current.total_assets > 0,
             (current.real_estate_assets / current.total_assets) * 100,
@@ -1046,7 +1116,177 @@ BEGIN
             (current.real_estate_assets / current.net_worth) * 100,
             NULL)
     WHERE current.family_id = p_family_id AND current.year = p_year;
-END ;;
+
+END //
+
+
+CREATE DEFINER=`austinxu`@`%` PROCEDURE `sp_refresh_annual_income_summary`(
+    IN p_family_id BIGINT,
+    IN p_year INT,
+    IN p_currency VARCHAR(10)
+)
+BEGIN
+    DECLARE v_error_msg VARCHAR(500);
+    DECLARE exit handler FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_error_msg = MESSAGE_TEXT;
+        -- 回滚事务
+        ROLLBACK;
+        -- 返回错误信息
+        SELECT 'ERROR' AS status, v_error_msg AS message;
+    END;
+
+    -- 开始事务
+    START TRANSACTION;
+
+    -- 1. 删除该家庭、该年份、该币种的现有数据
+    DELETE FROM annual_income_summary
+    WHERE family_id = p_family_id
+      AND summary_year = p_year
+      AND BINARY currency = BINARY p_currency;
+
+    -- 2. 根据币种选择不同的汇总策略
+    IF p_currency = 'USD' THEN
+        -- USD模式：只汇总USD币种的收入
+
+        -- 2.1 插入小类级别明细（有minor_category_id的记录）
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            i.minor_category_id,
+            SUM(i.amount_usd) as base_income_amount,
+            SUM(i.amount_usd) as actual_income_amount,
+            p_currency as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+          AND i.currency = 'USD'
+          AND i.minor_category_id IS NOT NULL
+        GROUP BY i.family_id, i.major_category_id, i.minor_category_id;
+
+        -- 2.2 插入大类级别汇总（minor_category_id = NULL）
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            NULL as minor_category_id,
+            SUM(i.amount_usd) as base_income_amount,
+            SUM(i.amount_usd) as actual_income_amount,
+            p_currency as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+          AND i.currency = 'USD'
+        GROUP BY i.family_id, i.major_category_id;
+
+    ELSEIF p_currency = 'CNY' THEN
+        -- CNY模式：只汇总CNY币种的收入
+
+        -- 2.1 插入小类级别明细
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            i.minor_category_id,
+            SUM(i.amount) as base_income_amount,
+            SUM(i.amount) as actual_income_amount,
+            p_currency as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+          AND i.currency = 'CNY'
+          AND i.minor_category_id IS NOT NULL
+        GROUP BY i.family_id, i.major_category_id, i.minor_category_id;
+
+        -- 2.2 插入大类级别汇总
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            NULL as minor_category_id,
+            SUM(i.amount) as base_income_amount,
+            SUM(i.amount) as actual_income_amount,
+            p_currency as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+          AND i.currency = 'CNY'
+        GROUP BY i.family_id, i.major_category_id;
+
+    ELSE
+        -- All模式：汇总所有币种并转换为USD
+        -- 需要先获取汇率
+
+        -- 2.1 插入小类级别明细
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            i.minor_category_id,
+            SUM(i.amount_usd) as base_income_amount,
+            SUM(i.amount_usd) as actual_income_amount,
+            'USD' as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+          AND i.minor_category_id IS NOT NULL
+        GROUP BY i.family_id, i.major_category_id, i.minor_category_id;
+
+        -- 2.2 插入大类级别汇总
+        INSERT INTO annual_income_summary
+            (family_id, summary_year, major_category_id, minor_category_id,
+             base_income_amount, actual_income_amount, currency)
+        SELECT
+            i.family_id,
+            p_year as summary_year,
+            i.major_category_id,
+            NULL as minor_category_id,
+            SUM(i.amount_usd) as base_income_amount,
+            SUM(i.amount_usd) as actual_income_amount,
+            'USD' as currency
+        FROM income_records i
+        WHERE i.family_id = p_family_id
+          AND i.period LIKE CONCAT(p_year, '-%')
+        GROUP BY i.family_id, i.major_category_id;
+    END IF;
+
+    -- 提交事务
+    COMMIT;
+
+    -- 返回成功信息和统计数据
+    SELECT
+        'SUCCESS' AS status,
+        '数据刷新成功' AS message,
+        p_family_id AS family_id,
+        p_year AS year,
+        p_currency AS currency,
+        COUNT(*) AS total_records,
+        SUM(CASE WHEN minor_category_id IS NULL THEN 1 ELSE 0 END) AS major_category_records,
+        SUM(CASE WHEN minor_category_id IS NOT NULL THEN 1 ELSE 0 END) AS minor_category_records,
+        SUM(CASE WHEN minor_category_id IS NULL THEN actual_income_amount ELSE 0 END) AS total_income
+    FROM annual_income_summary
+    WHERE family_id = p_family_id
+      AND summary_year = p_year
+      AND BINARY currency = BINARY CASE WHEN p_currency = 'All' THEN 'USD' ELSE p_currency END;
+
+END //
 
 
 DELIMITER ;
