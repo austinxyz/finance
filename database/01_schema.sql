@@ -458,6 +458,119 @@ CREATE TABLE `users` (
   KEY `idx_username` (`username`),
   KEY `idx_family_id` (`family_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
+
+-- --------------------------------------------------------
+-- Income Management Tables (收入管理相关表)
+-- --------------------------------------------------------
+
+CREATE TABLE `income_categories_major` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `chinese_name` varchar(100) NOT NULL,
+  `icon` varchar(50) DEFAULT NULL,
+  `color` varchar(20) DEFAULT NULL,
+  `display_order` int NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_mcvl3tb30p0dga30jlrgkrhb7` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收入大类表';
+
+CREATE TABLE `income_categories_minor` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `major_category_id` bigint NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `chinese_name` varchar(100) NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `is_active` bit(1) NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收入小类表';
+
+CREATE TABLE `income_records` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `family_id` bigint NOT NULL,
+  `major_category_id` bigint NOT NULL,
+  `minor_category_id` bigint DEFAULT NULL,
+  `period` varchar(7) NOT NULL COMMENT '收入期间，格式：YYYY-MM',
+  `amount` decimal(18,2) NOT NULL,
+  `currency` varchar(10) NOT NULL,
+  `amount_usd` decimal(18,2) DEFAULT NULL COMMENT 'USD等值金额',
+  `asset_account_id` bigint DEFAULT NULL COMMENT '关联的资产账户ID',
+  `description` text,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=63 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收入记录表';
+
+CREATE TABLE `income_budgets` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `family_id` bigint NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  `year` int NOT NULL,
+  `major_category_id` bigint NOT NULL,
+  `minor_category_id` bigint DEFAULT NULL,
+  `budgeted_amount` decimal(18,2) NOT NULL,
+  `currency` varchar(10) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收入预算表';
+
+CREATE TABLE `annual_income_summary` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID（可为空，表示家庭级别汇总）',
+  `summary_year` int NOT NULL COMMENT '汇总年份',
+  `major_category_id` bigint NOT NULL COMMENT '收入大类ID',
+  `minor_category_id` bigint DEFAULT NULL COMMENT '收入小类ID（NULL表示大类汇总）',
+  `base_income_amount` decimal(18,2) NOT NULL DEFAULT '0.00' COMMENT '基础收入金额',
+  `special_income_amount` decimal(18,2) DEFAULT '0.00' COMMENT '特殊收入金额',
+  `special_income_details` json DEFAULT NULL COMMENT '特殊收入详情（JSON格式）',
+  `asset_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '资产相关调整金额',
+  `liability_adjustment` decimal(18,2) DEFAULT '0.00' COMMENT '负债相关调整金额',
+  `adjustment_details` json DEFAULT NULL COMMENT '调整详情（JSON格式）',
+  `actual_income_amount` decimal(18,2) NOT NULL COMMENT '实际收入金额',
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT 'USD' COMMENT '币种',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_family_year` (`family_id`,`summary_year`),
+  KEY `idx_user_year` (`user_id`,`summary_year`),
+  KEY `idx_major_category` (`major_category_id`),
+  KEY `idx_minor_category` (`minor_category_id`),
+  KEY `idx_summary_year` (`summary_year`),
+  KEY `idx_actual_amount` (`actual_income_amount`),
+  CONSTRAINT `fk_income_summary_family` FOREIGN KEY (`family_id`) REFERENCES `families` (`id`),
+  CONSTRAINT `fk_income_summary_major_category` FOREIGN KEY (`major_category_id`) REFERENCES `income_categories_major` (`id`),
+  CONSTRAINT `fk_income_summary_minor_category` FOREIGN KEY (`minor_category_id`) REFERENCES `income_categories_minor` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='年度收入汇总表';
+
+-- --------------------------------------------------------
+-- Google Sheets Integration (Google Sheets集成)
+-- --------------------------------------------------------
+
+CREATE TABLE `google_sheets_sync` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `year` int NOT NULL COMMENT '年份',
+  `spreadsheet_id` varchar(255) NOT NULL COMMENT 'Google Sheets电子表格ID',
+  `share_url` text NOT NULL COMMENT '分享链接',
+  `permission` varchar(20) NOT NULL DEFAULT 'reader' COMMENT '权限设置：reader或writer',
+  `status` varchar(20) NOT NULL COMMENT '同步状态',
+  `progress` int DEFAULT NULL COMMENT '同步进度',
+  `error_message` text COMMENT '错误信息',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_family_year` (`family_id`,`year`),
+  KEY `idx_family_id` (`family_id`),
+  KEY `idx_year` (`year`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Google Sheets同步记录表';
+
 SET @saved_cs_client     = @@character_set_client;
  1 AS `family_id`,
  1 AS `year`,
