@@ -189,6 +189,15 @@ const routes = [
         }
       },
       {
+        path: 'analysis/cashflow',
+        name: 'CashFlowAnalysis',
+        component: () => import('../views/analysis/CashFlowAnalysis.vue'),
+        meta: {
+          title: '现金流整合视图',
+          description: '收支对比分析、储蓄率趋势、现金流量表'
+        }
+      },
+      {
         path: 'analysis/expense-annual-actual',
         name: 'ExpenseAnnualActual',
         component: () => import('../views/analysis/ExpenseAnnualActual.vue'),

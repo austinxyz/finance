@@ -201,9 +201,17 @@
           </router-link>
         </div>
 
-        <!-- 支出分析 -->
+        <!-- 收支分析 -->
         <div class="space-y-1">
-          <div class="nav-section-title">支出分析</div>
+          <div class="nav-section-title">收支分析</div>
+          <router-link
+            to="/analysis/cashflow"
+            class="nav-item"
+            :class="isActive('/analysis/cashflow')"
+          >
+            <TrendingUp class="w-5 h-5" />
+            <span>现金流整合视图</span>
+          </router-link>
           <router-link
             to="/analysis/expense-annual"
             class="nav-item"
@@ -234,13 +242,8 @@
             :class="isActive('/analysis/expense-annual-trend')"
           >
             <TrendingUp class="w-5 h-5" />
-            <span>年度趋势</span>
+            <span>支出年度趋势</span>
           </router-link>
-        </div>
-
-        <!-- 收入分析 -->
-        <div class="space-y-1">
-          <div class="nav-section-title">收入分析</div>
           <router-link
             to="/analysis/income-annual"
             class="nav-item"

@@ -37,14 +37,19 @@ public class AnalysisController {
     private final ClaudeService claudeService;
     private final ObjectMapper objectMapper;
 
-    // 获取资产总览
+    // 获取资产总览（包含负债和净资产）
     @GetMapping("/summary")
     public ApiResponse<AssetSummaryDTO> getAssetSummary(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestParam(defaultValue = "All") String currency) {
+        // Get asset summary
         AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
+
+        // Add liability data using AnalysisService (which has the combined logic)
+        summary = analysisService.addLiabilityDataToSummary(summary, userId, familyId, asOfDate, currency);
+
         return ApiResponse.success(summary);
     }
 

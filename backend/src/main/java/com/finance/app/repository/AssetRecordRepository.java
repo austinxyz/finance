@@ -109,4 +109,23 @@ public interface AssetRecordRepository extends JpaRepository<AssetRecord, Long> 
     Optional<AssetRecord> findLatestByAccountAndDate(
             @Param("accountId") Long accountId,
             @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 批量查询多个账户的最新记录（用于性能优化）
+     */
+    @Query("SELECT r FROM AssetRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 WHERE r2.accountId = r.accountId)")
+    List<AssetRecord> findLatestByAccountIds(@Param("accountIds") List<Long> accountIds);
+
+    /**
+     * 批量查询多个账户在指定日期之前的最新记录（用于性能优化）
+     */
+    @Query("SELECT r FROM AssetRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM AssetRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate)")
+    List<AssetRecord> findLatestByAccountIdsBeforeOrEqualDate(
+            @Param("accountIds") List<Long> accountIds,
+            @Param("asOfDate") LocalDate asOfDate);
 }

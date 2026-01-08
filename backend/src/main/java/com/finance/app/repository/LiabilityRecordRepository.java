@@ -73,4 +73,23 @@ public interface LiabilityRecordRepository extends JpaRepository<LiabilityRecord
     List<LiabilityRecord> findLatestRecordsByFamilyAndDate(
             @Param("familyId") Long familyId,
             @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 批量查询多个账户的最新记录（用于性能优化）
+     */
+    @Query("SELECT r FROM LiabilityRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM LiabilityRecord r2 WHERE r2.accountId = r.accountId)")
+    List<LiabilityRecord> findLatestByAccountIds(@Param("accountIds") List<Long> accountIds);
+
+    /**
+     * 批量查询多个账户在指定日期之前的最新记录（用于性能优化）
+     */
+    @Query("SELECT r FROM LiabilityRecord r " +
+           "WHERE r.accountId IN :accountIds " +
+           "AND r.recordDate = (SELECT MAX(r2.recordDate) FROM LiabilityRecord r2 " +
+           "                     WHERE r2.accountId = r.accountId AND r2.recordDate <= :asOfDate)")
+    List<LiabilityRecord> findLatestByAccountIdsBeforeOrEqualDate(
+            @Param("accountIds") List<Long> accountIds,
+            @Param("asOfDate") LocalDate asOfDate);
 }

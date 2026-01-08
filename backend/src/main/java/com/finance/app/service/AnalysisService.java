@@ -66,6 +66,16 @@ public class AnalysisService {
     // Net asset methods - combine asset and liability data
     // ==============================================
 
+    /**
+     * Add liability data to asset summary to get complete financial overview
+     */
+    public AssetSummaryDTO addLiabilityDataToSummary(AssetSummaryDTO summary, Long userId, Long familyId, LocalDate asOfDate, String currency) {
+        BigDecimal totalLiabilities = calculateTotalLiabilities(userId, familyId, asOfDate, currency);
+        summary.setTotalLiabilities(totalLiabilities);
+        summary.setNetWorth(summary.getTotalAssets().subtract(totalLiabilities));
+        return summary;
+    }
+
     // Helper method to calculate total liabilities
     private BigDecimal calculateTotalLiabilities(Long userId, Long familyId, LocalDate asOfDate, String currency) {
         List<LiabilityAccount> liabilityAccounts;
@@ -545,6 +555,7 @@ public class AnalysisService {
     }
 
     // Get net worth by tax status
+    // OPTIMIZED: Batch query to reduce N+1 queries
     public Map<String, Object> getNetWorthByTaxStatus(Long userId, Long familyId, LocalDate asOfDate) {
         // Get all asset accounts
         List<AssetAccount> assetAccounts;
@@ -554,26 +565,6 @@ public class AnalysisService {
             assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(userId);
         } else {
             assetAccounts = accountRepository.findByIsActiveTrue();
-        }
-
-        // Group assets by tax status
-        Map<String, BigDecimal> assetsByTaxStatus = new HashMap<>();
-        assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
-        assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
-        assetsByTaxStatus.put("TAX_DEFERRED", BigDecimal.ZERO);
-
-        for (AssetAccount account : assetAccounts) {
-            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                AssetRecord assetRecord = record.get();
-                BigDecimal amount = convertToUSD(
-                    assetRecord.getAmount(),
-                    assetRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : assetRecord.getRecordDate()
-                );
-                String taxStatus = account.getTaxStatus() != null ? account.getTaxStatus().name() : "TAXABLE";
-                assetsByTaxStatus.merge(taxStatus, amount, BigDecimal::add);
-            }
         }
 
         // Get all liability accounts
@@ -586,15 +577,57 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
+        if (asOfDate == null) {
+            asOfDate = LocalDate.now();
+        }
+
+        // OPTIMIZATION: Batch query all records
+        List<Long> assetAccountIds = assetAccounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
+        List<Long> liabilityAccountIds = liabilityAccounts.stream().map(LiabilityAccount::getId).collect(Collectors.toList());
+
+        Map<Long, AssetRecord> assetRecordMap = new HashMap<>();
+        if (!assetAccountIds.isEmpty()) {
+            List<AssetRecord> records = recordRepository.findLatestByAccountIdsBeforeOrEqualDate(assetAccountIds, asOfDate);
+            for (AssetRecord record : records) {
+                assetRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
+        Map<Long, LiabilityRecord> liabilityRecordMap = new HashMap<>();
+        if (!liabilityAccountIds.isEmpty()) {
+            List<LiabilityRecord> records = liabilityRecordRepository.findLatestByAccountIdsBeforeOrEqualDate(liabilityAccountIds, asOfDate);
+            for (LiabilityRecord record : records) {
+                liabilityRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
+        // Group assets by tax status
+        Map<String, BigDecimal> assetsByTaxStatus = new HashMap<>();
+        assetsByTaxStatus.put("TAXABLE", BigDecimal.ZERO);
+        assetsByTaxStatus.put("TAX_FREE", BigDecimal.ZERO);
+        assetsByTaxStatus.put("TAX_DEFERRED", BigDecimal.ZERO);
+
+        for (AssetAccount account : assetAccounts) {
+            AssetRecord assetRecord = assetRecordMap.get(account.getId());
+            if (assetRecord != null) {
+                BigDecimal amount = convertToUSD(
+                    assetRecord.getAmount(),
+                    assetRecord.getCurrency(),
+                    assetRecord.getRecordDate()
+                );
+                String taxStatus = account.getTaxStatus() != null ? account.getTaxStatus().name() : "TAXABLE";
+                assetsByTaxStatus.merge(taxStatus, amount, BigDecimal::add);
+            }
+        }
+
         BigDecimal totalLiabilities = BigDecimal.ZERO;
         for (LiabilityAccount account : liabilityAccounts) {
-            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                LiabilityRecord liabilityRecord = record.get();
+            LiabilityRecord liabilityRecord = liabilityRecordMap.get(account.getId());
+            if (liabilityRecord != null) {
                 BigDecimal balance = convertToUSD(
                     liabilityRecord.getOutstandingBalance(),
                     liabilityRecord.getCurrency(),
-                    asOfDate != null ? asOfDate : liabilityRecord.getRecordDate()
+                    liabilityRecord.getRecordDate()
                 );
                 totalLiabilities = totalLiabilities.add(balance);
             }
@@ -686,7 +719,7 @@ public class AnalysisService {
         return result;
     }
 
-    // Get net worth by family member
+    // Get net worth by family member - OPTIMIZED: Batch query to reduce N+1 queries
     public Map<String, Object> getNetWorthByMember(Long userId, Long familyId, LocalDate asOfDate) {
         List<User> users;
         if (familyId != null) {
@@ -701,47 +734,79 @@ public class AnalysisService {
             asOfDate = LocalDate.now();
         }
 
+        // Get all user IDs
+        List<Long> userIds = users.stream().map(User::getId).collect(Collectors.toList());
+        if (userIds.isEmpty()) {
+            return Map.of("total", BigDecimal.ZERO, "data", new ArrayList<>());
+        }
+
+        // OPTIMIZATION: Batch query all accounts for all users
+        List<AssetAccount> allAssetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
+        List<LiabilityAccount> allLiabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
+
+        // OPTIMIZATION: Batch query all records
+        List<Long> assetAccountIds = allAssetAccounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
+        List<Long> liabilityAccountIds = allLiabilityAccounts.stream().map(LiabilityAccount::getId).collect(Collectors.toList());
+
+        Map<Long, AssetRecord> assetRecordMap = new HashMap<>();
+        if (!assetAccountIds.isEmpty()) {
+            List<AssetRecord> records = recordRepository.findLatestByAccountIdsBeforeOrEqualDate(assetAccountIds, asOfDate);
+            for (AssetRecord record : records) {
+                assetRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
+        Map<Long, LiabilityRecord> liabilityRecordMap = new HashMap<>();
+        if (!liabilityAccountIds.isEmpty()) {
+            List<LiabilityRecord> records = liabilityRecordRepository.findLatestByAccountIdsBeforeOrEqualDate(liabilityAccountIds, asOfDate);
+            for (LiabilityRecord record : records) {
+                liabilityRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
+        // Group accounts by user
+        Map<Long, List<AssetAccount>> assetAccountsByUser = allAssetAccounts.stream()
+            .collect(Collectors.groupingBy(AssetAccount::getUserId));
+        Map<Long, List<LiabilityAccount>> liabilityAccountsByUser = allLiabilityAccounts.stream()
+            .collect(Collectors.groupingBy(LiabilityAccount::getUserId));
+
         Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> memberData = new ArrayList<>();
         BigDecimal totalNetWorth = BigDecimal.ZERO;
 
         // Calculate net worth for each member
         for (User user : users) {
-            // Get user's asset accounts
-            List<AssetAccount> assetAccounts = accountRepository.findByUserIdAndIsActiveTrue(user.getId());
             BigDecimal userTotalAssets = BigDecimal.ZERO;
+            BigDecimal userTotalLiabilities = BigDecimal.ZERO;
 
-            for (AssetAccount account : assetAccounts) {
-                Optional<AssetRecord> recordOpt = getAssetRecordAsOfDate(account.getId(), asOfDate);
-                if (recordOpt.isPresent()) {
-                    AssetRecord assetRecord = recordOpt.get();
+            // Calculate assets
+            List<AssetAccount> userAssets = assetAccountsByUser.getOrDefault(user.getId(), Collections.emptyList());
+            for (AssetAccount account : userAssets) {
+                AssetRecord record = assetRecordMap.get(account.getId());
+                if (record != null) {
                     BigDecimal value = convertToUSD(
-                        assetRecord.getAmount(),
-                        assetRecord.getCurrency(),
-                        asOfDate
+                        record.getAmount(),
+                        record.getCurrency(),
+                        record.getRecordDate()
                     );
                     userTotalAssets = userTotalAssets.add(value);
                 }
             }
 
-            // Get user's liability accounts
-            List<LiabilityAccount> liabilityAccounts = liabilityAccountRepository.findByUserIdAndIsActiveTrue(user.getId());
-            BigDecimal userTotalLiabilities = BigDecimal.ZERO;
-
-            for (LiabilityAccount account : liabilityAccounts) {
-                Optional<LiabilityRecord> recordOpt = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-                if (recordOpt.isPresent()) {
-                    LiabilityRecord liabilityRecord = recordOpt.get();
+            // Calculate liabilities
+            List<LiabilityAccount> userLiabilities = liabilityAccountsByUser.getOrDefault(user.getId(), Collections.emptyList());
+            for (LiabilityAccount account : userLiabilities) {
+                LiabilityRecord record = liabilityRecordMap.get(account.getId());
+                if (record != null) {
                     BigDecimal value = convertToUSD(
-                        liabilityRecord.getOutstandingBalance(),
-                        liabilityRecord.getCurrency(),
-                        asOfDate
+                        record.getOutstandingBalance(),
+                        record.getCurrency(),
+                        record.getRecordDate()
                     );
                     userTotalLiabilities = userTotalLiabilities.add(value);
                 }
             }
 
-            // Calculate user's net worth
             BigDecimal userNetWorth = userTotalAssets.subtract(userTotalLiabilities);
 
             // Only add members with non-zero net worth
@@ -781,7 +846,7 @@ public class AnalysisService {
         return result;
     }
 
-    // Get net worth by currency
+    // Get net worth by currency - OPTIMIZED: Batch query to reduce N+1 queries
     public Map<String, Object> getNetWorthByCurrency(Long userId, Long familyId, LocalDate asOfDate) {
         // Get all asset accounts
         List<AssetAccount> assetAccounts;
@@ -803,12 +868,35 @@ public class AnalysisService {
             liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
         }
 
+        if (asOfDate == null) {
+            asOfDate = LocalDate.now();
+        }
+
+        // OPTIMIZATION: Batch query all records
+        List<Long> assetAccountIds = assetAccounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
+        List<Long> liabilityAccountIds = liabilityAccounts.stream().map(LiabilityAccount::getId).collect(Collectors.toList());
+
+        Map<Long, AssetRecord> assetRecordMap = new HashMap<>();
+        if (!assetAccountIds.isEmpty()) {
+            List<AssetRecord> records = recordRepository.findLatestByAccountIdsBeforeOrEqualDate(assetAccountIds, asOfDate);
+            for (AssetRecord record : records) {
+                assetRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
+        Map<Long, LiabilityRecord> liabilityRecordMap = new HashMap<>();
+        if (!liabilityAccountIds.isEmpty()) {
+            List<LiabilityRecord> records = liabilityRecordRepository.findLatestByAccountIdsBeforeOrEqualDate(liabilityAccountIds, asOfDate);
+            for (LiabilityRecord record : records) {
+                liabilityRecordMap.put(record.getAccountId(), record);
+            }
+        }
+
         // Group assets by currency (without conversion)
         Map<String, BigDecimal> assetsByCurrency = new HashMap<>();
         for (AssetAccount account : assetAccounts) {
-            Optional<AssetRecord> record = getAssetRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                AssetRecord assetRecord = record.get();
+            AssetRecord assetRecord = assetRecordMap.get(account.getId());
+            if (assetRecord != null) {
                 String currency = assetRecord.getCurrency();
                 BigDecimal amount = assetRecord.getAmount();
                 assetsByCurrency.merge(currency, amount, BigDecimal::add);
@@ -818,9 +906,8 @@ public class AnalysisService {
         // Group liabilities by currency (without conversion)
         Map<String, BigDecimal> liabilitiesByCurrency = new HashMap<>();
         for (LiabilityAccount account : liabilityAccounts) {
-            Optional<LiabilityRecord> record = getLiabilityRecordAsOfDate(account.getId(), asOfDate);
-            if (record.isPresent()) {
-                LiabilityRecord liabilityRecord = record.get();
+            LiabilityRecord liabilityRecord = liabilityRecordMap.get(account.getId());
+            if (liabilityRecord != null) {
                 String currency = liabilityRecord.getCurrency();
                 BigDecimal balance = liabilityRecord.getOutstandingBalance();
                 liabilitiesByCurrency.merge(currency, balance, BigDecimal::add);
@@ -844,13 +931,16 @@ public class AnalysisService {
             if (netWorth.compareTo(BigDecimal.ZERO) != 0) {
                 Map<String, Object> item = new HashMap<>();
                 item.put("currency", currency);
+                item.put("name", getCurrencyName(currency));  // Add display name
                 item.put("assets", assets);
                 item.put("liabilities", liabilities);
                 item.put("netWorth", netWorth);
+                item.put("value", netWorth);  // Alias for frontend compatibility
 
                 // Convert to USD for total calculation
-                BigDecimal netWorthInUSD = convertToUSD(netWorth, currency, asOfDate != null ? asOfDate : LocalDate.now());
+                BigDecimal netWorthInUSD = convertToUSD(netWorth, currency, asOfDate);
                 item.put("netWorthInUSD", netWorthInUSD);
+                item.put("valueInBaseCurrency", netWorthInUSD);  // Alias for frontend compatibility
                 totalNetWorthInUSD = totalNetWorthInUSD.add(netWorthInUSD);
 
                 data.add(item);
@@ -929,6 +1019,25 @@ public class AnalysisService {
         return convertToBaseCurrency(amount, currency, asOfDate, "USD");
     }
 
+    private String getCurrencyName(String currencyCode) {
+        Map<String, String> currencyNames = Map.ofEntries(
+            entry("USD", "美元"),
+            entry("CNY", "人民币"),
+            entry("EUR", "欧元"),
+            entry("GBP", "英镑"),
+            entry("JPY", "日元"),
+            entry("HKD", "港币"),
+            entry("AUD", "澳元"),
+            entry("CAD", "加元"),
+            entry("SGD", "新加坡元"),
+            entry("CHF", "瑞士法郎"),
+            entry("NZD", "新西兰元"),
+            entry("KRW", "韩元"),
+            entry("TWD", "新台币")
+        );
+        return currencyNames.getOrDefault(currencyCode, currencyCode);
+    }
+
     // 获取财务指标
     public FinancialMetricsDTO getFinancialMetrics(Long userId, Long familyId, LocalDate asOfDate) {
         // 如果没有指定日期,使用当前日期
@@ -941,11 +1050,13 @@ public class AnalysisService {
 
         // 1. 获取当前净资产（当前日期的资产负债情况）
         AssetSummaryDTO currentSummary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
+        currentSummary = addLiabilityDataToSummary(currentSummary, userId, familyId, targetDate, "All");
         metrics.setCurrentNetWorth(currentSummary.getNetWorth());
 
         // 2. 获取去年净资产（去年12月31日的资产负债情况）
         LocalDate lastYearEndDate = LocalDate.of(currentYear - 1, 12, 31);
         AssetSummaryDTO lastYearSummary = assetAnalysisService.getAssetSummary(userId, familyId, lastYearEndDate);
+        lastYearSummary = addLiabilityDataToSummary(lastYearSummary, userId, familyId, lastYearEndDate, "All");
         metrics.setLastYearNetWorth(lastYearSummary.getNetWorth());
 
         // 3. 获取本年度投资回报（从投资分析服务）
@@ -1028,6 +1139,7 @@ public class AnalysisService {
         LocalDate previousMonth = targetDate.minusMonths(1);
         metrics.setPreviousMonthDate(previousMonth);
         AssetSummaryDTO previousMonthSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousMonth);
+        previousMonthSummary = addLiabilityDataToSummary(previousMonthSummary, userId, familyId, previousMonth, "All");
         metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
         BigDecimal monthlyChange = currentSummary.getNetWorth().subtract(previousMonthSummary.getNetWorth());
         metrics.setMonthlyChange(monthlyChange);
@@ -1071,6 +1183,7 @@ public class AnalysisService {
 
         // 1. 获取基础财务数据
         AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
+        summary = addLiabilityDataToSummary(summary, userId, familyId, targetDate, "All");
         BigDecimal totalAssets = summary.getTotalAssets();
         BigDecimal totalLiabilities = summary.getTotalLiabilities();
         BigDecimal netWorth = summary.getNetWorth();
@@ -1483,6 +1596,7 @@ public class AnalysisService {
 
         // 获取基础数据
         AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
+        summary = addLiabilityDataToSummary(summary, userId, familyId, targetDate, "All");
         RiskAssessmentDTO riskAssessment = getRiskAssessment(userId, familyId, targetDate);
         FinancialMetricsDTO metrics = getFinancialMetrics(userId, familyId, targetDate);
 
@@ -2170,6 +2284,7 @@ public class AnalysisService {
 
         // 1. 获取基础资产负债数据(复用现有方法)
         AssetSummaryDTO currentSummary = assetAnalysisService.getAssetSummary(userId, familyId, targetDate);
+        currentSummary = addLiabilityDataToSummary(currentSummary, userId, familyId, targetDate, "All");
         metrics.setTotalAssets(currentSummary.getTotalAssets());
         metrics.setTotalLiabilities(currentSummary.getTotalLiabilities());
         metrics.setNetWorth(currentSummary.getNetWorth());
@@ -2219,6 +2334,7 @@ public class AnalysisService {
         LocalDate previousMonth = targetDate.minusMonths(1);
         metrics.setPreviousMonthDate(previousMonth);
         AssetSummaryDTO previousMonthSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousMonth);
+        previousMonthSummary = addLiabilityDataToSummary(previousMonthSummary, userId, familyId, previousMonth, "All");
         metrics.setPreviousMonthNetWorth(previousMonthSummary.getNetWorth());
         BigDecimal monthlyChange = metrics.getNetWorth().subtract(previousMonthSummary.getNetWorth());
         metrics.setMonthlyChange(monthlyChange);
@@ -2236,6 +2352,7 @@ public class AnalysisService {
         LocalDate previousYear = LocalDate.of(targetDate.getYear() - 1, 12, 31);
         metrics.setPreviousYearDate(previousYear);
         AssetSummaryDTO previousYearSummary = assetAnalysisService.getAssetSummary(userId, familyId, previousYear);
+        previousYearSummary = addLiabilityDataToSummary(previousYearSummary, userId, familyId, previousYear, "All");
         metrics.setPreviousYearNetWorth(previousYearSummary.getNetWorth());
         BigDecimal yearlyChange = metrics.getNetWorth().subtract(previousYearSummary.getNetWorth());
         metrics.setYearlyChange(yearlyChange);
