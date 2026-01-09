@@ -45,12 +45,17 @@ public class AnalysisController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long familyId,
             @RequestParam(required = false) LocalDate asOfDate,
-            @RequestParam(defaultValue = "All") String currency) {
-        // Get asset summary
-        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, familyId, asOfDate, false, currency);
+            @RequestParam(defaultValue = "All") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Add liability data using AnalysisService (which has the combined logic)
-        summary = analysisService.addLiabilityDataToSummary(summary, userId, familyId, asOfDate, currency);
+        // Use authenticated user's family_id
+        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+        // Get asset summary with authenticated family
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, authenticatedFamilyId, asOfDate, false, currency);
+
+        // Add liability data using AnalysisService
+        summary = analysisService.addLiabilityDataToSummary(summary, userId, authenticatedFamilyId, asOfDate, currency);
 
         return ApiResponse.success(summary);
     }

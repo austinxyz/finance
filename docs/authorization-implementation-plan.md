@@ -1,8 +1,8 @@
 # Authorization Implementation Plan
 
-## Current Status: Phase 1 Complete ✅
+## Current Status: Phase 2 In Progress (8/18 Complete) 🚧
 
-**Last Updated**: 2026-01-09
+**Last Updated**: 2026-01-09 (Session 2)
 
 ---
 
@@ -21,7 +21,7 @@
 - ✅ **Password Encryption** - BCrypt hashing for all user passwords
 - ✅ **Admin Endpoint** - `/auth/admin/encrypt-passwords` for password migration
 
-#### 2. Controllers with Authorization (4/18 Complete)
+#### 2. Controllers with Authorization (8/18 Complete)
 
 | Controller | Status | Authorization Pattern |
 |------------|--------|----------------------|
@@ -29,6 +29,11 @@
 | **LiabilityController** | ✅ Complete | Account-level via `requireAccountAccess()` |
 | **IncomeController** | ✅ Complete | Family-level via `requireFamilyAccess()` |
 | **ExchangeRateController** | ✅ Complete | Admin-only via `requireAdmin()` |
+| **ExpenseController** | ✅ Complete | Family-level + Admin-only categories |
+| **UserController** | ✅ Complete | Self or Admin pattern |
+| **FamilyController** | ✅ Complete | Family-level + Admin-only |
+| **GoogleSheetsController** | ✅ Complete | Family-level (sync operations) |
+| **AnalysisController** | 🚧 In Progress | Family-level (1/20+ endpoints done) |
 
 #### 3. Testing Completed
 - ✅ Login endpoint with encrypted passwords
@@ -48,63 +53,62 @@ Users:  AustinXu / password
 
 ---
 
+## Session 2 Summary (2026-01-09)
+
+### Completed
+1. **ExpenseController** - Family-level authorization with admin-only category management
+2. **UserController** - Refactored to use AuthHelper, implemented self-or-admin pattern
+3. **FamilyController** - Complete family-level authorization with admin controls
+4. **GoogleSheetsController** - Family-scoped sync operations
+5. **AnalysisController** - Started (AuthHelper added, 1 endpoint updated)
+
+### Key Improvements
+- Replaced `AuthService.isAdminByToken()` with `AuthHelper.requireAdmin()` for consistency
+- Implemented "self or admin" pattern for user profile operations
+- Family operations properly scoped to authenticated user's family
+- Google Sheets sync operations now use authenticated family ID
+
+---
+
 ## Remaining Work
 
-### Phase 2: Complete Authorization for All Controllers (14/18 Remaining)
+### Phase 2: Complete Authorization for All Controllers (10/18 Remaining)
 
 #### Controllers Pending Authorization
 
-1. **ExpenseController** - Family-level authorization
-   - GET `/expenses/records` → Family expenses
-   - POST `/expenses/records` → Set familyId from auth
-   - PUT/DELETE → Verify family ownership
+1. **AnalysisController** 🚧 - Family-level authorization (LARGE - 20+ endpoints)
+   - Pattern: Add `authHeader` param, extract `familyId = authHelper.getFamilyIdFromAuth(authHeader)`
+   - Replace all `familyId` service calls with `authenticatedFamilyId`
+   - Endpoints: /summary, /trends/*, /allocation/*, /financial-metrics, /risk-assessment, etc.
 
-2. **NetAssetController** - Family-level authorization
-   - GET `/net-assets/summary` → Family net assets
-   - GET `/net-assets/trend` → Family trends
+2. **IncomeAnalysisController** - Family-level authorization
+   - Similar pattern to AnalysisController
+   - All income analysis scoped to family
 
-3. **UserController** - User/Family-level authorization
-   - GET `/users` → Admin only
-   - GET `/users/{id}` → Self or family members
-   - POST `/users` → Admin only
-   - PUT `/users/{id}` → Self or admin
-   - DELETE `/users/{id}` → Admin only
+3. **ExpenseAnalysisController** - Family-level authorization
+   - Similar pattern to AnalysisController
+   - All expense analysis scoped to family
 
-4. **FamilyController** - Family-level authorization
-   - GET `/families` → Admin only
-   - GET `/families/{id}` → Own family or admin
-   - POST `/families` → Admin only
-   - PUT `/families/{id}` → Own family or admin
+4. **InvestmentAnalysisController** - Family-level authorization
+   - Investment analysis scoped to family
 
-5. **BudgetController** - Family-level authorization
-   - All endpoints restricted to own family data
+5. **ExpenseBudgetController** - Family-level authorization
+   - Budget operations scoped to family
 
-6. **DashboardController** - Family-level authorization
-   - GET `/dashboard/summary` → Own family summary
+6. **PropertyRecordController** - Account ownership authorization
+   - Verify property account belongs to user's family
 
-7. **ReportController** - Family-level authorization
-   - All report endpoints restricted to own family data
+7. **InvestmentTransactionController** - Account ownership authorization
+   - Verify investment account belongs to user's family
 
-8. **GoogleSheetsController** - User-level authorization
-   - Sync operations restricted to own family data
+8. **AnnualFinancialSummaryController** - Family-level authorization
+   - Annual summaries scoped to family
 
-9. **AccountLinkController** - Account ownership authorization
-   - Verify both accounts belong to user's family
+9. **UserProfileController** - Self or admin pattern
+   - Similar to UserController
 
-10. **AssetRecordController** - Account ownership authorization
-    - Verify account belongs to user's family
-
-11. **LiabilityRecordController** - Account ownership authorization
-    - Verify account belongs to user's family
-
-12. **IncomeRecordController** - Family-level authorization
-    - Income records scoped to family
-
-13. **ExpenseMinorCategoryController** - Family-level authorization
-    - Category management scoped to family
-
-14. **ExpenseMajorCategoryController** - Family-level authorization
-    - Category management scoped to family
+10. **DataMigrationController** - Admin-only
+    - All data migration operations admin-only
 
 ---
 
@@ -354,6 +358,67 @@ for (BatchRecordUpdateDTO.AccountUpdate accountUpdate : batchUpdate.getAccounts(
 ### Database
 - All user passwords encrypted with BCrypt
 - Test credentials documented above
+
+---
+
+## How to Complete Remaining Controllers
+
+### For AnalysisController (and similar large controllers)
+
+**Step 1: Add AuthHelper dependency** ✅ (Already done)
+```java
+private final AuthHelper authHelper;
+```
+
+**Step 2: Update each endpoint systematically**
+
+For EVERY endpoint that has `@RequestParam(required = false) Long familyId`:
+
+1. Add `@RequestHeader(value = "Authorization", required = false) String authHeader` parameter
+2. At start of method, add:
+   ```java
+   // Use authenticated user's family_id
+   Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+   ```
+3. Replace ALL service calls that use `familyId` with `authenticatedFamilyId`
+
+**Example transformation:**
+```java
+// BEFORE
+@GetMapping("/summary")
+public ApiResponse<AssetSummaryDTO> getAssetSummary(
+        @RequestParam(required = false) Long familyId) {
+    AssetSummaryDTO summary = service.getSummary(familyId);
+    return ApiResponse.success(summary);
+}
+
+// AFTER
+@GetMapping("/summary")
+public ApiResponse<AssetSummaryDTO> getAssetSummary(
+        @RequestParam(required = false) Long familyId,
+        @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+    // Use authenticated user's family_id
+    Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+    AssetSummaryDTO summary = service.getSummary(authenticatedFamilyId);
+    return ApiResponse.success(summary);
+}
+```
+
+**Step 3: For account-level endpoints**
+
+If endpoint has `accountId` parameter, verify account ownership:
+```java
+Account account = service.getAccountById(accountId);
+authHelper.requireAccountAccess(authHeader, account.getUserId());
+```
+
+**Efficient approach for large controllers:**
+1. Use search and replace for common patterns
+2. Process endpoints in batches of 5-10
+3. Commit after each batch
+4. Test with curl commands after completing controller
 
 ---
 
