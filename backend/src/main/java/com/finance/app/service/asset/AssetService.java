@@ -114,6 +114,12 @@ public class AssetService {
         return convertToRecordDTO(savedRecord);
     }
 
+    public AssetRecordDTO getRecordById(Long recordId) {
+        AssetRecord record = recordRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
+        return convertToRecordDTO(record);
+    }
+
     @Transactional
     public AssetRecordDTO updateRecord(Long recordId, AssetRecord recordDetails) {
         AssetRecord record = recordRepository.findById(recordId)

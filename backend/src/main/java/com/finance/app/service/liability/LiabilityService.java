@@ -120,6 +120,12 @@ public class LiabilityService {
         return recordRepository.save(record);
     }
 
+    public LiabilityRecordDTO getRecordById(Long recordId) {
+        LiabilityRecord record = recordRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
+        return convertToRecordDTO(record);
+    }
+
     @Transactional
     public LiabilityRecord updateRecord(Long recordId, LiabilityRecord recordDetails) {
         LiabilityRecord record = recordRepository.findById(recordId)

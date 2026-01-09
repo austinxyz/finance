@@ -8,6 +8,7 @@ import com.finance.app.dto.LiabilityRecordDTO;
 import com.finance.app.model.LiabilityAccount;
 import com.finance.app.model.LiabilityRecord;
 import com.finance.app.model.LiabilityType;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.liability.LiabilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class LiabilityController {
 
     private final LiabilityService liabilityService;
+    private final AuthHelper authHelper;
 
     // ========== Liability Type Endpoints ==========
 
@@ -51,19 +53,39 @@ public class LiabilityController {
     @GetMapping("/accounts")
     public ApiResponse<List<LiabilityAccountDTO>> getAccounts(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Long familyId) {
-        List<LiabilityAccountDTO> accounts = liabilityService.getAllAccounts(userId, familyId);
+            @RequestParam(required = false) Long familyId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Get authenticated user's family_id
+        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+        // Use authenticated family_id (ignore query params for security)
+        List<LiabilityAccountDTO> accounts = liabilityService.getAllAccounts(userId, authenticatedFamilyId);
         return ApiResponse.success(accounts);
     }
 
     @GetMapping("/accounts/{id}")
-    public ApiResponse<LiabilityAccount> getAccount(@PathVariable Long id) {
+    public ApiResponse<LiabilityAccount> getAccount(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
         LiabilityAccount account = liabilityService.getAccountById(id);
+
+        // Verify family access
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         return ApiResponse.success(account);
     }
 
     @PostMapping("/accounts")
-    public ApiResponse<LiabilityAccount> createAccount(@RequestBody LiabilityAccount account) {
+    public ApiResponse<LiabilityAccount> createAccount(
+            @RequestBody LiabilityAccount account,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Set family_id from authenticated user
+        Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+        account.setFamilyId(familyId);
+
         LiabilityAccount created = liabilityService.createAccount(account);
         return ApiResponse.success("Account created successfully", created);
     }
@@ -71,7 +93,16 @@ public class LiabilityController {
     @PutMapping("/accounts/{id}")
     public ApiResponse<LiabilityAccountDTO> updateAccount(
             @PathVariable Long id,
-            @RequestBody LiabilityAccount account) {
+            @RequestBody LiabilityAccount account,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify family access for the existing account
+        LiabilityAccount existing = liabilityService.getAccountById(id);
+        authHelper.requireFamilyAccess(authHeader, existing.getFamilyId());
+
+        // Prevent family_id tampering
+        account.setFamilyId(existing.getFamilyId());
+
         LiabilityAccount updated = liabilityService.updateAccount(id, account);
         // Convert to DTO to avoid lazy loading issues
         LiabilityAccountDTO dto = liabilityService.convertAccountToDTO(updated);
@@ -79,7 +110,14 @@ public class LiabilityController {
     }
 
     @DeleteMapping("/accounts/{id}")
-    public ApiResponse<Void> deleteAccount(@PathVariable Long id) {
+    public ApiResponse<Void> deleteAccount(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify family access
+        LiabilityAccount account = liabilityService.getAccountById(id);
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         liabilityService.deleteAccount(id);
         return ApiResponse.success("Account deleted successfully", null);
     }
@@ -87,13 +125,27 @@ public class LiabilityController {
     // ========== Record Endpoints ==========
 
     @GetMapping("/accounts/{accountId}/records")
-    public ApiResponse<List<LiabilityRecordDTO>> getAccountRecords(@PathVariable Long accountId) {
+    public ApiResponse<List<LiabilityRecordDTO>> getAccountRecords(
+            @PathVariable Long accountId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify family access
+        LiabilityAccount account = liabilityService.getAccountById(accountId);
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         List<LiabilityRecordDTO> records = liabilityService.getAccountRecords(accountId);
         return ApiResponse.success(records);
     }
 
     @PostMapping("/records")
-    public ApiResponse<LiabilityRecord> createRecord(@RequestBody LiabilityRecord record) {
+    public ApiResponse<LiabilityRecord> createRecord(
+            @RequestBody LiabilityRecord record,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify family access for the account
+        LiabilityAccount account = liabilityService.getAccountById(record.getAccountId());
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         LiabilityRecord created = liabilityService.createRecord(record);
         return ApiResponse.success("Record created successfully", created);
     }
@@ -101,7 +153,14 @@ public class LiabilityController {
     @PutMapping("/records/{id}")
     public ApiResponse<LiabilityRecordDTO> updateRecord(
             @PathVariable Long id,
-            @RequestBody LiabilityRecord record) {
+            @RequestBody LiabilityRecord record,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Get existing record and verify family access
+        LiabilityRecordDTO existingRecord = liabilityService.getRecordById(id);
+        LiabilityAccount account = liabilityService.getAccountById(existingRecord.getAccountId());
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         LiabilityRecord updated = liabilityService.updateRecord(id, record);
         // Convert to DTO to avoid lazy loading issues
         LiabilityRecordDTO dto = liabilityService.convertToRecordDTO(updated);
@@ -109,14 +168,31 @@ public class LiabilityController {
     }
 
     @DeleteMapping("/records/{id}")
-    public ApiResponse<Void> deleteRecord(@PathVariable Long id) {
+    public ApiResponse<Void> deleteRecord(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Get existing record and verify family access
+        LiabilityRecordDTO existingRecord = liabilityService.getRecordById(id);
+        LiabilityAccount account = liabilityService.getAccountById(existingRecord.getAccountId());
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         liabilityService.deleteRecord(id);
         return ApiResponse.success("Record deleted successfully", null);
     }
 
     // 检查哪些账户在指定日期已有记录
     @PostMapping("/records/batch/check")
-    public ApiResponse<List<Long>> checkExistingRecords(@RequestBody BatchRecordCheckDTO checkRequest) {
+    public ApiResponse<List<Long>> checkExistingRecords(
+            @RequestBody BatchRecordCheckDTO checkRequest,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify all accounts belong to user's family
+        for (Long accountId : checkRequest.getAccountIds()) {
+            LiabilityAccount account = liabilityService.getAccountById(accountId);
+            authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        }
+
         LocalDate recordDate = checkRequest.getRecordDate();
         if (recordDate == null) {
             recordDate = LocalDate.now();
@@ -127,7 +203,16 @@ public class LiabilityController {
 
     // 批量更新负债记录
     @PostMapping("/records/batch")
-    public ApiResponse<List<LiabilityRecordDTO>> batchUpdateRecords(@RequestBody BatchRecordUpdateDTO batchUpdate) {
+    public ApiResponse<List<LiabilityRecordDTO>> batchUpdateRecords(
+            @RequestBody BatchRecordUpdateDTO batchUpdate,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify all accounts belong to user's family
+        for (LiabilityRecord record : batchUpdate.getLiabilityRecords()) {
+            LiabilityAccount account = liabilityService.getAccountById(record.getAccountId());
+            authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        }
+
         List<LiabilityRecordDTO> records = liabilityService.batchUpdateRecords(batchUpdate);
         return ApiResponse.success("Batch records created successfully", records);
     }
@@ -136,7 +221,13 @@ public class LiabilityController {
     @GetMapping("/accounts/{accountId}/value-at-date")
     public ApiResponse<Map<String, Object>> getAccountValueAtDate(
             @PathVariable Long accountId,
-            @RequestParam String date) {
+            @RequestParam String date,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify family access
+        LiabilityAccount account = liabilityService.getAccountById(accountId);
+        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+
         LocalDate targetDate = LocalDate.parse(date);
         Map<String, Object> result = liabilityService.getAccountValueAtDate(accountId, targetDate);
         return ApiResponse.success(result);

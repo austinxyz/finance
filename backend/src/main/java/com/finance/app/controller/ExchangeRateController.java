@@ -1,8 +1,9 @@
 package com.finance.app.controller;
 
 import com.finance.app.model.ExchangeRate;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.ExchangeRateService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,13 +15,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/exchange-rates")
+@RequiredArgsConstructor
 public class ExchangeRateController {
 
-    @Autowired
-    private ExchangeRateService exchangeRateService;
+    private final ExchangeRateService exchangeRateService;
+    private final AuthHelper authHelper;
 
     /**
-     * 获取所有启用的汇率
+     * 获取所有启用的汇率 - Public endpoint
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllActiveRates() {
@@ -34,10 +36,14 @@ public class ExchangeRateController {
     }
 
     /**
-     * 获取所有汇率（包括停用的）
+     * 获取所有汇率（包括停用的） - Admin only
      */
     @GetMapping("/all")
-    public ResponseEntity<Map<String, Object>> getAllRates() {
+    public ResponseEntity<Map<String, Object>> getAllRates(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         List<ExchangeRate> rates = exchangeRateService.getAllRates();
 
         Map<String, Object> response = new HashMap<>();
@@ -48,7 +54,7 @@ public class ExchangeRateController {
     }
 
     /**
-     * 获取特定货币的所有汇率历史
+     * 获取特定货币的所有汇率历史 - Public endpoint
      */
     @GetMapping("/currency/{currency}")
     public ResponseEntity<Map<String, Object>> getRatesByCurrency(@PathVariable String currency) {
@@ -62,7 +68,7 @@ public class ExchangeRateController {
     }
 
     /**
-     * 获取特定货币在指定日期的汇率
+     * 获取特定货币在指定日期的汇率 - Public endpoint
      */
     @GetMapping("/rate")
     public ResponseEntity<Map<String, Object>> getExchangeRate(
@@ -84,7 +90,7 @@ public class ExchangeRateController {
     }
 
     /**
-     * 获取所有货币的当前最新汇率
+     * 获取所有货币的当前最新汇率 - Public endpoint
      */
     @GetMapping("/latest")
     public ResponseEntity<Map<String, Object>> getLatestRates() {
@@ -103,7 +109,7 @@ public class ExchangeRateController {
     }
 
     /**
-     * 获取特定日期的所有汇率
+     * 获取特定日期的所有汇率 - Public endpoint
      */
     @GetMapping("/date/{date}")
     public ResponseEntity<Map<String, Object>> getRatesByDate(@PathVariable String date) {
@@ -118,10 +124,15 @@ public class ExchangeRateController {
     }
 
     /**
-     * 创建新的汇率记录
+     * 创建新的汇率记录 - Admin only
      */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createExchangeRate(@RequestBody ExchangeRate exchangeRate) {
+    public ResponseEntity<Map<String, Object>> createExchangeRate(
+            @RequestBody ExchangeRate exchangeRate,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         try {
             ExchangeRate created = exchangeRateService.createExchangeRate(exchangeRate);
 
@@ -141,12 +152,16 @@ public class ExchangeRateController {
     }
 
     /**
-     * 更新汇率记录
+     * 更新汇率记录 - Admin only
      */
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateExchangeRate(
             @PathVariable Long id,
-            @RequestBody ExchangeRate exchangeRate) {
+            @RequestBody ExchangeRate exchangeRate,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         try {
             ExchangeRate updated = exchangeRateService.updateExchangeRate(id, exchangeRate);
 
@@ -166,10 +181,15 @@ public class ExchangeRateController {
     }
 
     /**
-     * 删除汇率记录
+     * 删除汇率记录 - Admin only
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deleteExchangeRate(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteExchangeRate(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         try {
             exchangeRateService.deleteExchangeRate(id);
 
@@ -188,10 +208,15 @@ public class ExchangeRateController {
     }
 
     /**
-     * 停用汇率记录
+     * 停用汇率记录 - Admin only
      */
     @PutMapping("/{id}/deactivate")
-    public ResponseEntity<Map<String, Object>> deactivateExchangeRate(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deactivateExchangeRate(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         try {
             ExchangeRate deactivated = exchangeRateService.deactivateExchangeRate(id);
 
@@ -211,10 +236,14 @@ public class ExchangeRateController {
     }
 
     /**
-     * 初始化默认汇率
+     * 初始化默认汇率 - Admin only
      */
     @PostMapping("/initialize")
-    public ResponseEntity<Map<String, Object>> initializeDefaultRates() {
+    public ResponseEntity<Map<String, Object>> initializeDefaultRates(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
         exchangeRateService.initializeDefaultRates();
 
         Map<String, Object> response = new HashMap<>();

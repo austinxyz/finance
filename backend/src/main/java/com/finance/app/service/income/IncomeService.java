@@ -379,4 +379,19 @@ public class IncomeService {
             .updatedAt(record.getUpdatedAt())
             .build();
     }
+
+    /**
+     * 验证收入记录是否属于指定family
+     * @param recordId 记录ID
+     * @param familyId 家庭ID
+     * @throws IllegalArgumentException 如果记录不存在或不属于该family
+     */
+    public void verifyRecordFamilyAccess(Long recordId, Long familyId) {
+        IncomeRecord record = incomeRecordRepository.findById(recordId)
+            .orElseThrow(() -> new IllegalArgumentException("收入记录不存在: " + recordId));
+
+        if (!record.getFamilyId().equals(familyId)) {
+            throw new IllegalArgumentException("无权访问该收入记录");
+        }
+    }
 }

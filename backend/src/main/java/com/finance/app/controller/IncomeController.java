@@ -3,6 +3,7 @@ package com.finance.app.controller;
 import com.finance.app.dto.income.*;
 import com.finance.app.model.IncomeCategoryMajor;
 import com.finance.app.model.IncomeCategoryMinor;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.income.IncomeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import java.util.Map;
 public class IncomeController {
 
     private final IncomeService incomeService;
+    private final AuthHelper authHelper;
 
     // ==================== 分类管理API ====================
 
@@ -84,9 +86,13 @@ public class IncomeController {
     @GetMapping("/categories/minor")
     public ResponseEntity<Map<String, Object>> getMinorCategoriesByFamilyAndMajor(
         @RequestParam Long familyId,
-        @RequestParam Long majorCategoryId
+        @RequestParam Long majorCategoryId,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify user belongs to the requested family
+            authHelper.requireFamilyAccess(authHeader, familyId);
+
             List<IncomeCategoryMinor> categories = incomeService.getMinorCategoriesByFamilyAndMajor(familyId, majorCategoryId);
 
             Map<String, Object> response = new HashMap<>();
@@ -131,16 +137,22 @@ public class IncomeController {
      * POST /api/incomes/categories/minor
      */
     @PostMapping("/categories/minor")
-    public ResponseEntity<Map<String, Object>> createMinorCategory(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> createMinorCategory(
+        @RequestBody Map<String, Object> request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Get authenticated user's ID
+            Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
             Long majorCategoryId = Long.valueOf(request.get("majorCategoryId").toString());
             String name = request.get("name").toString();
             String chineseName = request.get("chineseName").toString();
-            Long userId = request.get("userId") != null ? Long.valueOf(request.get("userId").toString()) : null;
             String description = request.get("description") != null ? request.get("description").toString() : null;
 
+            // Use authenticated user ID (ignore userId from request)
             IncomeCategoryMinor category = incomeService.createMinorCategory(
-                majorCategoryId, name, chineseName, userId, description
+                majorCategoryId, name, chineseName, authenticatedUserId, description
             );
 
             Map<String, Object> response = new HashMap<>();
@@ -171,16 +183,20 @@ public class IncomeController {
     @PutMapping("/categories/minor/{id}")
     public ResponseEntity<Map<String, Object>> updateMinorCategory(
         @PathVariable Long id,
-        @RequestBody Map<String, Object> request
+        @RequestBody Map<String, Object> request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Get authenticated user's ID
+            Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
             String name = request.get("name").toString();
             String chineseName = request.get("chineseName").toString();
-            Long userId = request.get("userId") != null ? Long.valueOf(request.get("userId").toString()) : null;
             String description = request.get("description") != null ? request.get("description").toString() : null;
 
+            // User can only update their own categories (verified in service)
             IncomeCategoryMinor category = incomeService.updateMinorCategory(
-                id, name, chineseName, userId, description
+                id, name, chineseName, authenticatedUserId, description
             );
 
             Map<String, Object> response = new HashMap<>();
@@ -209,8 +225,12 @@ public class IncomeController {
      * DELETE /api/incomes/categories/minor/{id}
      */
     @DeleteMapping("/categories/minor/{id}")
-    public ResponseEntity<Map<String, Object>> deleteMinorCategory(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteMinorCategory(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Verify ownership in service layer
             incomeService.disableMinorCategory(id);
 
             Map<String, Object> response = new HashMap<>();
@@ -241,9 +261,14 @@ public class IncomeController {
      */
     @PostMapping("/records")
     public ResponseEntity<Map<String, Object>> createIncomeRecord(
-        @Valid @RequestBody CreateIncomeRecordRequest request
+        @Valid @RequestBody CreateIncomeRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Set family_id from authenticated user
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            request.setFamilyId(familyId);
+
             IncomeRecordDTO record = incomeService.createIncomeRecord(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -274,9 +299,14 @@ public class IncomeController {
     @PutMapping("/records/{id}")
     public ResponseEntity<Map<String, Object>> updateIncomeRecord(
         @PathVariable Long id,
-        @Valid @RequestBody UpdateIncomeRecordRequest request
+        @Valid @RequestBody UpdateIncomeRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify family access before update
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            incomeService.verifyRecordFamilyAccess(id, familyId);
+
             IncomeRecordDTO record = incomeService.updateIncomeRecord(id, request);
 
             Map<String, Object> response = new HashMap<>();
@@ -306,9 +336,14 @@ public class IncomeController {
      */
     @PostMapping("/records/batch")
     public ResponseEntity<Map<String, Object>> batchSaveIncomeRecords(
-        @Valid @RequestBody BatchIncomeRecordRequest request
+        @Valid @RequestBody BatchIncomeRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Set family_id from authenticated user
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            request.setFamilyId(familyId);
+
             List<IncomeRecordDTO> records = incomeService.batchSaveIncomeRecords(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -339,9 +374,13 @@ public class IncomeController {
     @GetMapping("/records")
     public ResponseEntity<Map<String, Object>> getIncomeRecordsByPeriod(
         @RequestParam Long familyId,
-        @RequestParam String period
+        @RequestParam String period,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify user belongs to the requested family
+            authHelper.requireFamilyAccess(authHeader, familyId);
+
             List<IncomeRecordDTO> records = incomeService.getIncomeRecordsByPeriod(familyId, period);
 
             Map<String, Object> response = new HashMap<>();
@@ -366,9 +405,13 @@ public class IncomeController {
     public ResponseEntity<Map<String, Object>> getIncomeRecordsByPeriodRange(
         @RequestParam Long familyId,
         @RequestParam String startPeriod,
-        @RequestParam String endPeriod
+        @RequestParam String endPeriod,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify user belongs to the requested family
+            authHelper.requireFamilyAccess(authHeader, familyId);
+
             List<IncomeRecordDTO> records = incomeService.getIncomeRecordsByPeriodRange(
                 familyId, startPeriod, endPeriod
             );
@@ -392,8 +435,15 @@ public class IncomeController {
      * DELETE /api/incomes/records/{id}
      */
     @DeleteMapping("/records/{id}")
-    public ResponseEntity<Map<String, Object>> deleteIncomeRecord(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteIncomeRecord(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Verify family access before delete
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            incomeService.verifyRecordFamilyAccess(id, familyId);
+
             incomeService.deleteIncomeRecord(id);
 
             Map<String, Object> response = new HashMap<>();
