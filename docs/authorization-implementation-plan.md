@@ -1,8 +1,8 @@
 # Authorization Implementation Plan
 
-## Current Status: Phase 2 In Progress (8/18 Complete) 🚧
+## Current Status: Phase 2 In Progress (13/18 Complete) 🚧
 
-**Last Updated**: 2026-01-09 (Session 2)
+**Last Updated**: 2026-01-09 (Session 3 - Ongoing)
 
 ---
 
@@ -21,7 +21,7 @@
 - ✅ **Password Encryption** - BCrypt hashing for all user passwords
 - ✅ **Admin Endpoint** - `/auth/admin/encrypt-passwords` for password migration
 
-#### 2. Controllers with Authorization (8/18 Complete)
+#### 2. Controllers with Authorization (13/18 Complete)
 
 | Controller | Status | Authorization Pattern |
 |------------|--------|----------------------|
@@ -33,7 +33,11 @@
 | **UserController** | ✅ Complete | Self or Admin pattern |
 | **FamilyController** | ✅ Complete | Family-level + Admin-only |
 | **GoogleSheetsController** | ✅ Complete | Family-level (sync operations) |
-| **AnalysisController** | 🚧 In Progress | Family-level (1/20+ endpoints done) |
+| **AnalysisController** | ✅ Complete | Family-level (20+ endpoints) |
+| **IncomeAnalysisController** | ✅ Complete | Family-level (4 endpoints) |
+| **ExpenseAnalysisController** | ✅ Complete | Family-level (9 endpoints) |
+| **InvestmentAnalysisController** | ✅ Complete | Family-level + Account-level (3 endpoints) |
+| **ExpenseBudgetController** | ✅ Complete | Family-level (3 endpoints) |
 
 #### 3. Testing Completed
 - ✅ Login endpoint with encrypted passwords
@@ -53,7 +57,7 @@ Users:  AustinXu / password
 
 ---
 
-## Session 2 Summary (2026-01-09)
+## Session 2 Summary (2026-01-09 Morning)
 
 ### Completed
 1. **ExpenseController** - Family-level authorization with admin-only category management
@@ -70,45 +74,46 @@ Users:  AustinXu / password
 
 ---
 
+## Session 3 Summary (2026-01-09 Afternoon)
+
+### Completed
+1. **AnalysisController** - Complete family-level authorization (20+ endpoints)
+2. **IncomeAnalysisController** - Complete family-level authorization (4 endpoints)
+3. **ExpenseAnalysisController** - Complete family-level authorization (9 endpoints)
+4. **InvestmentAnalysisController** - Family-level + account-level authorization (3 endpoints)
+5. **ExpenseBudgetController** - Complete family-level authorization (3 endpoints)
+6. **ExpenseService** - Added `getExpenseRecordById()` method for authorization checks
+7. **ExpenseBudgetService** - Added `getBudgetById()` method for authorization checks
+
+### Key Improvements
+- Completed 5 controllers (AnalysisController, IncomeAnalysisController, ExpenseAnalysisController, InvestmentAnalysisController, ExpenseBudgetController)
+- All analysis endpoints now use authenticated family ID from JWT token
+- Investment monthly trend endpoint uses account-level authorization
+- Budget operations properly scoped to authenticated family
+- All compilation errors resolved, backend compiles successfully
+
+---
+
 ## Remaining Work
 
-### Phase 2: Complete Authorization for All Controllers (10/18 Remaining)
+### Phase 2: Complete Authorization for All Controllers (5/18 Remaining)
 
 #### Controllers Pending Authorization
 
-1. **AnalysisController** 🚧 - Family-level authorization (LARGE - 20+ endpoints)
-   - Pattern: Add `authHeader` param, extract `familyId = authHelper.getFamilyIdFromAuth(authHeader)`
-   - Replace all `familyId` service calls with `authenticatedFamilyId`
-   - Endpoints: /summary, /trends/*, /allocation/*, /financial-metrics, /risk-assessment, etc.
-
-2. **IncomeAnalysisController** - Family-level authorization
-   - Similar pattern to AnalysisController
-   - All income analysis scoped to family
-
-3. **ExpenseAnalysisController** - Family-level authorization
-   - Similar pattern to AnalysisController
-   - All expense analysis scoped to family
-
-4. **InvestmentAnalysisController** - Family-level authorization
-   - Investment analysis scoped to family
-
-5. **ExpenseBudgetController** - Family-level authorization
-   - Budget operations scoped to family
-
-6. **PropertyRecordController** - Account ownership authorization
+1. **PropertyRecordController** - Account ownership authorization
    - Verify property account belongs to user's family
 
-7. **InvestmentTransactionController** - Account ownership authorization
+2. **InvestmentTransactionController** - Account ownership authorization
    - Verify investment account belongs to user's family
 
-8. **AnnualFinancialSummaryController** - Family-level authorization
+3. **AnnualFinancialSummaryController** - Family-level authorization
    - Annual summaries scoped to family
 
-9. **UserProfileController** - Self or admin pattern
+4. **UserProfileController** - Self or admin pattern
    - Similar to UserController
 
-10. **DataMigrationController** - Admin-only
-    - All data migration operations admin-only
+5. **DataMigrationController** - Admin-only
+   - All data migration operations admin-only
 
 ---
 
