@@ -82,6 +82,9 @@
                       <span v-if="category.userId" class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded flex-shrink-0">
                         {{ getUserName(category.userId) }}
                       </span>
+                      <span v-else class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded flex-shrink-0">
+                        公共
+                      </span>
                     </div>
                     <div class="text-xs text-gray-500 mt-0.5">
                       {{ category.recordCount || 0 }}条记录
@@ -647,11 +650,14 @@ async function loadMajorCategories() {
 
 // 加载子分类
 async function loadMinorCategories() {
-  if (!selectedMajorCategory.value) return
+  if (!selectedMajorCategory.value || !selectedFamilyId.value) return
 
   loadingCategories.value = true
   try {
-    const response = await incomeCategoryAPI.getMinorByMajor(selectedMajorCategory.value.id)
+    const response = await incomeCategoryAPI.getMinorByFamilyAndMajor(
+      selectedFamilyId.value,
+      selectedMajorCategory.value.id
+    )
 
     // 处理响应数据
     let categoryData = []

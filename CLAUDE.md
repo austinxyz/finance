@@ -7,6 +7,16 @@
 
 Java 17 + Spring Boot 3.2 + Vue 3 + MySQL 8.0
 
+## Work Mode
+
+**Default Mode**: Interactive - Ask questions and discuss approaches before implementing.
+
+**Execution Mode**: When user adds `[执行]` prefix to their request, execute directly without asking for confirmation. Make autonomous decisions on implementation details and only report results.
+
+Examples:
+- `"添加账户分组功能"` → Interactive mode: Discuss approaches first
+- `"[执行] 添加账户分组功能，支持多级分组"` → Execution mode: Implement directly using best practices
+
 ## Critical Guardrails
 
 ### Environment Setup

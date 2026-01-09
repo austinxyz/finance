@@ -78,6 +78,32 @@ public class IncomeController {
     }
 
     /**
+     * 根据家庭ID和大类ID获取小类（包含公共分类和该家庭用户的私有分类）
+     * GET /api/incomes/categories/minor?familyId={familyId}&majorCategoryId={majorCategoryId}
+     */
+    @GetMapping("/categories/minor")
+    public ResponseEntity<Map<String, Object>> getMinorCategoriesByFamilyAndMajor(
+        @RequestParam Long familyId,
+        @RequestParam Long majorCategoryId
+    ) {
+        try {
+            List<IncomeCategoryMinor> categories = incomeService.getMinorCategoriesByFamilyAndMajor(familyId, majorCategoryId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", categories);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("获取收入小类失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "获取收入小类失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
      * 获取所有收入分类（大类+小类组合）
      * GET /api/incomes/categories
      */

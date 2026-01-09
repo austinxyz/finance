@@ -17,6 +17,13 @@ export const incomeCategoryAPI = {
     return request.get(`/incomes/categories/major/${majorCategoryId}/minor`)
   },
 
+  // 根据家庭ID和大类ID获取小类（包含公共分类和该家庭用户的私有分类）
+  getMinorByFamilyAndMajor(familyId, majorCategoryId) {
+    return request.get('/incomes/categories/minor', {
+      params: { familyId, majorCategoryId }
+    })
+  },
+
   // 创建小类
   createMinor(data) {
     return request.post('/incomes/categories/minor', data)

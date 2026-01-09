@@ -45,6 +45,13 @@ public class IncomeService {
     }
 
     /**
+     * 根据家庭ID和大类ID获取小类（包含公共分类和该家庭用户的私有分类）
+     */
+    public List<IncomeCategoryMinor> getMinorCategoriesByFamilyAndMajor(Long familyId, Long majorCategoryId) {
+        return minorCategoryRepository.findByMajorCategoryIdAndFamilyIdAndIsActiveTrue(majorCategoryId, familyId);
+    }
+
+    /**
      * 获取所有分类（大类+小类嵌套结构）
      */
     public List<IncomeCategoryDTO> getAllCategories() {

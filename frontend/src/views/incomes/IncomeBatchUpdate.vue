@@ -416,9 +416,14 @@ async function loadMajorCategories() {
 
 // 加载所有子分类
 async function loadAllMinorCategories() {
+  if (!selectedFamilyId.value) return
+
   try {
     const promises = majorCategories.value.map(async (major) => {
-      const response = await incomeCategoryAPI.getMinorByMajor(major.id)
+      const response = await incomeCategoryAPI.getMinorByFamilyAndMajor(
+        selectedFamilyId.value,
+        major.id
+      )
 
       let minorData = []
       if (Array.isArray(response.data)) {
@@ -634,6 +639,8 @@ watch(selectedFamilyId, async (newId) => {
     categoryRecordIds.value = {}
     historyData.value = {}
     changedRecords.value.clear()
+    // 重新加载小分类（因为不同家庭看到的小分类不同）
+    await loadAllMinorCategories()
     loadHistoryData()
     loadCurrentMonthData()
   }
@@ -650,9 +657,9 @@ watch(selectedCurrency, () => {
 })
 
 // 初始化
-onMounted(() => {
-  loadFamilies()
+onMounted(async () => {
+  await loadFamilies()  // 等待家庭加载完成，确保 selectedFamilyId 有值
   loadCurrencies()
-  loadMajorCategories()
+  loadMajorCategories()  // 这会调用 loadAllMinorCategories，此时 selectedFamilyId 已有值
 })
 </script>

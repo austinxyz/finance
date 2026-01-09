@@ -227,8 +227,10 @@ const loadFamilies = async () => {
     const response = await familyAPI.getAll();
     if (response.data) {
       families.value = response.data;
-      if (families.value.length > 0 && !selectedFamilyId.value) {
-        selectedFamilyId.value = families.value[0].id;
+      if (families.value.length > 0) {
+        // 优先选择默认家庭
+        const defaultFamily = families.value.find(f => f.isDefault);
+        selectedFamilyId.value = defaultFamily ? defaultFamily.id : families.value[0].id;
       }
     }
   } catch (error) {
