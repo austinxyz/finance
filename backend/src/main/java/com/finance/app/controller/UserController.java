@@ -3,7 +3,7 @@ package com.finance.app.controller;
 import com.finance.app.dto.ApiResponse;
 import com.finance.app.exception.UnauthorizedException;
 import com.finance.app.model.User;
-import com.finance.app.service.AuthService;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,27 +17,14 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-    private final AuthService authService;
-
-    /**
-     * Helper method to extract JWT token from Authorization header
-     */
-    private String extractToken(String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        return null;
-    }
+    private final AuthHelper authHelper;
 
     @GetMapping
     public ApiResponse<List<User>> getAllUsers(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         // Admin-only endpoint
-        String token = extractToken(authHeader);
-        if (!authService.isAdminByToken(token)) {
-            throw new UnauthorizedException("需要管理员权限");
-        }
+        authHelper.requireAdmin(authHeader);
 
         List<User> users = userService.getAllUsers();
         return ApiResponse.success(users);
@@ -48,10 +35,11 @@ public class UserController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Admin-only endpoint
-        String token = extractToken(authHeader);
-        if (!authService.isAdminByToken(token)) {
-            throw new UnauthorizedException("需要管理员权限");
+        Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
+        // Allow if viewing self OR if admin
+        if (!authenticatedUserId.equals(id) && !authHelper.isAdmin(authHeader)) {
+            throw new UnauthorizedException("只能查看自己的信息");
         }
 
         User user = userService.getUserById(id);
@@ -64,10 +52,7 @@ public class UserController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         // Admin-only endpoint
-        String token = extractToken(authHeader);
-        if (!authService.isAdminByToken(token)) {
-            throw new UnauthorizedException("需要管理员权限");
-        }
+        authHelper.requireAdmin(authHeader);
 
         User created = userService.createUser(user);
         return ApiResponse.success("User created successfully", created);
@@ -79,10 +64,11 @@ public class UserController {
             @RequestBody User user,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Admin-only endpoint
-        String token = extractToken(authHeader);
-        if (!authService.isAdminByToken(token)) {
-            throw new UnauthorizedException("需要管理员权限");
+        Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
+        // Allow if updating self OR if admin
+        if (!authenticatedUserId.equals(id) && !authHelper.isAdmin(authHeader)) {
+            throw new UnauthorizedException("只能修改自己的信息");
         }
 
         User updated = userService.updateUser(id, user);
@@ -95,10 +81,7 @@ public class UserController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         // Admin-only endpoint
-        String token = extractToken(authHeader);
-        if (!authService.isAdminByToken(token)) {
-            throw new UnauthorizedException("需要管理员权限");
-        }
+        authHelper.requireAdmin(authHeader);
 
         userService.deleteUser(id);
         return ApiResponse.success("User deleted successfully", null);
