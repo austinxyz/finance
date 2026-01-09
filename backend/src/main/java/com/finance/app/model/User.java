@@ -56,6 +56,10 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role = Role.USER;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -71,5 +75,10 @@ public class User {
         CONSERVATIVE,  // 保守型
         MODERATE,      // 稳健型
         AGGRESSIVE     // 激进型
+    }
+
+    public enum Role {
+        ADMIN,  // 系统管理员
+        USER    // 普通家庭成员
     }
 }

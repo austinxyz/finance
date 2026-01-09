@@ -23,4 +23,5 @@ public class UserDTO {
     private String riskTolerance;
     private String notes;
     private Boolean isActive;
+    private String role;  // ADMIN or USER
 }

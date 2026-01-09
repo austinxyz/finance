@@ -1,6 +1,8 @@
 package com.finance.app.config;
 
 import com.finance.app.dto.ApiResponse;
+import com.finance.app.exception.ForbiddenException;
+import com.finance.app.exception.UnauthorizedException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -25,6 +27,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
+        logger.warn("Unauthorized access attempt: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleForbidden(ForbiddenException ex) {
+        logger.warn("Forbidden access attempt: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage()));
     }
 
     @ExceptionHandler(RuntimeException.class)
