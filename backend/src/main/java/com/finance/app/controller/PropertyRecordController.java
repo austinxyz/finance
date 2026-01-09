@@ -1,8 +1,11 @@
 package com.finance.app.controller;
 
+import com.finance.app.model.AssetAccount;
 import com.finance.app.model.PropertyRecord;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.PropertyRecordService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.finance.app.service.asset.AssetAccountService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,18 +16,26 @@ import java.util.Map;
 @RestController
 @RequestMapping("/property-records")
 @CrossOrigin
+@RequiredArgsConstructor
 public class PropertyRecordController {
 
-    @Autowired
-    private PropertyRecordService propertyRecordService;
+    private final PropertyRecordService propertyRecordService;
+    private final AssetAccountService assetAccountService;
+    private final AuthHelper authHelper;
 
     /**
      * 创建房产记录
      */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> create(@RequestBody PropertyRecord propertyRecord) {
+    public ResponseEntity<Map<String, Object>> create(
+            @RequestBody PropertyRecord propertyRecord,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // Verify asset account ownership
+            AssetAccount account = assetAccountService.getAccountById(propertyRecord.getAssetAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             PropertyRecord created = propertyRecordService.create(propertyRecord);
             response.put("success", true);
             response.put("data", created);
@@ -43,9 +54,16 @@ public class PropertyRecordController {
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable Long id,
-            @RequestBody PropertyRecord propertyRecord) {
+            @RequestBody PropertyRecord propertyRecord,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // Get existing property record to verify account ownership
+            PropertyRecord existing = propertyRecordService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("房产记录不存在"));
+            AssetAccount account = assetAccountService.getAccountById(existing.getAssetAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             PropertyRecord updated = propertyRecordService.update(id, propertyRecord);
             response.put("success", true);
             response.put("data", updated);
@@ -62,9 +80,17 @@ public class PropertyRecordController {
      * 删除房产记录
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> delete(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // Get existing property record to verify account ownership
+            PropertyRecord existing = propertyRecordService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("房产记录不存在"));
+            AssetAccount account = assetAccountService.getAccountById(existing.getAssetAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             propertyRecordService.delete(id);
             response.put("success", true);
             response.put("message", "房产记录删除成功");
@@ -80,11 +106,18 @@ public class PropertyRecordController {
      * 获取房产记录详情
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getById(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getById(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
             PropertyRecord record = propertyRecordService.findById(id)
                     .orElseThrow(() -> new RuntimeException("房产记录不存在"));
+
+            // Verify asset account ownership
+            AssetAccount account = assetAccountService.getAccountById(record.getAssetAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             response.put("success", true);
             response.put("data", record);
             return ResponseEntity.ok(response);
@@ -99,9 +132,15 @@ public class PropertyRecordController {
      * 根据资产账户ID获取房产记录
      */
     @GetMapping("/by-asset/{assetAccountId}")
-    public ResponseEntity<Map<String, Object>> getByAssetAccountId(@PathVariable Long assetAccountId) {
+    public ResponseEntity<Map<String, Object>> getByAssetAccountId(
+            @PathVariable Long assetAccountId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // Verify asset account ownership
+            AssetAccount account = assetAccountService.getAccountById(assetAccountId);
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             PropertyRecord record = propertyRecordService.findByAssetAccountId(assetAccountId)
                     .orElseThrow(() -> new RuntimeException("该资产账户没有关联的房产记录"));
             response.put("success", true);
@@ -118,10 +157,15 @@ public class PropertyRecordController {
      * 获取家庭所有房产记录
      */
     @GetMapping("/family/{familyId}")
-    public ResponseEntity<Map<String, Object>> getByFamilyId(@PathVariable Long familyId) {
+    public ResponseEntity<Map<String, Object>> getByFamilyId(
+            @PathVariable Long familyId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
-            List<PropertyRecord> records = propertyRecordService.findByFamilyId(familyId);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            List<PropertyRecord> records = propertyRecordService.findByFamilyId(authenticatedFamilyId);
             response.put("success", true);
             response.put("data", records);
             return ResponseEntity.ok(response);
@@ -138,10 +182,14 @@ public class PropertyRecordController {
     @GetMapping("/family/{familyId}/year/{year}")
     public ResponseEntity<Map<String, Object>> getByFamilyIdAndYear(
             @PathVariable Long familyId,
-            @PathVariable Integer year) {
+            @PathVariable Integer year,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
-            List<PropertyRecord> records = propertyRecordService.findByFamilyIdAndPurchaseYear(familyId, year);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            List<PropertyRecord> records = propertyRecordService.findByFamilyIdAndPurchaseYear(authenticatedFamilyId, year);
             response.put("success", true);
             response.put("data", records);
             return ResponseEntity.ok(response);
