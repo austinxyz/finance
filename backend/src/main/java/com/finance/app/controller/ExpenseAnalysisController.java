@@ -31,10 +31,14 @@ public class ExpenseAnalysisController {
     public ResponseEntity<Map<String, Object>> getAnnualMajorCategorySummary(
             @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<ExpenseAnnualMajorCategoryDTO> result = expenseAnalysisService
-                    .getAnnualMajorCategorySummary(familyId, year, currency);
+                    .getAnnualMajorCategorySummary(authenticatedFamilyId, year, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -57,10 +61,14 @@ public class ExpenseAnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam Long majorCategoryId,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<ExpenseAnnualMinorCategoryDTO> result = expenseAnalysisService
-                    .getAnnualMinorCategorySummary(familyId, year, majorCategoryId, currency);
+                    .getAnnualMinorCategorySummary(authenticatedFamilyId, year, majorCategoryId, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -83,10 +91,14 @@ public class ExpenseAnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam Long minorCategoryId,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<ExpenseMonthlyTrendDTO> result = expenseAnalysisService
-                    .getAnnualMonthlyTrend(familyId, year, minorCategoryId, currency);
+                    .getAnnualMonthlyTrend(authenticatedFamilyId, year, minorCategoryId, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -108,10 +120,14 @@ public class ExpenseAnalysisController {
     public ResponseEntity<Map<String, Object>> getBudgetExecution(
             @RequestParam(required = false) Long familyId,
             @RequestParam Integer budgetYear,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<BudgetExecutionDTO> result = expenseAnalysisService
-                    .getBudgetExecution(familyId, budgetYear, currency);
+                    .getBudgetExecution(authenticatedFamilyId, budgetYear, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -134,10 +150,14 @@ public class ExpenseAnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam(defaultValue = "CNY") String currency,
-            @RequestParam(defaultValue = "true") boolean includeTotals) {
+            @RequestParam(defaultValue = "true") boolean includeTotals,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<AnnualExpenseSummaryDTO> result = expenseAnalysisService
-                    .getAnnualExpenseSummaryWithAdjustments(familyId, year, currency, includeTotals);
+                    .getAnnualExpenseSummaryWithAdjustments(authenticatedFamilyId, year, currency, includeTotals);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -158,9 +178,13 @@ public class ExpenseAnalysisController {
     @PostMapping("/annual/summary/calculate")
     public ResponseEntity<Map<String, Object>> calculateAnnualExpenseSummary(
             @RequestParam(required = false) Long familyId,
-            @RequestParam Integer year) {
+            @RequestParam Integer year,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            expenseAnalysisService.calculateAnnualExpenseSummary(familyId, year);
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            expenseAnalysisService.calculateAnnualExpenseSummary(authenticatedFamilyId, year);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -182,10 +206,14 @@ public class ExpenseAnalysisController {
     public ResponseEntity<Map<String, Object>> getAnnualExpenseTrend(
             @RequestParam(required = false) Long familyId,
             @RequestParam(defaultValue = "5") Integer limit,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<Map<String, Object>> result = expenseAnalysisService
-                    .getAnnualExpenseTrend(familyId, limit, currency);
+                    .getAnnualExpenseTrend(authenticatedFamilyId, limit, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -207,10 +235,14 @@ public class ExpenseAnalysisController {
     public ResponseEntity<Map<String, Object>> getAnnualCategoryTrend(
             @RequestParam(required = false) Long familyId,
             @RequestParam(defaultValue = "5") Integer limit,
-            @RequestParam(defaultValue = "USD") String currency) {
+            @RequestParam(defaultValue = "USD") String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<Map<String, Object>> result = expenseAnalysisService
-                    .getAnnualCategoryTrend(familyId, limit, currency);
+                    .getAnnualCategoryTrend(authenticatedFamilyId, limit, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -231,11 +263,15 @@ public class ExpenseAnalysisController {
     @GetMapping("/annual/summary-table")
     public ResponseEntity<Map<String, Object>> getAnnualSummaryTable(
             @RequestParam(required = false) Long familyId,
-            @RequestParam(defaultValue = "5") Integer limit) {
+            @RequestParam(defaultValue = "5") Integer limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user\'s family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             // 始终返回USD基准货币数据
             Map<String, Object> result = expenseAnalysisService
-                    .getAnnualSummaryTable(familyId, limit);
+                    .getAnnualSummaryTable(authenticatedFamilyId, limit);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

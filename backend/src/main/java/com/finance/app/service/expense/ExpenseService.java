@@ -194,6 +194,15 @@ public class ExpenseService {
     }
 
     /**
+     * 根据ID获取支出记录（用于授权验证）
+     */
+    public ExpenseRecordDTO getExpenseRecordById(Long id) {
+        ExpenseRecord record = expenseRecordRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("支出记录不存在"));
+        return toDTO(record);
+    }
+
+    /**
      * 更新支出记录
      */
     @Transactional
