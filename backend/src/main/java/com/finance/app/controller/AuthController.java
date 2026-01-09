@@ -64,6 +64,17 @@ public class AuthController {
     }
 
     /**
+     * 加密现有用户密码（管理员专用，仅用于数据迁移）
+     * WARNING: 这是一次性操作，仅在初始部署时使用
+     */
+    @PostMapping("/admin/encrypt-passwords")
+    public ResponseEntity<ApiResponse<String>> encryptPasswords() {
+        log.info("开始加密用户密码");
+        authService.encryptExistingPasswords();
+        return ResponseEntity.ok(ApiResponse.success("密码加密完成"));
+    }
+
+    /**
      * 从Authorization header中提取Token
      *
      * @param authHeader Authorization header

@@ -73,8 +73,8 @@ public class AssetController {
 
         AssetAccount account = assetService.getAccountById(id);
 
-        // Verify family access
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        // Verify account access (userId belongs to authenticated user's family)
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         return ApiResponse.success(account);
     }
@@ -84,9 +84,9 @@ public class AssetController {
             @RequestBody AssetAccount account,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Set family_id from authenticated user
-        Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
-        account.setFamilyId(familyId);
+        // Set userId from authenticated user
+        Long userId = authHelper.getUserIdFromAuth(authHeader);
+        account.setUserId(userId);
 
         AssetAccount created = assetService.createAccount(account);
         return ApiResponse.success("Account created successfully", created);
@@ -98,12 +98,12 @@ public class AssetController {
             @RequestBody AssetAccount account,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Verify family access for the existing account
+        // Verify account access for the existing account
         AssetAccount existing = assetService.getAccountById(id);
-        authHelper.requireFamilyAccess(authHeader, existing.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, existing.getUserId());
 
-        // Prevent family_id tampering
-        account.setFamilyId(existing.getFamilyId());
+        // Prevent userId tampering
+        account.setUserId(existing.getUserId());
 
         AssetAccount updated = assetService.updateAccount(id, account);
         // Convert to DTO to avoid lazy loading issues
@@ -116,9 +116,9 @@ public class AssetController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Verify family access
+        // Verify account access
         AssetAccount account = assetService.getAccountById(id);
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         assetService.deleteAccount(id);
         return ApiResponse.success("Account deleted successfully", null);
@@ -131,9 +131,9 @@ public class AssetController {
             @PathVariable Long accountId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Verify family access
+        // Verify account access
         AssetAccount account = assetService.getAccountById(accountId);
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         List<AssetRecordDTO> records = assetService.getAccountRecords(accountId);
         return ApiResponse.success(records);
@@ -144,9 +144,9 @@ public class AssetController {
             @RequestBody AssetRecord record,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Verify family access for the account
+        // Verify account access for the account
         AssetAccount account = assetService.getAccountById(record.getAccountId());
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         AssetRecordDTO created = assetService.createRecord(record);
         return ApiResponse.success("Record created successfully", created);
@@ -158,10 +158,10 @@ public class AssetController {
             @RequestBody AssetRecord record,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Get existing record and verify family access
+        // Get existing record and verify account access
         AssetRecordDTO existingRecord = assetService.getRecordById(id);
         AssetAccount account = assetService.getAccountById(existingRecord.getAccountId());
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         AssetRecordDTO updated = assetService.updateRecord(id, record);
         return ApiResponse.success("Record updated successfully", updated);
@@ -172,10 +172,10 @@ public class AssetController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Get existing record and verify family access
+        // Get existing record and verify account access
         AssetRecordDTO existingRecord = assetService.getRecordById(id);
         AssetAccount account = assetService.getAccountById(existingRecord.getAccountId());
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         assetService.deleteRecord(id);
         return ApiResponse.success("Record deleted successfully", null);
@@ -188,10 +188,9 @@ public class AssetController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         // Verify all accounts belong to user's family
-        Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
         for (Long accountId : checkRequest.getAccountIds()) {
             AssetAccount account = assetService.getAccountById(accountId);
-            authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
         }
 
         LocalDate recordDate = checkRequest.getRecordDate();
@@ -209,9 +208,9 @@ public class AssetController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         // Verify all accounts belong to user's family
-        for (AssetRecord record : batchUpdate.getRecords()) {
-            AssetAccount account = assetService.getAccountById(record.getAccountId());
-            authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        for (BatchRecordUpdateDTO.AccountUpdate accountUpdate : batchUpdate.getAccounts()) {
+            AssetAccount account = assetService.getAccountById(accountUpdate.getAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
         }
 
         List<AssetRecord> records = assetService.batchUpdateRecords(batchUpdate);
@@ -228,9 +227,9 @@ public class AssetController {
             @RequestParam String date,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Verify family access
+        // Verify account access
         AssetAccount account = assetService.getAccountById(accountId);
-        authHelper.requireFamilyAccess(authHeader, account.getFamilyId());
+        authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         LocalDate targetDate = LocalDate.parse(date);
         Map<String, Object> result = assetService.getAccountValueAtDate(accountId, targetDate);

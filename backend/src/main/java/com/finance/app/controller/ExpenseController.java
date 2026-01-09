@@ -1,6 +1,7 @@
 package com.finance.app.controller;
 
 import com.finance.app.dto.expense.*;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.expense.ExpenseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class ExpenseController {
 
     private final ExpenseService expenseService;
+    private final AuthHelper authHelper;
 
     // ==================== 分类管理API ====================
 
@@ -56,9 +58,13 @@ public class ExpenseController {
      */
     @PostMapping("/categories/minor")
     public ResponseEntity<Map<String, Object>> createMinorCategory(
-        @Valid @RequestBody CreateMinorCategoryRequest request
+        @Valid @RequestBody CreateMinorCategoryRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify admin role - categories are shared resources
+            authHelper.requireAdmin(authHeader);
+
             ExpenseCategoryDTO.MinorCategoryDTO category = expenseService.createMinorCategory(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -89,9 +95,13 @@ public class ExpenseController {
     @PutMapping("/categories/minor/{id}")
     public ResponseEntity<Map<String, Object>> updateMinorCategory(
         @PathVariable Long id,
-        @Valid @RequestBody CreateMinorCategoryRequest request
+        @Valid @RequestBody CreateMinorCategoryRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify admin role - categories are shared resources
+            authHelper.requireAdmin(authHeader);
+
             ExpenseCategoryDTO.MinorCategoryDTO category = expenseService.updateMinorCategory(id, request);
 
             Map<String, Object> response = new HashMap<>();
@@ -120,8 +130,14 @@ public class ExpenseController {
      * DELETE /api/expenses/categories/minor/{id}
      */
     @DeleteMapping("/categories/minor/{id}")
-    public ResponseEntity<Map<String, Object>> disableMinorCategory(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> disableMinorCategory(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Verify admin role - categories are shared resources
+            authHelper.requireAdmin(authHeader);
+
             expenseService.disableMinorCategory(id);
 
             Map<String, Object> response = new HashMap<>();
@@ -152,9 +168,14 @@ public class ExpenseController {
      */
     @PostMapping("/records")
     public ResponseEntity<Map<String, Object>> createExpenseRecord(
-        @Valid @RequestBody CreateExpenseRecordRequest request
+        @Valid @RequestBody CreateExpenseRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Set familyId from authenticated user
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            request.setFamilyId(familyId);
+
             ExpenseRecordDTO record = expenseService.createExpenseRecord(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -185,9 +206,14 @@ public class ExpenseController {
     @PutMapping("/records/{id}")
     public ResponseEntity<Map<String, Object>> updateExpenseRecord(
         @PathVariable Long id,
-        @Valid @RequestBody UpdateExpenseRecordRequest request
+        @Valid @RequestBody UpdateExpenseRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Get existing record to verify family access
+            ExpenseRecordDTO existingRecord = expenseService.getExpenseRecordById(id);
+            authHelper.requireFamilyAccess(authHeader, existingRecord.getFamilyId());
+
             ExpenseRecordDTO record = expenseService.updateExpenseRecord(id, request);
 
             Map<String, Object> response = new HashMap<>();
@@ -217,9 +243,14 @@ public class ExpenseController {
      */
     @PostMapping("/records/batch")
     public ResponseEntity<Map<String, Object>> batchSaveExpenseRecords(
-        @Valid @RequestBody BatchExpenseRecordRequest request
+        @Valid @RequestBody BatchExpenseRecordRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Set familyId from authenticated user
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            request.setFamilyId(familyId);
+
             List<ExpenseRecordDTO> records = expenseService.batchSaveExpenseRecords(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -245,14 +276,17 @@ public class ExpenseController {
 
     /**
      * 查询支出记录（按期间）
-     * GET /api/expenses/records?familyId=1&period=2024-12
+     * GET /api/expenses/records?period=2024-12
      */
     @GetMapping("/records")
     public ResponseEntity<Map<String, Object>> getExpenseRecordsByPeriod(
-        @RequestParam Long familyId,
-        @RequestParam String period
+        @RequestParam String period,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Use authenticated user's family_id
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<ExpenseRecordDTO> records = expenseService.getExpenseRecordsByPeriod(familyId, period);
 
             Map<String, Object> response = new HashMap<>();
@@ -271,15 +305,18 @@ public class ExpenseController {
 
     /**
      * 查询支出记录（按期间范围）
-     * GET /api/expenses/records/range?familyId=1&startPeriod=2024-01&endPeriod=2024-12
+     * GET /api/expenses/records/range?startPeriod=2024-01&endPeriod=2024-12
      */
     @GetMapping("/records/range")
     public ResponseEntity<Map<String, Object>> getExpenseRecordsByPeriodRange(
-        @RequestParam Long familyId,
         @RequestParam String startPeriod,
-        @RequestParam String endPeriod
+        @RequestParam String endPeriod,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Use authenticated user's family_id
+            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<ExpenseRecordDTO> records = expenseService.getExpenseRecordsByPeriodRange(
                 familyId, startPeriod, endPeriod
             );
@@ -303,8 +340,15 @@ public class ExpenseController {
      * DELETE /api/expenses/records/{id}
      */
     @DeleteMapping("/records/{id}")
-    public ResponseEntity<Map<String, Object>> deleteExpenseRecord(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteExpenseRecord(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Get existing record to verify family access
+            ExpenseRecordDTO existingRecord = expenseService.getExpenseRecordById(id);
+            authHelper.requireFamilyAccess(authHeader, existingRecord.getFamilyId());
+
             expenseService.deleteExpenseRecord(id);
 
             Map<String, Object> response = new HashMap<>();

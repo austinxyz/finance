@@ -1,6 +1,8 @@
 package com.finance.app.security;
 
 import com.finance.app.exception.UnauthorizedException;
+import com.finance.app.model.User;
+import com.finance.app.repository.UserRepository;
 import com.finance.app.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class AuthHelper {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
 
     /**
      * 从Authorization header中提取Token
@@ -105,6 +108,33 @@ public class AuthHelper {
         Long userFamilyId = authService.getFamilyIdFromToken(token);
         if (!userFamilyId.equals(familyId)) {
             throw new UnauthorizedException("无权访问其他家庭的数据");
+        }
+    }
+
+    /**
+     * 验证账户的userId是否属于authenticated用户的family
+     *
+     * @param authHeader Authorization header
+     * @param accountUserId 账户的user_id
+     * @throws UnauthorizedException 如果账户不属于该family（管理员除外）
+     */
+    public void requireAccountAccess(String authHeader, Long accountUserId) {
+        String token = extractToken(authHeader);
+
+        // 管理员可以访问所有数据
+        if (authService.isAdminByToken(token)) {
+            return;
+        }
+
+        // 获取认证用户的family_id
+        Long authenticatedFamilyId = authService.getFamilyIdFromToken(token);
+
+        // 查询账户所属用户的family_id
+        User accountUser = userRepository.findById(accountUserId)
+            .orElseThrow(() -> new UnauthorizedException("账户关联的用户不存在"));
+
+        if (!accountUser.getFamilyId().equals(authenticatedFamilyId)) {
+            throw new UnauthorizedException("无权访问其他家庭的账户");
         }
     }
 }
