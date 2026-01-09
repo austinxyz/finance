@@ -5,8 +5,9 @@ import com.finance.app.dto.expense.BudgetExecutionDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMajorCategoryDTO;
 import com.finance.app.dto.expense.ExpenseAnnualMinorCategoryDTO;
 import com.finance.app.dto.expense.ExpenseMonthlyTrendDTO;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.expense.ExpenseAnalysisService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,10 +17,11 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/expenses/analysis")
+@RequiredArgsConstructor
 public class ExpenseAnalysisController {
 
-    @Autowired
-    private ExpenseAnalysisService expenseAnalysisService;
+    private final ExpenseAnalysisService expenseAnalysisService;
+    private final AuthHelper authHelper;
 
     /**
      * 获取年度大类汇总
@@ -27,7 +29,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/major-categories")
     public ResponseEntity<Map<String, Object>> getAnnualMajorCategorySummary(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam(defaultValue = "USD") String currency) {
         try {
@@ -52,7 +54,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/minor-categories")
     public ResponseEntity<Map<String, Object>> getAnnualMinorCategorySummary(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam Long majorCategoryId,
             @RequestParam(defaultValue = "USD") String currency) {
@@ -78,7 +80,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/monthly-trend")
     public ResponseEntity<Map<String, Object>> getAnnualMonthlyTrend(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam Long minorCategoryId,
             @RequestParam(defaultValue = "USD") String currency) {
@@ -104,7 +106,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/budget-execution")
     public ResponseEntity<Map<String, Object>> getBudgetExecution(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer budgetYear,
             @RequestParam(defaultValue = "USD") String currency) {
         try {
@@ -129,7 +131,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/summary")
     public ResponseEntity<Map<String, Object>> getAnnualExpenseSummary(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer year,
             @RequestParam(defaultValue = "CNY") String currency,
             @RequestParam(defaultValue = "true") boolean includeTotals) {
@@ -155,7 +157,7 @@ public class ExpenseAnalysisController {
      */
     @PostMapping("/annual/summary/calculate")
     public ResponseEntity<Map<String, Object>> calculateAnnualExpenseSummary(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer year) {
         try {
             expenseAnalysisService.calculateAnnualExpenseSummary(familyId, year);
@@ -178,7 +180,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/trend")
     public ResponseEntity<Map<String, Object>> getAnnualExpenseTrend(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(defaultValue = "5") Integer limit,
             @RequestParam(defaultValue = "USD") String currency) {
         try {
@@ -203,7 +205,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/category-trend")
     public ResponseEntity<Map<String, Object>> getAnnualCategoryTrend(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(defaultValue = "5") Integer limit,
             @RequestParam(defaultValue = "USD") String currency) {
         try {
@@ -228,7 +230,7 @@ public class ExpenseAnalysisController {
      */
     @GetMapping("/annual/summary-table")
     public ResponseEntity<Map<String, Object>> getAnnualSummaryTable(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam(defaultValue = "5") Integer limit) {
         try {
             // 始终返回USD基准货币数据
