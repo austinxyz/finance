@@ -2,6 +2,7 @@ package com.finance.app.controller;
 
 import com.finance.app.dto.expense.BatchBudgetRequest;
 import com.finance.app.dto.expense.ExpenseBudgetDTO;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.expense.ExpenseBudgetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,18 +25,23 @@ import java.util.Map;
 public class ExpenseBudgetController {
 
     private final ExpenseBudgetService budgetService;
+    private final AuthHelper authHelper;
 
     /**
      * 获取指定家庭、年份、货币的预算
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getBudgets(
-            @RequestParam Long familyId,
+            @RequestParam(required = false) Long familyId,
             @RequestParam Integer budgetYear,
-            @RequestParam String currency) {
+            @RequestParam String currency,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
-            List<ExpenseBudgetDTO> budgets = budgetService.getBudgets(familyId, budgetYear, currency);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            List<ExpenseBudgetDTO> budgets = budgetService.getBudgets(authenticatedFamilyId, budgetYear, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -60,9 +66,14 @@ public class ExpenseBudgetController {
      */
     @PostMapping("/batch")
     public ResponseEntity<Map<String, Object>> batchSaveBudgets(
-            @Valid @RequestBody BatchBudgetRequest request) {
+            @Valid @RequestBody BatchBudgetRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
+            // Set familyId from authenticated user
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            request.setFamilyId(authenticatedFamilyId);
+
             List<ExpenseBudgetDTO> savedBudgets = budgetService.batchSaveBudgets(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -87,8 +98,14 @@ public class ExpenseBudgetController {
      * 删除预算
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deleteBudget(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteBudget(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Get existing budget to verify family access
+            ExpenseBudgetDTO existingBudget = budgetService.getBudgetById(id);
+            authHelper.requireFamilyAccess(authHeader, existingBudget.getFamilyId());
+
             budgetService.deleteBudget(id);
 
             Map<String, Object> response = new HashMap<>();

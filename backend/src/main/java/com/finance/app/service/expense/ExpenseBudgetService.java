@@ -187,6 +187,15 @@ public class ExpenseBudgetService {
     }
 
     /**
+     * 根据ID获取预算（用于授权验证）
+     */
+    public ExpenseBudgetDTO getBudgetById(Long id) {
+        ExpenseBudget budget = budgetRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("预算不存在"));
+        return toDTO(budget);
+    }
+
+    /**
      * 删除指定预算
      */
     @Transactional
