@@ -1,8 +1,12 @@
 package com.finance.app.controller;
 
 import com.finance.app.dto.investment.*;
+import com.finance.app.model.AssetAccount;
 import com.finance.app.model.AssetType;
+import com.finance.app.model.InvestmentTransaction;
 import com.finance.app.repository.AssetTypeRepository;
+import com.finance.app.security.AuthHelper;
+import com.finance.app.service.asset.AssetAccountService;
 import com.finance.app.service.investment.InvestmentTransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,8 @@ public class InvestmentTransactionController {
 
     private final InvestmentTransactionService investmentTransactionService;
     private final AssetTypeRepository assetTypeRepository;
+    private final AssetAccountService assetAccountService;
+    private final AuthHelper authHelper;
 
     // ==================== 投资账户查询API ====================
 
