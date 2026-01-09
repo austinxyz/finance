@@ -2,6 +2,7 @@ package com.finance.app.controller;
 
 import com.finance.app.model.GoogleSheetsSync;
 import com.finance.app.repository.GoogleSheetsSyncRepository;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.GoogleSheetsExportService;
 import com.finance.app.service.SseEmitterManager;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +33,7 @@ public class GoogleSheetsController {
     private final GoogleSheetsExportService googleSheetsExportService;
     private final GoogleSheetsSyncRepository googleSheetsSyncRepository;
     private final SseEmitterManager sseEmitterManager;
+    private final AuthHelper authHelper;
 
     /**
      * 同步年度财务报表到Google Sheets
@@ -44,18 +46,23 @@ public class GoogleSheetsController {
     @Operation(summary = "同步年度财务报表到Google Sheets（异步）",
                description = "将指定年份的财务报表导出到Google Sheets（异步任务）。立即返回任务ID，客户端需要轮询查询任务状态。")
     public ResponseEntity<Map<String, Object>> syncAnnualReport(
-            @Parameter(description = "家庭ID", required = true)
-            @RequestParam Long familyId,
+            @Parameter(description = "家庭ID（将被忽略，使用认证用户的家庭ID）", required = false)
+            @RequestParam(required = false) Long familyId,
 
             @Parameter(description = "年份", required = true, example = "2024")
             @RequestParam Integer year,
 
             @Parameter(description = "权限设置：reader（只读）或writer（可编辑）", example = "reader")
-            @RequestParam(defaultValue = "reader") String permission) {
+            @RequestParam(defaultValue = "reader") String permission,
+
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
+            // Use authenticated user's family_id (ignore query param for security)
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             log.info("开始创建Google Sheets同步任务: familyId={}, year={}, permission={}",
-                familyId, year, permission);
+                authenticatedFamilyId, year, permission);
 
             // 验证权限参数
             if (!permission.equals("reader") && !permission.equals("writer")) {
@@ -65,8 +72,8 @@ public class GoogleSheetsController {
                 return ResponseEntity.badRequest().body(errorResponse);
             }
 
-            // 启动异步任务
-            Map<String, Object> taskResult = googleSheetsExportService.createOrUpdateAnnualReport(familyId, year, permission);
+            // 启动异步任务 with authenticated family ID
+            Map<String, Object> taskResult = googleSheetsExportService.createOrUpdateAnnualReport(authenticatedFamilyId, year, permission);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -92,7 +99,8 @@ public class GoogleSheetsController {
                description = "根据任务ID查询Google Sheets同步任务的状态和进度")
     public ResponseEntity<Map<String, Object>> getSyncStatus(
             @Parameter(description = "同步任务ID", required = true)
-            @PathVariable Long syncId) {
+            @PathVariable Long syncId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         Optional<GoogleSheetsSync> syncOpt = googleSheetsSyncRepository.findById(syncId);
 
@@ -104,6 +112,9 @@ public class GoogleSheetsController {
         }
 
         GoogleSheetsSync sync = syncOpt.get();
+
+        // Verify family access
+        authHelper.requireFamilyAccess(authHeader, sync.getFamilyId());
 
         Map<String, Object> data = new HashMap<>();
         data.put("syncId", sync.getId());
@@ -137,7 +148,8 @@ public class GoogleSheetsController {
                description = "通过Server-Sent Events实时接收Google Sheets同步任务的进度更新")
     public SseEmitter subscribeProgress(
             @Parameter(description = "同步任务ID", required = true)
-            @PathVariable Long syncId) {
+            @PathVariable Long syncId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("客户端订阅SSE进度: syncId={}", syncId);
 
@@ -157,6 +169,22 @@ public class GoogleSheetsController {
         }
 
         GoogleSheetsSync sync = syncOpt.get();
+
+        // Verify family access
+        try {
+            authHelper.requireFamilyAccess(authHeader, sync.getFamilyId());
+        } catch (Exception e) {
+            SseEmitter emitter = new SseEmitter(0L);
+            try {
+                emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data(Map.of("error", "无权访问此同步任务")));
+                emitter.complete();
+            } catch (Exception sendError) {
+                log.error("发送错误消息失败", sendError);
+            }
+            return emitter;
+        }
 
         // 创建SSE连接
         SseEmitter emitter = sseEmitterManager.createEmitter(syncId);

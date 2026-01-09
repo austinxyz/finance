@@ -12,6 +12,7 @@ import com.finance.app.dto.OverallTrendDataPointDTO;
 import com.finance.app.dto.RiskAssessmentDTO;
 import com.finance.app.dto.TrendDataDTO;
 import com.finance.app.dto.TrendDataPointDTO;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.AnalysisService;
 import com.finance.app.service.ClaudeService;
 import com.finance.app.service.asset.AssetAnalysisService;
@@ -36,6 +37,7 @@ public class AnalysisController {
     private final LiabilityAnalysisService liabilityAnalysisService;
     private final ClaudeService claudeService;
     private final ObjectMapper objectMapper;
+    private final AuthHelper authHelper;
 
     // 获取资产总览（包含负债和净资产）
     @GetMapping("/summary")
