@@ -224,7 +224,7 @@ const getSavingsRateClass = (rate) => {
 // 加载家庭列表
 const loadFamilies = async () => {
   try {
-    const response = await familyAPI.getAll();
+    const response = await familyAPI.getDefault();
     if (response.data) {
       families.value = response.data;
       if (families.value.length > 0) {

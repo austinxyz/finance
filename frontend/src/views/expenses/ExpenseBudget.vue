@@ -355,11 +355,11 @@ function markAsChanged(categoryId) {
 // 加载家庭列表
 async function loadFamilies() {
   try {
-    const response = await familyAPI.getAll()
+    const response = await familyAPI.getDefault()
 
     // 三种响应格式处理
     if (Array.isArray(response.data)) {
-      families.value = response.data
+      families.value = response.data ? [response.data] : []
     } else if (response.data && response.data.data) {
       families.value = Array.isArray(response.data.data) ? response.data.data : []
     } else if (response.data && 'success' in response.data) {

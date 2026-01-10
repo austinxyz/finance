@@ -300,7 +300,7 @@ function formatCurrency(amount) {
 // 加载家庭列表
 async function loadFamilies() {
   try {
-    const response = await familyAPI.getAll()
+    const response = await familyAPI.getDefault()
     let data = response.data
 
     if (Array.isArray(data)) {

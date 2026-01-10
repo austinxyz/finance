@@ -498,7 +498,7 @@ function getCurrencySymbol(currency) {
 // 加载家庭列表
 async function loadFamilies() {
   try {
-    const response = await familyAPI.getAll()
+    const response = await familyAPI.getDefault()
 
     let familyList = []
     if (Array.isArray(response.data)) {

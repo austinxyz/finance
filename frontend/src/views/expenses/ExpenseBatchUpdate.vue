@@ -365,7 +365,7 @@ function markAsChanged(categoryId) {
 // 加载家庭列表
 async function loadFamilies() {
   try {
-    const response = await familyAPI.getAll()
+    const response = await familyAPI.getDefault()
 
     // 处理响应数据 - 兼容多种返回格式
     let familyList = []

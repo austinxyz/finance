@@ -418,8 +418,8 @@ const convertedTrendData = computed(() => {
 // 获取家庭列表
 const fetchFamilies = async () => {
   try {
-    const response = await familyAPI.getAll()
-    families.value = response.data
+    const response = await familyAPI.getDefault()
+    families.value = response.data ? [response.data] : []
 
     // 如果familyId还未设置，获取默认家庭
     if (!familyId.value) {

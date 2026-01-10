@@ -379,7 +379,7 @@ export default {
     // 加载家庭列表
     const loadFamilies = async () => {
       try {
-        const response = await familyAPI.getAll()
+        const response = await familyAPI.getDefault()
         let data = response.data
 
         if (Array.isArray(data)) {

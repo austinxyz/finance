@@ -553,9 +553,9 @@ export default {
     // 加载家庭列表
     const loadFamilies = async () => {
       try {
-        const response = await familyAPI.getAll()
+        const response = await familyAPI.getDefault()
         if (response.success) {
-          families.value = response.data
+          families.value = response.data ? [response.data] : []
           if (families.value.length > 0) {
             // 优先选择默认家庭
             const defaultFamily = families.value.find(f => f.isDefault)

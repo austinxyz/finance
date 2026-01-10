@@ -836,9 +836,9 @@ const loadCategories = async () => {
 // 加载家庭列表
 const loadFamilies = async () => {
   try {
-    const response = await familyAPI.getAll()
+    const response = await familyAPI.getDefault()
     if (response.success) {
-      families.value = response.data
+      families.value = response.data ? [response.data] : []
     }
 
     // 如果selectedFamilyId还未设置，获取默认家庭
