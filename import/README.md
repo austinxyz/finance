@@ -230,3 +230,49 @@ pip3 install pandas openpyxl requests
 ```
 
 后端API需要运行在 `http://localhost:8080`。
+
+## 远程部署
+
+### Docker Compose 远程部署
+
+如需在远程服务器上部署应用（包含硬编码的数据库连接），可以使用 `docker-compose-remote.yml`：
+
+**首次设置**：
+```bash
+# 1. 复制模板文件
+cp docker-compose-remote.yml.example docker-compose-remote.yml
+
+# 2. 编辑配置文件，填入实际的数据库连接信息和 JWT 密钥
+vim docker-compose-remote.yml
+
+# 必须修改的配置项：
+# - DB_HOST: 数据库主机地址
+# - DB_PORT: 数据库端口
+# - DB_NAME: 数据库名称
+# - DB_USER: 数据库用户名
+# - DB_PASSWORD: 数据库密码
+# - JWT_SECRET: 生成一个安全的随机字符串（至少 32 字符）
+
+# 3. 生成 JWT_SECRET（推荐）
+openssl rand -base64 32
+# 或使用 Python
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**部署**：
+```bash
+# 启动服务
+docker-compose -f docker-compose-remote.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose-remote.yml logs -f
+
+# 停止服务
+docker-compose -f docker-compose-remote.yml down
+```
+
+**安全提醒**：
+- ⚠️ `docker-compose-remote.yml` 包含敏感信息，已被 `.gitignore` 排除
+- ✅ 请使用 `docker-compose-remote.yml.example` 作为模板
+- ✅ 部署前务必修改 `JWT_SECRET` 为安全的随机字符串
+- ✅ 不要将实际的 `docker-compose-remote.yml` 提交到 Git

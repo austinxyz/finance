@@ -192,7 +192,7 @@ public class ExpenseBudgetService {
     public ExpenseBudgetDTO getBudgetById(Long id) {
         ExpenseBudget budget = budgetRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("预算不存在"));
-        return toDTO(budget);
+        return buildBudgetDTO(budget);
     }
 
     /**

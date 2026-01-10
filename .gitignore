@@ -69,3 +69,6 @@ import/budget_preview_*.xlsx
 import/import_budget_*.sql
 import/import_budget_success_*.txt
 tokens/
+
+# Remote deployment configs (contains hardcoded credentials)
+import/docker-compose-remote.yml

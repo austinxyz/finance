@@ -292,9 +292,8 @@ public class InvestmentTransactionController {
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Verify account ownership via request body
-            AssetAccount account = assetService.getAccountById(request.getAccountId());
-            authHelper.requireAccountAccess(authHeader, account.getUserId());
+            // Verify family access
+            authHelper.requireFamilyAccess(authHeader, request.getFamilyId());
 
             Map<String, Object> result = investmentTransactionService.batchSaveTransactions(request);
 
