@@ -7,7 +7,7 @@ import com.finance.app.dto.InvestmentCategoryAnalysisDTO;
 import com.finance.app.model.AssetAccount;
 import com.finance.app.security.AuthHelper;
 import com.finance.app.service.InvestmentAnalysisService;
-import com.finance.app.service.asset.AssetAccountService;
+import com.finance.app.service.asset.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +22,7 @@ import java.util.List;
 public class InvestmentAnalysisController {
 
     private final InvestmentAnalysisService analysisService;
-    private final AssetAccountService assetAccountService;
+    private final AssetService assetService;
     private final AuthHelper authHelper;
 
     /**
@@ -70,7 +70,7 @@ public class InvestmentAnalysisController {
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         // Verify account access (account belongs to user's family)
-        AssetAccount account = assetAccountService.getAccountById(accountId);
+        AssetAccount account = assetService.getAccountById(accountId);
         authHelper.requireAccountAccess(authHeader, account.getUserId());
 
         AccountMonthlyTrendResponseDTO result = analysisService.getAccountMonthlyTrend(accountId, year);

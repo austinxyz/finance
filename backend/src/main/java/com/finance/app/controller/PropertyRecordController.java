@@ -4,7 +4,7 @@ import com.finance.app.model.AssetAccount;
 import com.finance.app.model.PropertyRecord;
 import com.finance.app.security.AuthHelper;
 import com.finance.app.service.PropertyRecordService;
-import com.finance.app.service.asset.AssetAccountService;
+import com.finance.app.service.asset.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +20,7 @@ import java.util.Map;
 public class PropertyRecordController {
 
     private final PropertyRecordService propertyRecordService;
-    private final AssetAccountService assetAccountService;
+    private final AssetService assetService;
     private final AuthHelper authHelper;
 
     /**
@@ -33,7 +33,7 @@ public class PropertyRecordController {
         Map<String, Object> response = new HashMap<>();
         try {
             // Verify asset account ownership
-            AssetAccount account = assetAccountService.getAccountById(propertyRecord.getAssetAccountId());
+            AssetAccount account = assetService.getAccountById(propertyRecord.getAssetAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             PropertyRecord created = propertyRecordService.create(propertyRecord);
@@ -61,7 +61,7 @@ public class PropertyRecordController {
             // Get existing property record to verify account ownership
             PropertyRecord existing = propertyRecordService.findById(id)
                     .orElseThrow(() -> new RuntimeException("房产记录不存在"));
-            AssetAccount account = assetAccountService.getAccountById(existing.getAssetAccountId());
+            AssetAccount account = assetService.getAccountById(existing.getAssetAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             PropertyRecord updated = propertyRecordService.update(id, propertyRecord);
@@ -88,7 +88,7 @@ public class PropertyRecordController {
             // Get existing property record to verify account ownership
             PropertyRecord existing = propertyRecordService.findById(id)
                     .orElseThrow(() -> new RuntimeException("房产记录不存在"));
-            AssetAccount account = assetAccountService.getAccountById(existing.getAssetAccountId());
+            AssetAccount account = assetService.getAccountById(existing.getAssetAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             propertyRecordService.delete(id);
@@ -115,7 +115,7 @@ public class PropertyRecordController {
                     .orElseThrow(() -> new RuntimeException("房产记录不存在"));
 
             // Verify asset account ownership
-            AssetAccount account = assetAccountService.getAccountById(record.getAssetAccountId());
+            AssetAccount account = assetService.getAccountById(record.getAssetAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             response.put("success", true);
@@ -138,7 +138,7 @@ public class PropertyRecordController {
         Map<String, Object> response = new HashMap<>();
         try {
             // Verify asset account ownership
-            AssetAccount account = assetAccountService.getAccountById(assetAccountId);
+            AssetAccount account = assetService.getAccountById(assetAccountId);
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             PropertyRecord record = propertyRecordService.findByAssetAccountId(assetAccountId)

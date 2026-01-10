@@ -6,7 +6,7 @@ import com.finance.app.model.AssetType;
 import com.finance.app.model.InvestmentTransaction;
 import com.finance.app.repository.AssetTypeRepository;
 import com.finance.app.security.AuthHelper;
-import com.finance.app.service.asset.AssetAccountService;
+import com.finance.app.service.asset.AssetService;
 import com.finance.app.service.investment.InvestmentTransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class InvestmentTransactionController {
 
     private final InvestmentTransactionService investmentTransactionService;
     private final AssetTypeRepository assetTypeRepository;
-    private final AssetAccountService assetAccountService;
+    private final AssetService assetService;
     private final AuthHelper authHelper;
 
     // ==================== 投资账户查询API ====================
@@ -149,7 +149,7 @@ public class InvestmentTransactionController {
     ) {
         try {
             // Verify account ownership
-            AssetAccount account = assetAccountService.getAccountById(accountId);
+            AssetAccount account = assetService.getAccountById(accountId);
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             List<InvestmentTransactionDTO> transactions = investmentTransactionService
@@ -180,7 +180,7 @@ public class InvestmentTransactionController {
     ) {
         try {
             // Verify account ownership via request body
-            AssetAccount account = assetAccountService.getAccountById(request.getAccountId());
+            AssetAccount account = assetService.getAccountById(request.getAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             InvestmentTransactionDTO transaction = investmentTransactionService.createTransaction(request);
@@ -219,7 +219,7 @@ public class InvestmentTransactionController {
         try {
             // Get existing transaction to verify account ownership
             InvestmentTransaction existingTransaction = investmentTransactionService.getTransactionById(id);
-            AssetAccount account = assetAccountService.getAccountById(existingTransaction.getAccountId());
+            AssetAccount account = assetService.getAccountById(existingTransaction.getAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             InvestmentTransactionDTO transaction = investmentTransactionService.updateTransaction(id, request);
@@ -257,7 +257,7 @@ public class InvestmentTransactionController {
         try {
             // Get existing transaction to verify account ownership
             InvestmentTransaction existingTransaction = investmentTransactionService.getTransactionById(id);
-            AssetAccount account = assetAccountService.getAccountById(existingTransaction.getAccountId());
+            AssetAccount account = assetService.getAccountById(existingTransaction.getAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             investmentTransactionService.deleteTransaction(id);
@@ -293,7 +293,7 @@ public class InvestmentTransactionController {
     ) {
         try {
             // Verify account ownership via request body
-            AssetAccount account = assetAccountService.getAccountById(request.getAccountId());
+            AssetAccount account = assetService.getAccountById(request.getAccountId());
             authHelper.requireAccountAccess(authHeader, account.getUserId());
 
             Map<String, Object> result = investmentTransactionService.batchSaveTransactions(request);
