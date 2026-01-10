@@ -1583,41 +1583,28 @@ watch(overallTrendData, async () => {
 // 加载家庭列表
 async function loadFamilies() {
   try {
-    console.log('开始加载家庭列表...')
-    const response = await familyAPI.getAll()
-    console.log('家庭列表响应:', response)
-    if (response.success) {
-      families.value = response.data
-      console.log('已加载家庭列表:', families.value)
+    console.log('开始加载家庭信息...')
 
-      // 如果familyId还未设置，获取默认家庭
+    // Get current user's default family
+    const defaultResponse = await familyAPI.getDefault()
+    console.log('默认家庭响应:', defaultResponse)
+
+    if (defaultResponse.success && defaultResponse.data) {
+      const defaultFamily = defaultResponse.data
+
+      // Set families list to only include user's family
+      families.value = [defaultFamily]
+      console.log('已加载家庭:', families.value)
+
+      // Set the familyId
       if (!familyId.value) {
-        console.log('familyId未设置，尝试获取默认家庭...')
-        try {
-          const defaultResponse = await familyAPI.getDefault()
-          console.log('默认家庭响应:', defaultResponse)
-          if (defaultResponse.success && defaultResponse.data) {
-            familyId.value = defaultResponse.data.id
-            console.log('设置默认家庭ID:', familyId.value)
-          } else if (families.value.length > 0) {
-            // 如果没有默认家庭，选择第一个
-            familyId.value = families.value[0].id
-            console.log('使用第一个家庭ID:', familyId.value)
-          }
-        } catch (err) {
-          console.error('获取默认家庭失败:', err)
-          // 获取默认家庭失败时，选择第一个
-          if (families.value.length > 0) {
-            familyId.value = families.value[0].id
-            console.log('失败后使用第一个家庭ID:', familyId.value)
-          }
-        }
-      } else {
-        console.log('familyId已存在:', familyId.value)
+        familyId.value = defaultFamily.id
+        console.log('设置家庭ID:', familyId.value)
       }
     }
   } catch (error) {
-    console.error('加载家庭列表失败:', error)
+    console.error('加载家庭信息失败:', error)
+    // Don't redirect to login here - the response interceptor will handle 401
   }
 }
 
