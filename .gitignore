@@ -72,3 +72,8 @@ tokens/
 
 # Remote deployment configs (contains hardcoded credentials)
 import/docker-compose-remote.yml
+
+# Backup files (may contain sensitive database data)
+backups/
+*.sql
+*.sql.gz
