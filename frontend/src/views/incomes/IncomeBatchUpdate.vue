@@ -303,34 +303,14 @@ async function loadFamilies() {
   try {
     const response = await familyAPI.getDefault()
 
-    let familyList = []
-    if (Array.isArray(response.data)) {
-      familyList = response.data
-    } else if (response.data && response.data.data) {
-      familyList = response.data.data
-    } else if (response.data && 'success' in response.data) {
-      familyList = response.data.data || []
-    }
+    // getDefault() returns a single family object, wrap it in an array
+    if (response.success && response.data) {
+      families.value = [response.data]
 
-    families.value = familyList
-
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-          await loadUsers(defaultResponse.data.id)
-        } else if (familyList.length > 0) {
-          selectedFamilyId.value = familyList[0].id
-          await loadUsers(familyList[0].id)
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (familyList.length > 0) {
-          selectedFamilyId.value = familyList[0].id
-          await loadUsers(familyList[0].id)
-        }
+      // Set the default family
+      if (!selectedFamilyId.value) {
+        selectedFamilyId.value = response.data.id
+        await loadUsers(response.data.id)
       }
     }
   } catch (error) {
