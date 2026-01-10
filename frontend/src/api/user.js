@@ -2,9 +2,14 @@ import request from './request'
 
 // 用户相关API
 export const userAPI = {
-  // 获取所有用户
+  // 获取所有用户（仅管理员）
   getAll() {
     return request.get('/users')
+  },
+
+  // 获取指定家庭的用户列表
+  getByFamily(familyId) {
+    return request.get(`/users/by-family/${familyId}`)
   },
 
   // 获取单个用户

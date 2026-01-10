@@ -87,7 +87,15 @@ public class UserService {
     }
 
     /**
-     * 获取家庭成员列表
+     * 获取家庭成员列表（返回User实体）
+     */
+    @Transactional(readOnly = true)
+    public List<User> getUsersByFamilyId(Long familyId) {
+        return userRepository.findByFamilyIdAndIsActiveTrue(familyId);
+    }
+
+    /**
+     * 获取家庭成员列表（返回DTO）
      */
     @Transactional(readOnly = true)
     public List<UserDTO> getFamilyMembers(Long familyId) {

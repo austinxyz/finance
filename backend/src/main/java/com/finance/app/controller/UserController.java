@@ -46,6 +46,18 @@ public class UserController {
         return ApiResponse.success(user);
     }
 
+    @GetMapping("/by-family/{familyId}")
+    public ApiResponse<List<User>> getUsersByFamily(
+            @PathVariable Long familyId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Verify user has access to this family
+        authHelper.requireFamilyAccess(authHeader, familyId);
+
+        List<User> users = userService.getUsersByFamilyId(familyId);
+        return ApiResponse.success(users);
+    }
+
     @PostMapping
     public ApiResponse<User> createUser(
             @RequestBody User user,

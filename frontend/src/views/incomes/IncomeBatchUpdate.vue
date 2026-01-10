@@ -321,19 +321,8 @@ async function loadFamilies() {
 // 加载用户列表
 async function loadUsers(familyId) {
   try {
-    const response = await userAPI.getAll()
-
-    let allUsers = []
-    if (Array.isArray(response.data)) {
-      allUsers = response.data
-    } else if (response.data && response.data.data) {
-      allUsers = response.data.data
-    } else if (response.data && 'success' in response.data) {
-      allUsers = response.data.data || []
-    }
-
-    // 客户端过滤：只显示该家庭的用户
-    users.value = allUsers.filter(u => u.familyId === familyId)
+    const response = await userAPI.getByFamily(familyId)
+    users.value = response.data || []
   } catch (error) {
     console.error('加载用户列表失败:', error)
     users.value = []
