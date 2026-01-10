@@ -1336,8 +1336,10 @@ backend/src/main/resources/db/migration/
 
 **backend/.env**:
 ```properties
-DB_URL=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC
-DB_USERNAME=finance_user
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=finance
+DB_USER=finance_user
 DB_PASSWORD=your_password
 ```
 

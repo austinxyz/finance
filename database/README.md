@@ -63,18 +63,29 @@
 ## 使用说明
 
 ### 初始化数据库
+
+**推荐方式** - 使用 `/mysql-exec` skill（自动加载凭证）：
 ```bash
 # 1. 创建表结构
-mysql -h <host> -P <port> -u <user> -p<password> finance < 01_schema.sql
+/mysql-exec database/01_schema.sql
 
 # 2. 导入初始数据
-mysql -h <host> -P <port> -u <user> -p<password> finance < 02_initial_data.sql
+/mysql-exec database/02_initial_data.sql
 
 # 3. 创建存储过程
-mysql -h <host> -P <port> -u <user> -p<password> finance < 03_stored_procedures.sql
+/mysql-exec database/03_stored_procedures.sql
 
 # 4. 创建年度支出汇总表和存储过程 (可选)
-mysql -h <host> -P <port> -u <user> -p<password> finance < 04_annual_expense_summary_tables_and_procedures.sql
+/mysql-exec database/04_annual_expense_summary_tables_and_procedures.sql
+```
+
+**手动方式** - 需要 backend/.env 中的凭证：
+```bash
+# 从 .env 加载环境变量
+source backend/.env
+
+# 执行 SQL 文件
+mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD $DB_NAME < database/01_schema.sql
 ```
 
 ### 更新数据库
@@ -102,14 +113,22 @@ mysql -h <host> -P <port> -u <user> -p<password> finance < 04_annual_expense_sum
 
 ### 导出最新Schema
 ```bash
-mysqldump -h <host> -P <port> -u <user> -p<password> \
-  --no-data --skip-triggers finance > 01_schema.sql
+# 从 .env 加载环境变量
+source backend/.env
+
+# 导出 schema
+mysqldump -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD \
+  --no-data --skip-triggers $DB_NAME > database/01_schema.sql
 ```
 
 ### 导出存储过程
 ```bash
-mysqldump -h <host> -P <port> -u <user> -p<password> \
-  --no-create-info --no-data --routines --no-create-db finance > 03_stored_procedures.sql
+# 从 .env 加载环境变量
+source backend/.env
+
+# 导出存储过程
+mysqldump -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD \
+  --no-create-info --no-data --routines --no-create-db $DB_NAME > database/03_stored_procedures.sql
 ```
 
 ---

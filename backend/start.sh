@@ -32,13 +32,14 @@ with open('.env', 'r') as f:
             os.environ[key] = value
 
 # Display loaded variables (truncated for security)
-db_url = os.environ.get('DB_URL', '')
-db_username = os.environ.get('DB_USERNAME', '')
+db_host = os.environ.get('DB_HOST', '')
+db_port = os.environ.get('DB_PORT', '')
+db_name = os.environ.get('DB_NAME', '')
+db_user = os.environ.get('DB_USER', '')
 jwt_secret = os.environ.get('JWT_SECRET', '')
 
 print('✅ Environment variables loaded')
-print(f'   DB_URL: {db_url[:50]}...')
-print(f'   DB_USERNAME: {db_username}')
+print(f'   DB: {db_user}@{db_host}:{db_port}/{db_name}')
 print(f'   JWT_SECRET: {jwt_secret[:30]}...')
 print('🚀 Starting Spring Boot application...')
 

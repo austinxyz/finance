@@ -28,7 +28,7 @@ This skill should be invoked:
 2. **Loads Database Credentials**:
    - Reads `backend/.env` file line by line
    - Properly handles special characters in JDBC URLs (&, ?, =)
-   - Exports: DB_URL, DB_USERNAME, DB_PASSWORD, CLAUDE_API_KEY
+   - Exports: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, CLAUDE_API_KEY
    - Masks sensitive values in output
 
 3. **Validates Setup**:
@@ -82,8 +82,8 @@ cd frontend && npm run dev
 
 - **backend/.env missing**: Creates example format:
   ```bash
-  DB_URL=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC
-  DB_USERNAME=your_username
+  DB_HOST, DB_PORT, DB_NAME=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC
+  DB_USER=your_username
   DB_PASSWORD=your_password
   CLAUDE_API_KEY=
   ```

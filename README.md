@@ -7,6 +7,12 @@
 
 ## ✨ 核心功能
 
+### 🔐 安全认证
+- **JWT 认证** - 基于 Token 的无状态认证，安全可靠
+- **角色权限** - Admin/User 双角色体系，细粒度权限控制
+- **家庭隔离** - 数据按家庭严格隔离，确保隐私安全
+- **密码加密** - BCrypt 加密存储，防止密码泄露
+
 ### 📊 数据管理
 - **家庭管理** - 多成员协同，统一财务视图
 - **资产管理** - 8种资产类型，多币种支持，自动汇率转换
@@ -39,6 +45,12 @@
 - 投资收益智能排除（聚焦实际现金流）
 - 多维度可视化（Chart.js图表）
 
+### 安全可靠 🔒
+- JWT 认证 + 家庭级数据隔离
+- 账户级权限验证（User → Family 关系链）
+- 管理员全局访问，普通用户限制本家庭数据
+- 密码 BCrypt 加密存储
+
 ### 易用性
 - 响应式设计，移动端友好
 - 批量录入，提升效率
@@ -59,19 +71,36 @@
 # 1. 配置数据库
 CREATE DATABASE finance CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-# 2. 设置环境变量（或使用 backend/.env）
-export DB_URL="jdbc:mysql://localhost:3306/finance"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_password"
+# 2. 配置环境变量
+cp backend/.env.example backend/.env
+# 编辑 backend/.env 填入实际的数据库连接信息：
+#   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET
 
 # 3. 启动后端（端口 8080）
-cd backend
-mvn spring-boot:run
+./backend/start.sh
 
 # 4. 启动前端（端口 3000）
 cd frontend
 npm install
 npm run dev
+```
+
+### Docker Compose 部署
+
+```bash
+# 1. 配置环境变量
+cp .env.example .env
+# 编辑 .env 填入数据库连接信息和 JWT 密钥
+
+# 2. 启动服务
+docker-compose up -d
+
+# 3. 查看日志
+docker-compose logs -f
+
+# 4. 访问应用
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8080/api
 ```
 
 ### Kubernetes部署
@@ -128,6 +157,10 @@ finance/
 
 ## 主要端点
 
+### 认证授权
+- `/api/auth/login` - 用户登录（获取 JWT Token）
+- `/api/auth/admin/encrypt-passwords` - 密码加密迁移（管理员）
+
 ### 数据管理
 - `/api/assets/*` - 资产管理（账户、记录、批量更新）
 - `/api/liabilities/*` - 负债管理（账户、记录、批量更新）
@@ -150,6 +183,7 @@ finance/
 ## 📅 开发路线图
 
 ### ✅ 已完成 (v1.1.0)
+- [x] JWT 认证与授权系统（家庭级数据隔离）
 - [x] 资产负债管理系统
 - [x] 收入管理模块（10大类分类、预算管理）
 - [x] 支出管理模块（10大类分类、预算管理）
@@ -174,6 +208,7 @@ finance/
 - **需求文档**: [requirement/需求说明.md](./requirement/需求说明.md)
 - **API文档**: [requirement/API文档.md](./requirement/API文档.md)
 - **功能缺口分析**: [requirement/功能缺口分析.md](./requirement/功能缺口分析.md)
+- **授权设计**: [docs/authorization-design.md](./docs/authorization-design.md)
 - **前端最佳实践**: [docs/frontend-best-practices.md](./docs/frontend-best-practices.md)
 - **部署指南**: [k8s/README.md](./k8s/README.md)
 - **数据导入**: [import/README.md](./import/README.md)

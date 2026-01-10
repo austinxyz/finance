@@ -30,9 +30,15 @@ if [ ! -f "$ENV_FILE" ]; then
 
     cat > "$ENV_FILE" << 'EOF'
 # Database Configuration
-DB_URL=jdbc:mysql://your-host:port/finance?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-DB_USERNAME=your_username
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=finance
+DB_USER=your_username
 DB_PASSWORD=your_password
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-at-least-256-bits-long-please-change-this
+JWT_EXPIRATION=86400000
 
 # Claude API Configuration (optional)
 CLAUDE_API_KEY=
@@ -53,8 +59,7 @@ while IFS='=' read -r key value; do
 done < "$ENV_FILE"
 
 echo "✅ Loaded database credentials from $ENV_FILE"
-echo "   DB Host: $(echo $DB_URL | sed -n 's/.*\/\/\([^:]*\):.*/\1/p')"
-echo "   DB User: $DB_USERNAME"
+echo "   DB: $DB_USER@$DB_HOST:$DB_PORT/$DB_NAME"
 
 # 3. Set MySQL client path (Homebrew)
 if command -v brew &> /dev/null; then
@@ -68,18 +73,9 @@ if command -v brew &> /dev/null; then
     fi
 fi
 
-# 4. Parse DB connection details for mysql command
-if [ -n "$DB_URL" ]; then
-    DB_HOST=$(echo $DB_URL | sed -n 's/.*\/\/\([^:]*\):.*/\1/p')
-    DB_PORT=$(echo $DB_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-    DB_NAME=$(echo $DB_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
-
-    export DB_HOST
-    export DB_PORT
-    export DB_NAME
-
-    # Create mysql command alias
-    alias mysql-finance="$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME"
+# 4. Create mysql command alias
+if [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ] && [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
+    alias mysql-finance="$MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD $DB_NAME"
 
     echo "✅ MySQL connection configured"
     echo "   Quick access: mysql-finance"
@@ -89,6 +85,8 @@ echo ""
 echo "🎉 Environment setup complete!"
 echo ""
 echo "📝 Next steps:"
-echo "   Backend:  cd backend && mvn spring-boot:run"
+echo "   Backend:  ./backend/start.sh (recommended - loads .env automatically)"
 echo "   Frontend: cd frontend && npm run dev"
+echo ""
+echo "⚠️  Note: This script is deprecated. Use ./backend/start.sh for backend development."
 echo ""

@@ -33,6 +33,12 @@ Examples:
 
 **ALWAYS use TimeService.getCurrentTimestamp()** - Ensures consistent timezone handling across time-series data.
 
+**NEVER assume Account entities have familyId** - AssetAccount and LiabilityAccount link to User via `userId`, NOT `familyId`. To verify family access for accounts, use `AuthHelper.requireAccountAccess(authHeader, account.getUserId())`.
+
+**Service class naming**:
+- ✅ Correct: `AssetService`, `LiabilityService`, `ExpenseService`
+- ❌ Wrong: `AssetAccountService`, `LiabilityAccountService`
+
 ### Frontend Development
 
 **ALWAYS use Composition API** - No Options API. All new components use `<script setup>`.
@@ -42,6 +48,10 @@ Examples:
 **ALWAYS format currency with symbols** - Use `formatCurrency(value, currency)` helper. Never display raw numbers.
 
 **NEVER hardcode colors** - Use CSS variables (`--primary`, `--secondary`) for theme support.
+
+**Family API calls for non-admin users**:
+- ✅ Correct: `familyAPI.getDefault()` - Gets authenticated user's family
+- ❌ Wrong: `familyAPI.getAll()` - Requires admin role, will fail for regular users
 
 ### Database Operations
 
@@ -128,7 +138,7 @@ npm run dev                     # HMR at localhost:3000
 
 **"URL must start with 'jdbc'"** → Environment variables not loaded. Use `./backend/start.sh` instead of running `mvn` directly.
 
-**Backend won't start** → Check `backend/.env` exists and has valid credentials. See example format in `/setup-java` skill docs.
+**Backend won't start** → Check `backend/.env` exists and has valid credentials. Required variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`.
 
 **JPA schema mismatch** → Check `backend/.env` credentials. You may be pointing to wrong DB.
 

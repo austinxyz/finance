@@ -60,11 +60,13 @@ if [ -f backend/.env ]; then
     echo "✅ Database credentials loaded"
 else
     echo "⚠️  Warning: backend/.env not found"
-    echo "   Create it with: DB_URL, DB_USERNAME, DB_PASSWORD"
+    echo "   Create it with: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET"
     echo ""
     echo "   Example format:"
-    echo "   DB_URL=jdbc:mysql://localhost:3306/finance?useSSL=false&serverTimezone=UTC"
-    echo "   DB_USERNAME=your_username"
+    echo "   DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=finance"
+    echo "   DB_USER=your_username"
     echo "   DB_PASSWORD=your_password"
     exit 1
 fi

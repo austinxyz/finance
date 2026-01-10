@@ -37,34 +37,19 @@ When this skill is invoked:
 2. **Load Credentials**:
    ```bash
    source backend/.env
-   # Loads: DB_URL, DB_USERNAME, DB_PASSWORD
+   # Loads: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
    ```
 
-3. **Parse Connection Details from DB_URL**:
-   ```bash
-   # Example DB_URL: jdbc:mysql://10.0.0.7:37719/finance?useSSL=false...
-   # Extract: host=10.0.0.7, port=37719, database=finance
-
-   # Parse host (between // and :)
-   DB_HOST=$(echo "$DB_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
-
-   # Parse port (between : and /)
-   DB_PORT=$(echo "$DB_URL" | sed -n 's|.*://[^:]*:\([^/]*\)/.*|\1|p')
-
-   # Parse database name (between / and ?)
-   DB_NAME=$(echo "$DB_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
-   ```
-
-4. **Execute Command**:
+3. **Execute Command**:
    ```bash
    # For SQL file
-   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME < file.sql
+   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD $DB_NAME < file.sql
 
    # For inline query
-   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME -e "QUERY"
+   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD $DB_NAME -e "QUERY"
 
    # For interactive shell
-   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USERNAME -p$DB_PASSWORD $DB_NAME
+   $MYSQL_CLIENT -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD $DB_NAME
    ```
 
 ## Common SQL Queries
