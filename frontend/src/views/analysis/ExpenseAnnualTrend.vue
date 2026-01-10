@@ -419,26 +419,23 @@ const convertedTrendData = computed(() => {
 const fetchFamilies = async () => {
   try {
     const response = await familyAPI.getDefault()
-    families.value = response.data ? [response.data] : []
 
-    // 如果familyId还未设置，获取默认家庭
-    if (!familyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          familyId.value = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          familyId.value = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          familyId.value = families.value[0].id
-        }
+    // getDefault() 返回单个家庭对象，需要包装成数组
+    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
+    if (response && response.success && response.data && response.data.id) {
+      families.value = [response.data]
+
+      // 设置默认选中
+      if (!familyId.value) {
+        familyId.value = response.data.id
       }
+    } else {
+      families.value = []
+      console.error('获取默认家庭失败: 返回数据格式错误', response)
     }
   } catch (error) {
     console.error('获取家庭列表失败:', error)
+    families.value = []
   }
 }
 
@@ -455,10 +452,10 @@ const onCurrencyChange = () => {
   renderCategoryTrendChart()
 }
 
-// 获取汇率数据（获取所有历史汇率）
+// 获取汇率数据（获取所有启用的汇率）
 const fetchExchangeRates = async () => {
   try {
-    const response = await exchangeRateAPI.getAll()
+    const response = await exchangeRateAPI.getAllActive()
     if (response.success && response.data) {
       exchangeRates.value = response.data
     } else if (response.data && Array.isArray(response.data)) {

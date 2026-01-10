@@ -221,20 +221,24 @@ const getSavingsRateClass = (rate) => {
   return 'text-red-600';
 };
 
-// 加载家庭列表
+// 加载默认家庭
 const loadFamilies = async () => {
   try {
     const response = await familyAPI.getDefault();
-    if (response.data) {
-      families.value = response.data;
-      if (families.value.length > 0) {
-        // 优先选择默认家庭
-        const defaultFamily = families.value.find(f => f.isDefault);
-        selectedFamilyId.value = defaultFamily ? defaultFamily.id : families.value[0].id;
-      }
+
+    // getDefault() 返回单个家庭对象，需要包装成数组
+    if (response && response.success && response.data && response.data.id) {
+      families.value = [response.data];
+
+      // 设置默认选中
+      selectedFamilyId.value = response.data.id;
+    } else {
+      families.value = [];
+      console.error('获取默认家庭失败: 返回数据格式错误', response);
     }
   } catch (error) {
     console.error('加载家庭列表失败:', error);
+    families.value = [];
   }
 };
 

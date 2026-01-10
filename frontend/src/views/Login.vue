@@ -61,21 +61,12 @@
           </span>
         </button>
       </form>
-
-      <!-- Demo Credentials -->
-      <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p class="text-xs text-gray-600 font-medium mb-2">Demo Credentials:</p>
-        <div class="text-xs text-gray-500 space-y-1">
-          <p><strong>Admin:</strong> admin / admin123</p>
-          <p><strong>User:</strong> AustinXu / password</p>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -89,6 +80,28 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref('')
+
+// Check for previous 401 error on mount
+onMounted(() => {
+  const last401 = sessionStorage.getItem('last401Error')
+  if (last401) {
+    try {
+      const errorInfo = JSON.parse(last401)
+      console.error('=== Previous 401 Error ===')
+      console.error('URL:', errorInfo.url)
+      console.error('Method:', errorInfo.method)
+      console.error('Had Token:', errorInfo.hadToken)
+      console.error('Response:', errorInfo.response)
+      console.error('Time:', errorInfo.timestamp)
+      console.error('==========================')
+
+      // Clear it so we don't show it again
+      sessionStorage.removeItem('last401Error')
+    } catch (e) {
+      console.error('Failed to parse last 401 error:', e)
+    }
+  }
+})
 
 const handleLogin = async () => {
   try {

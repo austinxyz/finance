@@ -554,17 +554,20 @@ export default {
     const loadFamilies = async () => {
       try {
         const response = await familyAPI.getDefault()
-        if (response.success) {
-          families.value = response.data ? [response.data] : []
-          if (families.value.length > 0) {
-            // 优先选择默认家庭
-            const defaultFamily = families.value.find(f => f.isDefault)
-            selectedFamilyId.value = defaultFamily ? defaultFamily.id : families.value[0].id
-            await loadMajorCategoryData()
-          }
+
+        // getDefault() 返回单个家庭对象，需要包装成数组
+        // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
+        if (response && response.success && response.data && response.data.id) {
+          families.value = [response.data]
+          selectedFamilyId.value = response.data.id
+          await loadMajorCategoryData()
+        } else {
+          families.value = []
+          console.error('获取默认家庭失败: 返回数据格式错误', response)
         }
       } catch (error) {
         console.error('加载家庭列表失败:', error)
+        families.value = []
       }
     }
 

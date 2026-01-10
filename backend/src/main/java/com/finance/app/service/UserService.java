@@ -4,6 +4,7 @@ import com.finance.app.dto.UserDTO;
 import com.finance.app.model.User;
 import com.finance.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -48,27 +50,40 @@ public class UserService {
     public User updateUser(Long id, User userDetails) {
         User user = getUserById(id);
 
-        // 检查用户名是否被其他用户使用
-        if (!user.getUsername().equals(userDetails.getUsername())
-            && userRepository.existsByUsername(userDetails.getUsername())) {
-            throw new RuntimeException("Username already exists: " + userDetails.getUsername());
-        }
-
         // 检查邮箱是否被其他用户使用
-        if (!user.getEmail().equals(userDetails.getEmail())
+        if (userDetails.getEmail() != null
+            && !user.getEmail().equals(userDetails.getEmail())
             && userRepository.existsByEmail(userDetails.getEmail())) {
             throw new RuntimeException("Email already exists: " + userDetails.getEmail());
         }
 
-        user.setUsername(userDetails.getUsername());
-        user.setEmail(userDetails.getEmail());
-        user.setFullName(userDetails.getFullName());
-        user.setBirthDate(userDetails.getBirthDate());
-        user.setAnnualIncome(userDetails.getAnnualIncome());
-        user.setIncomeCurrency(userDetails.getIncomeCurrency());
-        user.setRiskTolerance(userDetails.getRiskTolerance());
-        user.setNotes(userDetails.getNotes());
-        user.setIsActive(userDetails.getIsActive());
+        // 更新基本信息（username、role、familyId 不允许通过此接口修改）
+        if (userDetails.getEmail() != null) {
+            user.setEmail(userDetails.getEmail());
+        }
+        if (userDetails.getFullName() != null) {
+            user.setFullName(userDetails.getFullName());
+        }
+        if (userDetails.getBirthDate() != null) {
+            user.setBirthDate(userDetails.getBirthDate());
+        }
+        if (userDetails.getAnnualIncome() != null) {
+            user.setAnnualIncome(userDetails.getAnnualIncome());
+        }
+        if (userDetails.getIncomeCurrency() != null) {
+            user.setIncomeCurrency(userDetails.getIncomeCurrency());
+        }
+        if (userDetails.getRiskTolerance() != null) {
+            user.setRiskTolerance(userDetails.getRiskTolerance());
+        }
+        if (userDetails.getNotes() != null) {
+            user.setNotes(userDetails.getNotes());
+        }
+
+        // isActive 只允许管理员修改（通过用户管理页面）
+        if (userDetails.getIsActive() != null) {
+            user.setIsActive(userDetails.getIsActive());
+        }
 
         // 只在提供新密码时更新
         if (userDetails.getPasswordHash() != null && !userDetails.getPasswordHash().isEmpty()) {
@@ -103,6 +118,23 @@ public class UserService {
         return users.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 修改密码
+     */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = getUserById(userId);
+
+        // 验证当前密码
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("当前密码错误");
+        }
+
+        // 加密并设置新密码
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
     /**

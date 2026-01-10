@@ -291,8 +291,29 @@
 
       <!-- 设置类菜单 -->
       <template v-if="activeTopTab === 'settings'">
-        <!-- 工具 -->
-        <div class="space-y-1">
+        <!-- 个人设置 (仅普通用户可见) -->
+        <div v-if="!isAdmin" class="space-y-1">
+          <div class="nav-section-title">个人设置</div>
+          <router-link
+            to="/settings/my-family"
+            class="nav-item"
+            :class="isActive('/settings/my-family')"
+          >
+            <Home class="w-5 h-5" />
+            <span>我的家庭</span>
+          </router-link>
+          <router-link
+            to="/settings/profile"
+            class="nav-item"
+            :class="isActive('/settings/profile')"
+          >
+            <UserCircle class="w-5 h-5" />
+            <span>个人设置</span>
+          </router-link>
+        </div>
+
+        <!-- 工具 (管理员专用) -->
+        <div v-if="isAdmin" class="space-y-1">
           <div class="nav-section-title">工具</div>
           <router-link
             to="/tools/exchange-rates"
@@ -304,8 +325,8 @@
           </router-link>
         </div>
 
-        <!-- 系统设置 -->
-        <div class="space-y-1">
+        <!-- 系统设置 (管理员专用) -->
+        <div v-if="isAdmin" class="space-y-1">
           <div class="nav-section-title">系统设置</div>
           <router-link
             to="/settings/family"
@@ -338,8 +359,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 import {
   LayoutDashboard,
   Wallet,
@@ -364,7 +386,11 @@ import {
 const emit = defineEmits(['navigate']);
 
 const route = useRoute();
+const authStore = useAuthStore();
 const activeTopTab = ref('manage');
+
+// Check if current user is admin
+const isAdmin = computed(() => authStore.isAdmin);
 
 // 顶级分类
 const topLevelTabs = [

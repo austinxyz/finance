@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -18,4 +20,7 @@ public class FamilyDTO {
     private String expensesCurrency;
     private Integer emergencyFundMonths;
     private String financialGoals;
+    private String description;
+    private LocalDateTime createdAt;
+    private List<UserDTO> members;
 }

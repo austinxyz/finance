@@ -500,38 +500,23 @@ async function loadFamilies() {
   try {
     const response = await familyAPI.getDefault()
 
-    let familyList = []
-    if (Array.isArray(response.data)) {
-      familyList = response.data
-    } else if (response.data && response.data.data) {
-      familyList = response.data.data
-    } else if (response.data && 'success' in response.data) {
-      familyList = response.data.data || []
-    }
+    // getDefault() 返回单个家庭对象，需要包装成数组
+    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
+    if (response && response.success && response.data && response.data.id) {
+      families.value = [response.data]
 
-    families.value = familyList
-
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-          recordForm.value.familyId = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-          recordForm.value.familyId = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-          recordForm.value.familyId = families.value[0].id
-        }
+      // 设置默认选中
+      if (!selectedFamilyId.value) {
+        selectedFamilyId.value = response.data.id
+        recordForm.value.familyId = response.data.id
       }
+    } else {
+      families.value = []
+      console.error('获取默认家庭失败: 返回数据格式错误', response)
     }
   } catch (error) {
     console.error('加载家庭列表失败:', error)
+    families.value = []
   }
 }
 

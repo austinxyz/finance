@@ -264,7 +264,26 @@ const routes = [
           description: '获取个性化财务优化建议'
         }
       },
-      // 设置
+      // 设置 - 普通用户
+      {
+        path: 'settings/my-family',
+        name: 'MyFamily',
+        component: () => import('../views/settings/MyFamily.vue'),
+        meta: {
+          title: '我的家庭',
+          description: '查看您的家庭信息'
+        }
+      },
+      {
+        path: 'settings/profile',
+        name: 'ProfileSettings',
+        component: () => import('../views/settings/ProfileSettings.vue'),
+        meta: {
+          title: '个人设置',
+          description: '管理您的个人信息和账户设置'
+        }
+      },
+      // 设置 - 管理员专用
       {
         path: 'settings/family',
         name: 'FamilyManagement',

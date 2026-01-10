@@ -98,4 +98,43 @@ public class UserController {
         userService.deleteUser(id);
         return ApiResponse.success("User deleted successfully", null);
     }
+
+    @PutMapping("/{id}/password")
+    public ApiResponse<Void> changePassword(
+            @PathVariable Long id,
+            @RequestBody PasswordChangeRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
+        // Only allow users to change their own password (not even admin can change other's password)
+        if (!authenticatedUserId.equals(id)) {
+            throw new UnauthorizedException("只能修改自己的密码");
+        }
+
+        userService.changePassword(id, request.getCurrentPassword(), request.getNewPassword());
+        return ApiResponse.success("密码修改成功", null);
+    }
+
+    // Inner class for password change request
+    public static class PasswordChangeRequest {
+        private String currentPassword;
+        private String newPassword;
+
+        public String getCurrentPassword() {
+            return currentPassword;
+        }
+
+        public void setCurrentPassword(String currentPassword) {
+            this.currentPassword = currentPassword;
+        }
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
+    }
 }

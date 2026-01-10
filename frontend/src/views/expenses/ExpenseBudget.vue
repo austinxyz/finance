@@ -203,7 +203,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { familyAPI } from '@/api/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI } from '@/api/expense'
-import axios from 'axios'
+import request from '@/api/request'
 
 // 响应式数据
 const families = ref([])
@@ -357,33 +357,22 @@ async function loadFamilies() {
   try {
     const response = await familyAPI.getDefault()
 
-    // 三种响应格式处理
-    if (Array.isArray(response.data)) {
-      families.value = response.data ? [response.data] : []
-    } else if (response.data && response.data.data) {
-      families.value = Array.isArray(response.data.data) ? response.data.data : []
-    } else if (response.data && 'success' in response.data) {
-      families.value = Array.isArray(response.data.data) ? response.data.data : []
-    }
+    // getDefault() 返回单个家庭对象，需要包装成数组
+    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
+    if (response && response.success && response.data && response.data.id) {
+      families.value = [response.data]
 
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
+      // 设置默认选中
+      if (!selectedFamilyId.value) {
+        selectedFamilyId.value = response.data.id
       }
+    } else {
+      families.value = []
+      console.error('获取默认家庭失败: 返回数据格式错误', response)
     }
   } catch (error) {
     console.error('加载家庭列表失败:', error)
+    families.value = []
   }
 }
 
@@ -424,9 +413,8 @@ async function loadBudgets() {
     // 并行加载当前年份预算、实际支出，以及前一年的预算和实际支出
     const [budgetResponse, currentActualResponse, lastYearBudgetResponse, lastYearActualResponse] = await Promise.all([
       // 当前年份预算
-      axios.get('/api/expense-budgets', {
+      request.get('/expense-budgets', {
         params: {
-          familyId: selectedFamilyId.value,
           budgetYear: selectedYear.value,
           currency: selectedCurrency.value
         }
@@ -438,9 +426,8 @@ async function loadBudgets() {
         selectedCurrency.value
       ).catch(() => ({ success: false, data: [] })),
       // 前一年预算
-      axios.get('/api/expense-budgets', {
+      request.get('/expense-budgets', {
         params: {
-          familyId: selectedFamilyId.value,
           budgetYear: selectedYear.value - 1,
           currency: selectedCurrency.value
         }
@@ -530,7 +517,7 @@ async function saveAll() {
       notes: budgetNotes.value[categoryId] || null
     }))
 
-    const response = await axios.post('/api/expense-budgets/batch', {
+    const response = await request.post('/api/expense-budgets/batch', {
       familyId: selectedFamilyId.value,
       budgetYear: selectedYear.value,
       currency: selectedCurrency.value,

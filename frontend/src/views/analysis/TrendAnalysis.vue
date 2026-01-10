@@ -1131,6 +1131,7 @@ import {
 } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { analysisAPI } from '@/api/analysis'
+import { familyAPI } from '@/api/family'
 import request from '@/api/request'
 
 // 注册 Chart.js 组件
@@ -2982,29 +2983,22 @@ const loadAllTrends = () => {
   }
 }
 
-// 加载所有家庭列表
+// 加载默认家庭
 const loadAllFamilies = async () => {
   try {
-    const response = await request.get('/family')
-    if (response.success && response.data) {
-      allFamilies.value = response.data
+    const response = await familyAPI.getDefault()
 
-      // 如果selectedFamilyId还未设置，获取默认家庭
+    // getDefault() 返回单个家庭对象，需要包装成数组
+    if (response && response.success && response.data && response.data.id) {
+      allFamilies.value = [response.data]
+
+      // 设置默认选中
       if (!selectedFamilyId.value) {
-        try {
-          const defaultResponse = await request.get('/family/default')
-          if (defaultResponse.success && defaultResponse.data) {
-            selectedFamilyId.value = defaultResponse.data.id
-          } else if (allFamilies.value.length > 0) {
-            selectedFamilyId.value = allFamilies.value[0].id
-          }
-        } catch (err) {
-          console.error('获取默认家庭失败:', err)
-          if (allFamilies.value.length > 0) {
-            selectedFamilyId.value = allFamilies.value[0].id
-          }
-        }
+        selectedFamilyId.value = response.data.id
       }
+    } else {
+      allFamilies.value = []
+      console.error('获取默认家庭失败: 返回数据格式错误', response)
     }
   } catch (error) {
     console.error('加载家庭列表失败:', error)

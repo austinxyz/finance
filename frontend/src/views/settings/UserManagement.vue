@@ -194,13 +194,37 @@
             </div>
 
             <div v-else>
-              <label class="block text-sm font-medium text-gray-700 mb-1">新密码（留空则不修改）</label>
-              <input
-                v-model="formData.passwordHash"
-                type="password"
-                placeholder="请输入新密码"
-                class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
-              />
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">新密码（留空则不修改）</label>
+                <input
+                  v-model="formData.passwordHash"
+                  type="password"
+                  placeholder="请输入新密码"
+                  class="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm"
+                />
+              </div>
+              <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  确认新密码 <span v-if="formData.passwordHash" class="text-red-500">*</span>
+                </label>
+                <input
+                  v-model="formData.confirmPassword"
+                  type="password"
+                  :required="!!formData.passwordHash"
+                  :disabled="!formData.passwordHash"
+                  placeholder="请再次输入新密码"
+                  :class="[
+                    'w-full px-3 py-2.5 sm:py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm',
+                    formData.passwordHash ? 'border-gray-300 bg-white' : 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                  ]"
+                />
+                <p v-if="formData.passwordHash && formData.confirmPassword && formData.passwordHash !== formData.confirmPassword" class="mt-1 text-xs text-red-600">
+                  ⚠️ 两次输入的密码不一致
+                </p>
+                <p v-else-if="!formData.passwordHash" class="mt-1 text-xs text-gray-500">
+                  如需修改密码，请先输入新密码
+                </p>
+              </div>
             </div>
 
             <div class="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-gray-200">
@@ -241,6 +265,7 @@ const formData = ref({
   fullName: '',
   email: '',
   passwordHash: '',
+  confirmPassword: '',
   isActive: true
 })
 
@@ -286,6 +311,7 @@ function editUser(user) {
     fullName: user.fullName || '',
     email: user.email,
     passwordHash: '',
+    confirmPassword: '',
     isActive: user.isActive
   }
   showEditDialog.value = true
@@ -313,10 +339,20 @@ async function toggleUserStatus(user) {
 
 // 提交表单
 async function submitForm() {
+  // 编辑模式下，如果填写了新密码，需要验证两次输入是否一致
+  if (showEditDialog.value && formData.value.passwordHash) {
+    if (formData.value.passwordHash !== formData.value.confirmPassword) {
+      alert('两次输入的密码不一致，请重新输入')
+      return
+    }
+  }
+
   try {
     let response
     if (showEditDialog.value) {
-      response = await userAPI.update(currentEditId.value, formData.value)
+      // 提交时移除 confirmPassword 字段
+      const { confirmPassword, ...userData } = formData.value
+      response = await userAPI.update(currentEditId.value, userData)
     } else {
       response = await userAPI.create(formData.value)
     }
@@ -341,6 +377,7 @@ function closeDialog() {
     fullName: '',
     email: '',
     passwordHash: '',
+    confirmPassword: '',
     isActive: true
   }
 }

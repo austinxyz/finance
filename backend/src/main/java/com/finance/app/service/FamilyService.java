@@ -140,6 +140,36 @@ public class FamilyService {
         dto.setExpensesCurrency(family.getExpensesCurrency());
         dto.setEmergencyFundMonths(family.getEmergencyFundMonths());
         dto.setFinancialGoals(family.getFinancialGoals());
+        dto.setDescription(family.getFinancialGoals()); // Use financial goals as description for now
+        dto.setCreatedAt(family.getCreatedAt());
+
+        // 查询该家庭的所有成员
+        List<User> members = userRepository.findByFamilyId(family.getId());
+        List<com.finance.app.dto.UserDTO> memberDTOs = members.stream()
+                .map(this::convertUserToDTO)
+                .collect(Collectors.toList());
+        dto.setMembers(memberDTOs);
+
+        return dto;
+    }
+
+    /**
+     * 将User Entity转换为UserDTO
+     */
+    private com.finance.app.dto.UserDTO convertUserToDTO(User user) {
+        com.finance.app.dto.UserDTO dto = new com.finance.app.dto.UserDTO();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setRole(user.getRole() != null ? user.getRole().name() : null);
+        dto.setFamilyId(user.getFamilyId());
+        dto.setIsActive(user.getIsActive());
+        dto.setEmail(user.getEmail());
+        dto.setFullName(user.getFullName());
+        dto.setBirthDate(user.getBirthDate());
+        dto.setAnnualIncome(user.getAnnualIncome());
+        dto.setIncomeCurrency(user.getIncomeCurrency());
+        dto.setRiskTolerance(user.getRiskTolerance() != null ? user.getRiskTolerance().name() : null);
+        dto.setNotes(user.getNotes());
         return dto;
     }
 }

@@ -403,31 +403,18 @@ export default {
     const loadFamilies = async () => {
       try {
         const response = await familyAPI.getDefault()
-        let data = response.data
 
-        if (Array.isArray(data)) {
-          families.value = data
-        } else if (data && data.data && Array.isArray(data.data)) {
-          families.value = data.data
-        } else if (data && data.success && Array.isArray(data.data)) {
-          families.value = data.data
-        }
+        // getDefault() 返回单个家庭对象，需要包装成数组
+        if (response && response.success && response.data && response.data.id) {
+          families.value = [response.data]
 
-        // 如果selectedFamilyId还未设置，获取默认家庭
-        if (!selectedFamilyId.value) {
-          try {
-            const defaultResponse = await familyAPI.getDefault()
-            if (defaultResponse.success && defaultResponse.data) {
-              selectedFamilyId.value = defaultResponse.data.id
-            } else if (families.value.length > 0) {
-              selectedFamilyId.value = families.value[0].id
-            }
-          } catch (err) {
-            console.error('获取默认家庭失败:', err)
-            if (families.value.length > 0) {
-              selectedFamilyId.value = families.value[0].id
-            }
+          // 设置默认选中
+          if (!selectedFamilyId.value) {
+            selectedFamilyId.value = response.data.id
           }
+        } else {
+          families.value = []
+          console.error('获取默认家庭失败: 返回数据格式错误', response)
         }
       } catch (error) {
         console.error('加载家庭列表失败:', error)
