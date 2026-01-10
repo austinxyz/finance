@@ -27,6 +27,9 @@ public class Family {
     @Column(name = "is_default")
     private Boolean isDefault = false;
 
+    @Column(name = "is_protected")
+    private Boolean isProtected = false;
+
     @Column(name = "annual_expenses", precision = 15, scale = 2)
     private BigDecimal annualExpenses;
 

@@ -1,0 +1,14 @@
+# Finance数据库备份定时任务
+# 每天凌晨2:00执行备份
+
+# 每日备份 + 中等验证（工作日）
+0 2 * * 1-6 /scripts/backup.sh >> /backups/cron.log 2>&1 && /scripts/verify.sh medium >> /backups/cron.log 2>&1
+
+# 每日备份 + 完整验证（周日）
+0 2 * * 0 /scripts/backup.sh >> /backups/cron.log 2>&1 && /scripts/verify.sh full >> /backups/cron.log 2>&1
+
+# 每周日凌晨3:00执行完整验证（额外保障）
+0 3 * * 0 /scripts/verify.sh full >> /backups/cron.log 2>&1
+
+# 保持容器运行的空任务（可选）
+# */5 * * * * echo "Backup service running" >> /backups/heartbeat.log

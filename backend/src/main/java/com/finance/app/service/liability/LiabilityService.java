@@ -30,6 +30,7 @@ public class LiabilityService {
     private final com.finance.app.repository.UserRepository userRepository;
     private final com.finance.app.repository.AssetAccountRepository assetAccountRepository;
     private final ExchangeRateService exchangeRateService;
+    private final com.finance.app.service.DataProtectionService dataProtectionService;
 
     // ========== Liability Type Operations ==========
 
@@ -85,6 +86,10 @@ public class LiabilityService {
     @Transactional
     public void deleteAccount(Long accountId) {
         LiabilityAccount account = getAccountById(accountId);
+
+        // 数据保护：检查是否属于受保护的家庭
+        Long familyId = getFamilyIdByUserId(account.getUserId());
+        dataProtectionService.validateDeleteOperation(familyId, "删除负债账户: " + account.getAccountName());
 
         // 检查是否有关联的负债记录
         boolean hasRecords = recordRepository.existsByAccountId(accountId);
@@ -145,6 +150,13 @@ public class LiabilityService {
 
     @Transactional
     public void deleteRecord(Long recordId) {
+        LiabilityRecord record = recordRepository.findById(recordId)
+            .orElseThrow(() -> new RuntimeException("Record not found with id: " + recordId));
+
+        LiabilityAccount account = getAccountById(record.getAccountId());
+        Long familyId = getFamilyIdByUserId(account.getUserId());
+        dataProtectionService.validateDeleteOperation(familyId, "删除负债记录");
+
         recordRepository.deleteById(recordId);
     }
 
@@ -325,5 +337,18 @@ public class LiabilityService {
         }
 
         return dto;
+    }
+
+    /**
+     * 根据userId获取familyId
+     * 用于数据保护验证
+     */
+    private Long getFamilyIdByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findById(userId)
+            .map(com.finance.app.model.User::getFamilyId)
+            .orElse(null);
     }
 }

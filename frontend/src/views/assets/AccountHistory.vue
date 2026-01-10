@@ -627,8 +627,13 @@ import { propertyRecordAPI } from '@/api/property'
 import { getTodayDate } from '@/lib/utils'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
+import { useProtectedDelete } from '@/composables/useProtectedDelete'
+import { ElMessageBox } from 'element-plus'
 
 Chart.register(...registerables)
+
+// 受保护数据删除功能
+const { executeDelete } = useProtectedDelete()
 
 // 资产分类类型映射
 const CATEGORY_TYPE_NAMES = {
@@ -1100,16 +1105,40 @@ const editRecord = (record) => {
 
 // 删除记录
 const deleteRecord = async (record) => {
-  if (!confirm(`确定要删除 ${formatDate(record.recordDate)} 的记录吗？`)) return
-
   try {
-    const response = await assetRecordAPI.delete(record.id)
-    if (response.success) {
+    // 第一层确认
+    await ElMessageBox.confirm(
+      `确定要删除 ${formatDate(record.recordDate)} 的记录吗？`,
+      '确认删除',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      }
+    )
+
+    // 使用executeDelete自动处理受保护数据
+    const success = await executeDelete(
+      async () => {
+        const response = await assetRecordAPI.delete(record.id)
+        if (!response.success) {
+          throw new Error('删除操作失败')
+        }
+      },
+      {
+        successMessage: '记录删除成功',
+        errorMessage: '记录删除失败'
+      }
+    )
+
+    if (success) {
       await loadRecords()
     }
   } catch (error) {
-    console.error('删除记录失败:', error)
-    alert('删除失败，请重试')
+    // 用户取消或其他错误（executeDelete会自动处理）
+    if (error !== 'cancel') {
+      console.error('删除记录失败:', error)
+    }
   }
 }
 

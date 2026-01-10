@@ -25,6 +25,7 @@ public class ExpenseService {
     private final ExpenseCategoryMinorRepository minorCategoryRepository;
     private final ExpenseRecordRepository expenseRecordRepository;
     private final ExchangeRateRepository exchangeRateRepository;
+    private final com.finance.app.service.DataProtectionService dataProtectionService;
 
     // ==================== 分类管理 ====================
 
@@ -301,6 +302,11 @@ public class ExpenseService {
      */
     @Transactional
     public void deleteExpenseRecord(Long id) {
+        ExpenseRecord record = expenseRecordRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("支出记录不存在"));
+
+        dataProtectionService.validateDeleteOperation(record.getFamilyId(), "删除支出记录");
+
         expenseRecordRepository.deleteById(id);
     }
 

@@ -48,6 +48,41 @@ services:
       timeout: 10s
       retries: 3
 
+  # Database Backup Service
+  backup:
+    build: ./backup
+    image: xuaustin/finance-backup:latest
+    container_name: finance-backup
+    restart: unless-stopped
+    environment:
+      # Database connection (same as backend)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Backup retention settings
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_RETENTION_WEEKS: ${BACKUP_RETENTION_WEEKS:-4}
+      BACKUP_RETENTION_MONTHS: ${BACKUP_RETENTION_MONTHS:-6}
+      # Timezone
+      TZ: ${TZ:-UTC}
+      # Skip initial backup on startup (set to true for testing)
+      RUN_INITIAL_BACKUP: ${RUN_INITIAL_BACKUP:-false}
+    volumes:
+      # Mount NAS or local directory for backups
+      # 修改为你的NAS挂载路径，例如：
+      # - /mnt/nas/finance-backups:/backups
+      - ./backups:/backups
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "find", "/backups/daily", "-name", "*.sql.gz", "-type", "f", "-mtime", "-1", "|", "grep", "-q", "." ]
+      interval: 1h
+      timeout: 10s
+      retries: 3
+      start_period: 5m
+
 networks:
   finance-network:
     driver: bridge

@@ -1,0 +1,6 @@
+# 备份容器 - 不需要打包的文件
+
+*.log
+*.md
+.git
+.gitignore

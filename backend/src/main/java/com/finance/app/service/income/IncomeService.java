@@ -27,6 +27,7 @@ public class IncomeService {
     private final IncomeRecordRepository incomeRecordRepository;
     private final AssetAccountRepository assetAccountRepository;
     private final ExchangeRateService exchangeRateService;
+    private final com.finance.app.service.DataProtectionService dataProtectionService;
 
     // ==================== 分类管理 ====================
 
@@ -302,6 +303,9 @@ public class IncomeService {
     public void deleteIncomeRecord(Long id) {
         IncomeRecord record = incomeRecordRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("收入记录不存在"));
+
+        // 数据保护：检查是否属于受保护的家庭
+        dataProtectionService.validateDeleteOperation(record.getFamilyId(), "删除收入记录");
 
         // 投资收益不允许删除
         IncomeCategoryMajor major = majorCategoryRepository.findById(record.getMajorCategoryId())
