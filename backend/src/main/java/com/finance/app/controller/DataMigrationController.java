@@ -9,6 +9,7 @@ import com.finance.app.repository.LiabilityRecordRepository;
 import com.finance.app.repository.NetAssetCategoryRepository;
 import com.finance.app.repository.NetAssetCategoryAssetTypeMappingRepository;
 import com.finance.app.repository.NetAssetCategoryLiabilityTypeMappingRepository;
+import com.finance.app.security.AuthHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +29,7 @@ public class DataMigrationController {
     private final NetAssetCategoryRepository netAssetCategoryRepository;
     private final NetAssetCategoryAssetTypeMappingRepository assetTypeMappingRepository;
     private final NetAssetCategoryLiabilityTypeMappingRepository liabilityTypeMappingRepository;
+    private final AuthHelper authHelper;
 
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -48,7 +50,11 @@ public class DataMigrationController {
     }
 
     @PostMapping("/fix-liability-exchange-rates")
-    public ApiResponse<Map<String, Object>> fixLiabilityExchangeRates() {
+    public ApiResponse<Map<String, Object>> fixLiabilityExchangeRates(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        // Verify admin role
+        authHelper.requireAdmin(authHeader);
+
         // This endpoint is deprecated - exchange_rate and balance_in_base_currency fields have been removed
         // Currency conversion is now done dynamically using the exchange_rates table
         Map<String, Object> result = new HashMap<>();
@@ -62,7 +68,11 @@ public class DataMigrationController {
 
     @PostMapping("/init-net-asset-categories")
     @Transactional
-    public ApiResponse<Map<String, Object>> initNetAssetCategories() {
+    public ApiResponse<Map<String, Object>> initNetAssetCategories(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        // Verify admin role
+        authHelper.requireAdmin(authHeader);
+
         // 清空现有数据
         liabilityTypeMappingRepository.deleteAll();
         assetTypeMappingRepository.deleteAll();
@@ -182,7 +192,11 @@ public class DataMigrationController {
     }
 
     @PostMapping("/reset-exchange-rates-table")
-    public ApiResponse<Map<String, Object>> resetExchangeRatesTable() {
+    public ApiResponse<Map<String, Object>> resetExchangeRatesTable(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        // Verify admin role
+        authHelper.requireAdmin(authHeader);
+
         try {
             // Drop the existing table
             jdbcTemplate.execute("DROP TABLE IF EXISTS exchange_rates");

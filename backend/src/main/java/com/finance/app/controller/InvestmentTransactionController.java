@@ -43,10 +43,14 @@ public class InvestmentTransactionController {
      */
     @GetMapping("/accounts")
     public ResponseEntity<Map<String, Object>> getInvestmentAccounts(
-        @RequestParam Long familyId
+        @RequestParam(required = false) Long familyId,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            List<InvestmentAccountDTO> accounts = investmentTransactionService.getInvestmentAccounts(familyId);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            List<InvestmentAccountDTO> accounts = investmentTransactionService.getInvestmentAccounts(authenticatedFamilyId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -68,12 +72,16 @@ public class InvestmentTransactionController {
      */
     @GetMapping("/accounts/by-category")
     public ResponseEntity<Map<String, Object>> getInvestmentAccountsByCategory(
-        @RequestParam Long familyId,
-        @RequestParam Long categoryId
+        @RequestParam(required = false) Long familyId,
+        @RequestParam Long categoryId,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<InvestmentAccountDTO> accounts = investmentTransactionService
-                .getInvestmentAccountsByCategory(familyId, categoryId);
+                .getInvestmentAccountsByCategory(authenticatedFamilyId, categoryId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -136,9 +144,14 @@ public class InvestmentTransactionController {
     public ResponseEntity<Map<String, Object>> getTransactionsByAccount(
         @RequestParam Long accountId,
         @RequestParam(required = false) String startPeriod,
-        @RequestParam(required = false) String endPeriod
+        @RequestParam(required = false) String endPeriod,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify account ownership
+            AssetAccount account = assetAccountService.getAccountById(accountId);
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             List<InvestmentTransactionDTO> transactions = investmentTransactionService
                 .getTransactionsByAccount(accountId, startPeriod, endPeriod);
 
@@ -162,9 +175,14 @@ public class InvestmentTransactionController {
      */
     @PostMapping("/transactions")
     public ResponseEntity<Map<String, Object>> createTransaction(
-        @Valid @RequestBody CreateInvestmentTransactionRequest request
+        @Valid @RequestBody CreateInvestmentTransactionRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify account ownership via request body
+            AssetAccount account = assetAccountService.getAccountById(request.getAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             InvestmentTransactionDTO transaction = investmentTransactionService.createTransaction(request);
 
             Map<String, Object> response = new HashMap<>();
@@ -195,9 +213,15 @@ public class InvestmentTransactionController {
     @PutMapping("/transactions/{id}")
     public ResponseEntity<Map<String, Object>> updateTransaction(
         @PathVariable Long id,
-        @Valid @RequestBody CreateInvestmentTransactionRequest request
+        @Valid @RequestBody CreateInvestmentTransactionRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Get existing transaction to verify account ownership
+            InvestmentTransaction existingTransaction = investmentTransactionService.getTransactionById(id);
+            AssetAccount account = assetAccountService.getAccountById(existingTransaction.getAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             InvestmentTransactionDTO transaction = investmentTransactionService.updateTransaction(id, request);
 
             Map<String, Object> response = new HashMap<>();
@@ -226,8 +250,16 @@ public class InvestmentTransactionController {
      * DELETE /api/investments/transactions/{id}
      */
     @DeleteMapping("/transactions/{id}")
-    public ResponseEntity<Map<String, Object>> deleteTransaction(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteTransaction(
+        @PathVariable Long id,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
         try {
+            // Get existing transaction to verify account ownership
+            InvestmentTransaction existingTransaction = investmentTransactionService.getTransactionById(id);
+            AssetAccount account = assetAccountService.getAccountById(existingTransaction.getAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             investmentTransactionService.deleteTransaction(id);
 
             Map<String, Object> response = new HashMap<>();
@@ -256,9 +288,14 @@ public class InvestmentTransactionController {
      */
     @PostMapping("/transactions/batch")
     public ResponseEntity<Map<String, Object>> batchSaveTransactions(
-        @Valid @RequestBody BatchInvestmentTransactionRequest request
+        @Valid @RequestBody BatchInvestmentTransactionRequest request,
+        @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
+            // Verify account ownership via request body
+            AssetAccount account = assetAccountService.getAccountById(request.getAccountId());
+            authHelper.requireAccountAccess(authHeader, account.getUserId());
+
             Map<String, Object> result = investmentTransactionService.batchSaveTransactions(request);
 
             Map<String, Object> response = new HashMap<>();

@@ -1,6 +1,7 @@
 package com.finance.app.controller;
 
 import com.finance.app.dto.AnnualFinancialSummaryDTO;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.AnnualFinancialSummaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,14 +23,20 @@ import java.util.Map;
 public class AnnualFinancialSummaryController {
 
     private final AnnualFinancialSummaryService summaryService;
+    private final AuthHelper authHelper;
 
     /**
      * 获取家庭所有年度摘要
      */
     @GetMapping("/family/{familyId}")
-    public ResponseEntity<Map<String, Object>> getAllSummaries(@PathVariable Long familyId) {
+    public ResponseEntity<Map<String, Object>> getAllSummaries(
+            @PathVariable Long familyId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            List<AnnualFinancialSummaryDTO> summaries = summaryService.getAllSummaries(familyId);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            List<AnnualFinancialSummaryDTO> summaries = summaryService.getAllSummaries(authenticatedFamilyId);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -45,9 +52,13 @@ public class AnnualFinancialSummaryController {
     @GetMapping("/family/{familyId}/year/{year}")
     public ResponseEntity<AnnualFinancialSummaryDTO> getSummaryByYear(
             @PathVariable Long familyId,
-            @PathVariable Integer year) {
+            @PathVariable Integer year,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            return summaryService.getSummaryByYear(familyId, year)
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            return summaryService.getSummaryByYear(authenticatedFamilyId, year)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
@@ -63,10 +74,14 @@ public class AnnualFinancialSummaryController {
     public ResponseEntity<Map<String, Object>> getSummariesByRange(
             @PathVariable Long familyId,
             @RequestParam Integer startYear,
-            @RequestParam Integer endYear) {
+            @RequestParam Integer endYear,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.getSummariesByYearRange(familyId, startYear, endYear);
+                    summaryService.getSummariesByYearRange(authenticatedFamilyId, startYear, endYear);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -82,10 +97,14 @@ public class AnnualFinancialSummaryController {
     @GetMapping("/family/{familyId}/recent")
     public ResponseEntity<Map<String, Object>> getRecentYearsSummaries(
             @PathVariable Long familyId,
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.getRecentYearsSummaries(familyId, limit);
+                    summaryService.getRecentYearsSummaries(authenticatedFamilyId, limit);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -101,9 +120,13 @@ public class AnnualFinancialSummaryController {
     @PostMapping("/family/{familyId}/calculate/{year}")
     public ResponseEntity<AnnualFinancialSummaryDTO> calculateSummary(
             @PathVariable Long familyId,
-            @PathVariable Integer year) {
+            @PathVariable Integer year,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            AnnualFinancialSummaryDTO summary = summaryService.calculateAndRefreshSummary(familyId, year);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            AnnualFinancialSummaryDTO summary = summaryService.calculateAndRefreshSummary(authenticatedFamilyId, year);
             return ResponseEntity.ok(summary);
         } catch (Exception e) {
             log.error("计算年度摘要失败", e);
@@ -118,10 +141,14 @@ public class AnnualFinancialSummaryController {
     @PostMapping("/family/{familyId}/batch-calculate")
     public ResponseEntity<List<AnnualFinancialSummaryDTO>> batchCalculateSummaries(
             @PathVariable Long familyId,
-            @RequestBody List<Integer> years) {
+            @RequestBody List<Integer> years,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.batchRefreshSummaries(familyId, years);
+                    summaryService.batchRefreshSummaries(authenticatedFamilyId, years);
             return ResponseEntity.ok(summaries);
         } catch (Exception e) {
             log.error("批量计算年度摘要失败", e);
@@ -135,9 +162,13 @@ public class AnnualFinancialSummaryController {
     @DeleteMapping("/family/{familyId}/year/{year}")
     public ResponseEntity<Map<String, String>> deleteSummary(
             @PathVariable Long familyId,
-            @PathVariable Integer year) {
+            @PathVariable Integer year,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            summaryService.deleteSummary(familyId, year);
+            // Use authenticated user's family_id
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+
+            summaryService.deleteSummary(authenticatedFamilyId, year);
             return ResponseEntity.ok(Map.of("message", "删除成功"));
         } catch (Exception e) {
             log.error("删除年度摘要失败", e);
@@ -152,9 +183,12 @@ public class AnnualFinancialSummaryController {
     @PostMapping("/family/{familyId}/save")
     public ResponseEntity<AnnualFinancialSummaryDTO> saveOrUpdateSummary(
             @PathVariable Long familyId,
-            @RequestBody AnnualFinancialSummaryDTO summaryDTO) {
+            @RequestBody AnnualFinancialSummaryDTO summaryDTO,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            summaryDTO.setFamilyId(familyId);
+            // Set familyId from authenticated user
+            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            summaryDTO.setFamilyId(authenticatedFamilyId);
             AnnualFinancialSummaryDTO saved = summaryService.saveOrUpdateSummary(summaryDTO);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {

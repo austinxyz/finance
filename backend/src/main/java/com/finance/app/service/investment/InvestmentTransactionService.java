@@ -213,6 +213,14 @@ public class InvestmentTransactionService {
     }
 
     /**
+     * 根据ID获取投资交易记录（用于授权验证）
+     */
+    public InvestmentTransaction getTransactionById(Long id) {
+        return transactionRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("交易记录不存在"));
+    }
+
+    /**
      * 批量保存投资交易记录
      */
     @Transactional

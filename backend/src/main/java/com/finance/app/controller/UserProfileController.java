@@ -1,6 +1,8 @@
 package com.finance.app.controller;
 
 import com.finance.app.dto.UserProfileDTO;
+import com.finance.app.exception.UnauthorizedException;
+import com.finance.app.security.AuthHelper;
 import com.finance.app.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +17,21 @@ import java.util.Map;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
+    private final AuthHelper authHelper;
 
     // 获取用户配置
     @GetMapping
     public ResponseEntity<Map<String, Object>> getUserProfile(
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long userId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // 如果没有提供userId，使用默认的userId（简化处理，实际应该从认证信息获取）
-        Long effectiveUserId = (userId != null) ? userId : 1L;
+        Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
+        // Allow if accessing self OR if admin
+        Long effectiveUserId = (userId != null) ? userId : authenticatedUserId;
+        if (!authenticatedUserId.equals(effectiveUserId) && !authHelper.isAdmin(authHeader)) {
+            throw new UnauthorizedException("只能查看自己的配置");
+        }
 
         UserProfileDTO profile = userProfileService.getUserProfile(effectiveUserId);
 
@@ -37,10 +46,16 @@ public class UserProfileController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> saveUserProfile(
             @RequestParam(required = false) Long userId,
-            @RequestBody UserProfileDTO dto) {
+            @RequestBody UserProfileDTO dto,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // 如果没有提供userId，使用默认的userId
-        Long effectiveUserId = (userId != null) ? userId : 1L;
+        Long authenticatedUserId = authHelper.getUserIdFromAuth(authHeader);
+
+        // Allow if updating self OR if admin
+        Long effectiveUserId = (userId != null) ? userId : authenticatedUserId;
+        if (!authenticatedUserId.equals(effectiveUserId) && !authHelper.isAdmin(authHeader)) {
+            throw new UnauthorizedException("只能修改自己的配置");
+        }
 
         UserProfileDTO saved = userProfileService.saveUserProfile(effectiveUserId, dto);
 
