@@ -56,8 +56,17 @@
             <!-- User Actions / Search / Notifications -->
             <div class="flex items-center space-x-4">
               <div class="text-sm text-muted-foreground">
-                欢迎回来
+                欢迎回来, <span class="font-medium text-foreground">{{ username }}</span>
+                <span v-if="isAdmin" class="ml-2 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded">
+                  管理员
+                </span>
               </div>
+              <button
+                @click="handleLogout"
+                class="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition"
+              >
+                退出登录
+              </button>
             </div>
           </div>
         </div>
@@ -75,11 +84,14 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { RouterView } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 import Sidebar from './Sidebar.vue';
 
 const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 const showMobileSidebar = ref(false);
 
 const pageTitle = computed(() => {
@@ -90,12 +102,20 @@ const pageDescription = computed(() => {
   return route.meta?.description || '';
 });
 
+const username = computed(() => authStore.username || 'Guest');
+const isAdmin = computed(() => authStore.isAdmin);
+
 const toggleMobileSidebar = () => {
   showMobileSidebar.value = !showMobileSidebar.value;
 };
 
 const closeMobileSidebar = () => {
   showMobileSidebar.value = false;
+};
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/login');
 };
 
 // Auto-close sidebar on route change (mobile)

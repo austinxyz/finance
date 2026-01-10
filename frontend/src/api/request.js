@@ -8,6 +8,11 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   config => {
+    // Add Authorization header if token exists
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   error => {
@@ -22,6 +27,19 @@ request.interceptors.response.use(
   },
   error => {
     console.error('请求错误:', error)
+
+    // Handle 401 Unauthorized - redirect to login
+    if (error.response?.status === 401) {
+      // Clear auth data
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+
+      // Redirect to login if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+
     return Promise.reject(error)
   }
 )

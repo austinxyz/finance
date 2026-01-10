@@ -1,11 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import MainLayout from '../components/MainLayout.vue';
 import Dashboard from '../views/Dashboard.vue';
+import Login from '../views/Login.vue';
 
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: {
+      requiresAuth: false,
+      title: '登录'
+    }
+  },
+  {
     path: '/',
     component: MainLayout,
+    meta: {
+      requiresAuth: true
+    },
     children: [
       {
         path: '',
@@ -288,5 +301,27 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 });
+
+// Navigation guard for authentication
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  const isAuthenticated = !!token
+
+  // Check if route requires authentication (default to true if not specified)
+  const requiresAuth = to.matched.some(record =>
+    record.meta.requiresAuth !== false
+  )
+
+  if (requiresAuth && !isAuthenticated) {
+    // Redirect to login if route requires auth but user is not authenticated
+    next('/login')
+  } else if (to.path === '/login' && isAuthenticated) {
+    // Redirect to dashboard if user is already authenticated and tries to access login
+    next('/dashboard')
+  } else {
+    // Allow navigation
+    next()
+  }
+})
 
 export default router;
