@@ -1,18 +1,28 @@
 # Finance Backup Service Dockerfile
-# 基于Alpine Linux的轻量级MySQL备份容器
+# 基于Debian的MySQL 8.0兼容备份容器
 
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
-# 安装必需的软件包
-RUN apk add --no-cache \
+# 安装必需的软件包（使用MySQL官方客户端，支持caching_sha2_password）
+RUN apt-get update && apt-get install -y \
     bash \
-    mysql-client \
+    default-mysql-client \
     coreutils \
     findutils \
     gzip \
     jq \
     tzdata \
-    && rm -rf /var/cache/apk/*
+    curl \
+    ca-certificates \
+    cron \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Python依赖
+RUN pip3 install --no-cache-dir flask==3.0.0 --break-system-packages
 
 # 设置时区为UTC（可通过环境变量覆盖）
 ENV TZ=UTC
@@ -24,9 +34,10 @@ RUN mkdir -p /backups /scripts
 COPY scripts/*.sh /scripts/
 COPY scripts/crontab /scripts/crontab
 COPY entrypoint.sh /entrypoint.sh
+COPY webhook.py /webhook.py
 
 # 设置脚本权限
-RUN chmod +x /scripts/*.sh /entrypoint.sh
+RUN chmod +x /scripts/*.sh /entrypoint.sh /webhook.py
 
 # 设置工作目录
 WORKDIR /backups
@@ -36,6 +47,9 @@ ENV BACKUP_RETENTION_DAYS=7 \
     BACKUP_RETENTION_WEEKS=4 \
     BACKUP_RETENTION_MONTHS=6 \
     RUN_INITIAL_BACKUP=false
+
+# 暴露webhook端口
+EXPOSE 5000
 
 # 健康检查：检查最近24小时内是否有备份
 HEALTHCHECK --interval=1h --timeout=10s --start-period=5m \

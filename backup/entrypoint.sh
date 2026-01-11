@@ -63,6 +63,19 @@ echo ""
 echo "启动cron服务..."
 cron
 
+# 启动webhook服务（后台运行）
+echo "启动webhook API服务 (端口5000)..."
+python3 /webhook.py > /backups/webhook.log 2>&1 &
+WEBHOOK_PID=$!
+
+# 等待webhook服务启动
+sleep 2
+if kill -0 $WEBHOOK_PID 2>/dev/null; then
+    echo "✓ Webhook服务已启动 (PID: $WEBHOOK_PID)"
+else
+    echo "WARNING: Webhook服务启动失败"
+fi
+
 # 输出日志文件路径
 echo ""
 echo "日志文件:"
@@ -70,10 +83,13 @@ echo "  - 备份日志: /backups/backup.log"
 echo "  - 验证日志: /backups/verify.log"
 echo "  - 恢复日志: /backups/restore.log"
 echo "  - Cron日志: /backups/cron.log"
+echo "  - Webhook日志: /backups/webhook.log"
+echo ""
+echo "API接口: http://localhost:5000"
 echo ""
 echo "========================================="
 echo "Backup服务已启动"
 echo "========================================="
 
 # 实时输出日志（保持容器运行）
-tail -f /backups/cron.log /backups/backup.log /backups/verify.log 2>/dev/null || sleep infinity
+tail -f /backups/cron.log /backups/backup.log /backups/webhook.log 2>/dev/null || sleep infinity
