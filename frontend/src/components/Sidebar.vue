@@ -344,6 +344,14 @@
             <UserCircle class="w-5 h-5" />
             <span>用户管理</span>
           </router-link>
+          <router-link
+            to="/settings/backup"
+            class="nav-item"
+            :class="isActive('/settings/backup')"
+          >
+            <Database class="w-5 h-5" />
+            <span>备份管理</span>
+          </router-link>
         </div>
       </template>
     </nav>
@@ -379,7 +387,8 @@ import {
   DollarSign,
   FolderKanban,
   LineChart,
-  Settings
+  Settings,
+  Database
 } from 'lucide-vue-next';
 
 // Emit navigate event for mobile sidebar close

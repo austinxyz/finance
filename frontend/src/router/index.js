@@ -302,6 +302,15 @@ const routes = [
           description: '管理系统用户'
         }
       },
+      {
+        path: 'settings/backup',
+        name: 'BackupManagement',
+        component: () => import('../views/admin/BackupManagement.vue'),
+        meta: {
+          title: '备份管理',
+          description: '管理数据库备份和恢复'
+        }
+      },
       // 工具
       {
         path: 'tools/exchange-rates',

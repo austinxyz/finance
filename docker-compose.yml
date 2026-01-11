@@ -69,6 +69,9 @@ services:
       TZ: ${TZ:-UTC}
       # Skip initial backup on startup (set to true for testing)
       RUN_INITIAL_BACKUP: ${RUN_INITIAL_BACKUP:-false}
+    ports:
+      # Webhook API端口（内网访问，无需暴露到公网）
+      - "5000:5000"
     volumes:
       # Mount NAS or local directory for backups
       # 修改为你的NAS挂载路径，例如：
@@ -77,11 +80,11 @@ services:
     networks:
       - finance-network
     healthcheck:
-      test: ["CMD", "find", "/backups/daily", "-name", "*.sql.gz", "-type", "f", "-mtime", "-1", "|", "grep", "-q", "." ]
-      interval: 1h
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5m
+      start_period: 10s
 
 networks:
   finance-network:

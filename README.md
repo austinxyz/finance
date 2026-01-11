@@ -1,233 +1,261 @@
-# 家庭理财管理系统
+# Family Finance Management System
 
-基于 Spring Boot + Vue.js 的全栈财务管理系统，支持资产负债追踪、收支分析和现金流管理。
+A full-stack financial management system built with Spring Boot + Vue.js, supporting asset/liability tracking, income/expense analysis, and cash flow management.
 
-> **最新更新 (v1.1.0)**: 现金流整合视图上线 - 收支对比、储蓄率趋势、月度分析全面呈现
-> **核心功能完成度**: 98% | **性能**: 页面加载 <2秒 | **多平台**: amd64 + arm64
+> **Latest Update (v1.1.0)**: Cash Flow Dashboard - Income/Expense comparison, savings rate trends, monthly analysis
+> **Feature Completion**: 98% | **Performance**: Page load <2s | **Multi-platform**: amd64 + arm64
 
-## ✨ 核心功能
+## ✨ Core Features
 
-### 🔐 安全认证
-- **JWT 认证** - 基于 Token 的无状态认证，安全可靠
-- **角色权限** - Admin/User 双角色体系，细粒度权限控制
-- **家庭隔离** - 数据按家庭严格隔离，确保隐私安全
-- **密码加密** - BCrypt 加密存储，防止密码泄露
+### 🔐 Security & Authentication
+- **JWT Authentication** - Token-based stateless authentication
+- **Role-Based Access Control** - Admin/User dual-role system with fine-grained permissions
+- **Family-Level Data Isolation** - Data strictly isolated by family for privacy
+- **Password Encryption** - BCrypt encrypted storage to prevent password leaks
 
-### 📊 数据管理
-- **家庭管理** - 多成员协同，统一财务视图
-- **资产管理** - 8种资产类型，多币种支持，自动汇率转换
-- **负债管理** - 7种负债类型，完整追踪，时序记录
-- **收入管理** - 10大类收入分类，月度批量录入，年度预算管理 ⭐
-- **支出管理** - 10大类支出分类，批量录入，预算规划，三级钻取
-- **投资管理** - 交易记录，成本/现价/盈亏计算，年度分析
+### 📊 Data Management
+- **Family Management** - Multi-member collaboration with unified financial view
+- **Asset Management** - 8 asset types, multi-currency support, automatic exchange rate conversion
+- **Liability Management** - 7 liability types with complete tracking and time-series records
+- **Income Management** - 10 major income categories, monthly batch entry, annual budget planning ⭐
+- **Expense Management** - 10 major expense categories, batch entry, budget planning, 3-level drill-down
+- **Investment Management** - Transaction records, cost/market value/P&L calculation, annual analysis
 
-### 📈 数据分析
-- **现金流分析** - 收支对比、储蓄率趋势、月度明细分析 ⭐ 新增
-- **资产配置** - 按成员/货币/税收状态多维度分析（性能优化：<2秒）⚡
-- **趋势分析** - 净资产趋势、单项资产盈亏追踪
-- **财务指标** - 总资产、净资产、资产负债率、流动性比率
-- **Google Sheets导出** - 年度财务报表，异步导出，实时进度
+### 📈 Data Analysis
+- **Cash Flow Analysis** - Income/expense comparison, savings rate trends, monthly detail analysis ⭐ New
+- **Asset Allocation** - Multi-dimensional analysis by member/currency/tax status (optimized: <2s) ⚡
+- **Trend Analysis** - Net worth trends, individual asset P&L tracking
+- **Financial Metrics** - Total assets, net worth, debt-to-asset ratio, liquidity ratio
+- **Google Sheets Export** - Annual financial reports, async export with real-time progress
 
-## 🎯 系统亮点
+### 🗄️ Database Backup & Restore
+- **Automated Backups** - Scheduled daily/weekly/monthly backups with configurable retention
+- **Manual Backups** - Trigger on-demand backups anytime via admin panel
+- **Restore with Verification** - Database name confirmation required before restore
+- **Backup Monitoring** - Disk usage tracking, backup history, and comprehensive logs
+- **Docker-based Service** - Isolated backup container with health checks
 
-### 数据完整性
-- 资产、负债、收入、支出、投资五大维度全覆盖
-- 完整的时序数据记录与历史追踪
-- 多币种支持（USD/CNY/EUR/GBP/JPY/AUD/CAD）
+## 🎯 System Highlights
 
-### 性能卓越 ⚡
-- N+1查询问题修复（批量查询优化）
-- 页面加载时间从10-30秒降至<2秒
-- Repository层批量查询方法优化
+### Data Integrity
+- Complete coverage of five dimensions: assets, liabilities, income, expenses, investments
+- Complete time-series data recording and historical tracking
+- Multi-currency support (USD/CNY/EUR/GBP/JPY/AUD/CAD)
 
-### 智能分析 📊
-- 现金流健康度评估（储蓄率、月度结余）
-- 投资收益智能排除（聚焦实际现金流）
-- 多维度可视化（Chart.js图表）
+### Performance Excellence ⚡
+- Fixed N+1 query issues (batch query optimization)
+- Page load time reduced from 10-30 seconds to <2 seconds
+- Optimized repository layer batch query methods
 
-### 安全可靠 🔒
-- JWT 认证 + 家庭级数据隔离
-- 账户级权限验证（User → Family 关系链）
-- 管理员全局访问，普通用户限制本家庭数据
-- 密码 BCrypt 加密存储
+### Smart Analysis 📊
+- Cash flow health assessment (savings rate, monthly balance)
+- Intelligent investment return exclusion (focus on actual cash flow)
+- Multi-dimensional visualization (Chart.js charts)
 
-### 易用性
-- 响应式设计，移动端友好
-- 批量录入，提升效率
-- 智能数字格式化
+### Security & Reliability 🔒
+- JWT authentication + family-level data isolation
+- Account-level permission verification (User → Family relationship chain)
+- Admin global access, regular users limited to their family data
+- Password BCrypt encrypted storage
 
-## 🛠️ 技术栈
+### Usability
+- Responsive design, mobile-friendly
+- Batch entry for improved efficiency
+- Smart number formatting
 
-- **后端**: Java 17 + Spring Boot 3.2 + MySQL 8.0 + JPA
-- **前端**: Vue 3 (Composition API) + Tailwind CSS + Chart.js
-- **部署**: Kubernetes (Helm) + Docker (多架构: amd64/arm64)
-- **工具**: Maven + Vite + Google Sheets API
+## 🛠️ Technology Stack
 
-## 快速开始
+- **Backend**: Java 17 + Spring Boot 3.2 + MySQL 8.0 + JPA
+- **Frontend**: Vue 3 (Composition API) + Tailwind CSS + Chart.js
+- **Backup**: Python 3 + Flask + Docker + Cron
+- **Deployment**: Kubernetes (Helm) + Docker (Multi-arch: amd64/arm64)
+- **Tools**: Maven + Vite + Google Sheets API
 
-### 本地开发
+## Quick Start
+
+### Local Development
 
 ```bash
-# 1. 配置数据库
+# 1. Setup database
 CREATE DATABASE finance CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-# 2. 配置环境变量
+# 2. Configure environment variables
 cp backend/.env.example backend/.env
-# 编辑 backend/.env 填入实际的数据库连接信息：
+# Edit backend/.env with actual database connection info:
 #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET
 
-# 3. 启动后端（端口 8080）
+# 3. Start backend (port 8080)
 ./backend/start.sh
 
-# 4. 启动前端（端口 3000）
+# 4. Start frontend (port 3000)
 cd frontend
 npm install
 npm run dev
 ```
 
-### Docker Compose 部署
+### Docker Compose Deployment
 
 ```bash
-# 1. 配置环境变量
+# 1. Configure environment variables
 cp .env.example .env
-# 编辑 .env 填入数据库连接信息和 JWT 密钥
+# Edit .env with database connection info and JWT secret
 
-# 2. 启动服务
+# 2. Start services
 docker-compose up -d
 
-# 3. 查看日志
+# 3. View logs
 docker-compose logs -f
 
-# 4. 访问应用
+# 4. Access application
 # Frontend: http://localhost:3000
 # Backend:  http://localhost:8080/api
 ```
 
-### Kubernetes部署
+### Kubernetes Deployment
 
 ```bash
-# 使用 Helm 一键部署（包含 MySQL）
+# One-click deployment with Helm (includes MySQL)
 cd k8s
 ./deploy.sh install
 
-# 访问应用
+# Access application
 kubectl port-forward -n finance svc/finance-frontend 3000:80
 ```
 
-详见 [k8s/README.md](./k8s/README.md)
+See [k8s/README.md](./k8s/README.md) for details.
 
-## 数据导入工具
+## 🗄️ Database Backup System
 
-Excel数据批量导入工具，支持费用和预算数据的预览、验证和导入。
+Automated backup system with scheduled backups, manual triggers, and safe restoration.
+
+**Key Features:**
+- Automated daily/weekly/monthly backups
+- Manual backup via admin panel
+- Safe restore with database name confirmation
+- Backup monitoring and logs
+
+See [docs/backup-system.md](./docs/backup-system.md) for complete documentation.
+
+## Data Import Tools
+
+Excel data batch import tool supporting preview, validation, and import of expense and budget data.
 
 ```bash
 cd import
 
-# 1. 生成预览文件
+# 1. Generate preview file
 python3 import_from_excel.py preview --year 2024
 
-# 2. 检查新记录
+# 2. Check new records
 python3 import_from_excel.py check --year 2024
 
-# 3. 导入数据
+# 3. Import data
 python3 import_from_excel.py import --year 2024
 
-# 4. 清理临时文件
+# 4. Clean temporary files
 python3 import_from_excel.py clean --year 2024
 ```
 
-详见 [import/README.md](./import/README.md)
+See [import/README.md](./import/README.md) for details.
 
-## 项目结构
+## Project Structure
 
 ```
 finance/
-├── backend/          # Spring Boot 后端
-├── frontend/         # Vue.js 前端
-├── database/         # 数据库脚本
-├── import/           # Excel 导入工具
-├── k8s/              # Kubernetes 部署
-└── requirement/      # 需求文档
+├── backend/          # Spring Boot backend
+├── frontend/         # Vue.js frontend
+├── backup/           # Backup service (Docker)
+├── database/         # Database scripts
+├── import/           # Excel import tools
+├── k8s/              # Kubernetes deployment
+└── requirement/      # Requirements documentation
 ```
 
-## API 文档
+## API Documentation
 
 - **Swagger UI**: http://localhost:8080/api/swagger-ui/index.html
-- **API 详细说明**: [requirement/API文档.md](./requirement/API文档.md)
+- **API Details**: [requirement/API文档.md](./requirement/API文档.md)
 
-## 主要端点
+## Main Endpoints
 
-### 认证授权
-- `/api/auth/login` - 用户登录（获取 JWT Token）
-- `/api/auth/admin/encrypt-passwords` - 密码加密迁移（管理员）
+### Authentication
+- `/api/auth/login` - User login (get JWT token)
+- `/api/auth/admin/encrypt-passwords` - Password encryption migration (admin)
 
-### 数据管理
-- `/api/assets/*` - 资产管理（账户、记录、批量更新）
-- `/api/liabilities/*` - 负债管理（账户、记录、批量更新）
-- `/api/incomes/*` - 收入管理（分类、记录、批量录入）
-- `/api/expenses/*` - 支出管理（分类、记录、预算、批量录入）
-- `/api/investments/*` - 投资管理（交易记录、账户分析）
-- `/api/family` - 家庭管理（成员、切换）
+### Data Management
+- `/api/assets/*` - Asset management (accounts, records, batch updates)
+- `/api/liabilities/*` - Liability management (accounts, records, batch updates)
+- `/api/incomes/*` - Income management (categories, records, batch entry)
+- `/api/expenses/*` - Expense management (categories, records, budgets, batch entry)
+- `/api/investments/*` - Investment management (transactions, account analysis)
+- `/api/family` - Family management (members, switching)
+- `/api/backup/*` - Backup management (trigger, list, restore, logs)
 
-### 数据分析
-- `/api/analysis/*` - 综合分析（趋势、配置、财务指标）
-- `/api/analysis/cashflow` - 现金流分析 ⭐ 新增
-- `/api/incomes/analysis/*` - 收入分析（年度、大类、小类）
-- `/api/expenses/analysis/*` - 支出分析（年度、预算对比）
-- `/api/investments/analysis/*` - 投资分析（年度、账户、月度趋势）
+### Data Analysis
+- `/api/analysis/*` - Comprehensive analysis (trends, allocation, financial metrics)
+- `/api/analysis/cashflow` - Cash flow analysis ⭐ New
+- `/api/incomes/analysis/*` - Income analysis (annual, by major/minor category)
+- `/api/expenses/analysis/*` - Expense analysis (annual, budget comparison)
+- `/api/investments/analysis/*` - Investment analysis (annual, by account, monthly trends)
 
-### 工具
-- `/api/exchange-rates/*` - 汇率管理
-- `/api/google-sheets/*` - Google Sheets导出
+### Tools
+- `/api/exchange-rates/*` - Exchange rate management
+- `/api/google-sheets/*` - Google Sheets export
 
-## 📅 开发路线图
+## 📅 Development Roadmap
 
-### ✅ 已完成 (v1.1.0)
-- [x] JWT 认证与授权系统（家庭级数据隔离）
-- [x] 资产负债管理系统
-- [x] 收入管理模块（10大类分类、预算管理）
-- [x] 支出管理模块（10大类分类、预算管理）
-- [x] 现金流整合视图（收支对比、储蓄率趋势）
-- [x] 投资管理与分析
-- [x] 性能优化（N+1查询修复）
-- [x] Google Sheets导出
-- [x] 多架构Docker镜像（amd64/arm64）
+### ✅ Completed (v1.1.0)
+- [x] JWT authentication & authorization system (family-level data isolation)
+- [x] Asset & liability management system
+- [x] Income management module (10 major categories, budget management)
+- [x] Expense management module (10 major categories, budget management)
+- [x] Cash flow integration view (income/expense comparison, savings rate trends)
+- [x] Investment management & analysis
+- [x] Performance optimization (N+1 query fixes)
+- [x] Google Sheets export
+- [x] Multi-architecture Docker images (amd64/arm64)
+- [x] Database backup & restore system
 
-### 🔄 进行中
-- [ ] 财务目标管理（短期/中期/长期目标设定与追踪）
-- [ ] 智能分析算法完善（风险评估、优化建议）
+### 🔄 In Progress
+- [ ] Financial goal management (short/mid/long-term goal setting and tracking)
+- [ ] Smart analysis algorithm improvements (risk assessment, optimization suggestions)
 
-### 📝 计划中
-- [ ] 现金流预测（基于历史趋势预测未来3-6个月）
-- [ ] 投资分析增强（IRR、夏普比率等高级指标）
-- [ ] 智能预警系统
-- [ ] 移动端应用
+### 📝 Planned
+- [ ] Cash flow forecasting (predict next 3-6 months based on historical trends)
+- [ ] Enhanced investment analysis (IRR, Sharpe ratio, and other advanced metrics)
+- [ ] Smart alert system
+- [ ] Mobile application
 
-## 📖 文档
+## 📖 Documentation
 
-- **需求文档**: [requirement/需求说明.md](./requirement/需求说明.md)
-- **API文档**: [requirement/API文档.md](./requirement/API文档.md)
-- **功能缺口分析**: [requirement/功能缺口分析.md](./requirement/功能缺口分析.md)
-- **授权设计**: [docs/authorization-design.md](./docs/authorization-design.md)
-- **前端最佳实践**: [docs/frontend-best-practices.md](./docs/frontend-best-practices.md)
-- **部署指南**: [k8s/README.md](./k8s/README.md)
-- **数据导入**: [import/README.md](./import/README.md)
+- **Requirements**: [requirement/需求说明.md](./requirement/需求说明.md) (Chinese)
+- **API Documentation**: [requirement/API文档.md](./requirement/API文档.md) (Chinese)
+- **Feature Gap Analysis**: [requirement/功能缺口分析.md](./requirement/功能缺口分析.md) (Chinese)
+- **Authorization Design**: [docs/authorization-design.md](./docs/authorization-design.md)
+- **Frontend Best Practices**: [docs/frontend-best-practices.md](./docs/frontend-best-practices.md)
+- **Deployment Guide**: [k8s/README.md](./k8s/README.md)
+- **Data Import**: [import/README.md](./import/README.md)
+- **Backup System**: [docs/backup-system.md](./docs/backup-system.md)
 
-## 🤝 贡献
+## 🤝 Contributing
 
-本项目使用 [Claude Code](https://claude.com/claude-code) 进行AI辅助开发。
+This project uses [Claude Code](https://claude.com/claude-code) for AI-assisted development.
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!
 
-## 📄 许可证
+## 📄 License
 
 MIT License
 
-## 📊 项目统计
+## 📊 Project Statistics
 
-- **核心功能完成度**: 98%
-- **代码行数**: ~50,000+ (Java + Vue)
-- **数据库表**: 40+
-- **API端点**: 100+
-- **支持币种**: 7种
-- **Docker镜像**: 多架构支持 (amd64/arm64)
+- **Feature Completion**: 98%
+- **Lines of Code**: ~50,000+ (Java + Vue)
+- **Database Tables**: 40+
+- **API Endpoints**: 100+
+- **Supported Currencies**: 7
+- **Docker Images**: Multi-architecture support (amd64/arm64)
+
+## 🐳 Multi-Architecture Support
+
+All components support multi-architecture Docker images for both `linux/amd64` and `linux/arm64` platforms, allowing deployment on x86 servers and ARM-based systems (Apple Silicon, ARM servers).

@@ -87,6 +87,286 @@ See implementation in:
 - `frontend/src/views/analysis/ExpenseAnnual.vue` (lines 563-624)
 - `frontend/src/views/analysis/InvestmentAnalysis.vue` (lines 450-496)
 
+## Styling with Tailwind CSS
+
+### Overview
+This project uses Tailwind CSS utility classes exclusively for all styling. Never use CSS variables, custom scoped styles, or inline styles.
+
+### Best Practices
+
+1. **Use Tailwind Utility Classes**: All styling should be done via Tailwind's utility classes
+2. **No CSS Variables**: Don't use CSS variables like `--primary`, `--card-bg`, etc.
+3. **No Scoped Styles**: Avoid `<style scoped>` blocks unless absolutely necessary
+4. **Composable Patterns**: Reuse common utility patterns across components
+
+### Common Patterns
+
+#### 1. Card/Container Styling
+
+```vue
+<!-- White card with shadow and rounded corners -->
+<div class="bg-white rounded-lg shadow p-6">
+  <h2 class="text-xl font-semibold text-gray-900 mb-4">Card Title</h2>
+  <p class="text-sm text-gray-600">Card content</p>
+</div>
+
+<!-- Card with border instead of shadow -->
+<div class="bg-white rounded-lg border border-gray-200 p-6">
+  <!-- Content -->
+</div>
+```
+
+#### 2. Button Styling
+
+```vue
+<!-- Primary button -->
+<button class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+  Primary Action
+</button>
+
+<!-- Secondary button -->
+<button class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+  Secondary Action
+</button>
+
+<!-- Danger button -->
+<button class="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
+  Delete
+</button>
+```
+
+#### 3. Form Controls
+
+```vue
+<!-- Input field -->
+<input
+  type="text"
+  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  placeholder="Enter value"
+/>
+
+<!-- Select dropdown -->
+<select class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 bg-white">
+  <option value="">Select option</option>
+  <option value="1">Option 1</option>
+</select>
+
+<!-- Label -->
+<label class="block text-sm font-medium text-gray-700 mb-2">
+  Field Label
+</label>
+```
+
+#### 4. Tables
+
+```vue
+<div class="overflow-x-auto">
+  <table class="w-full">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Column</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 text-sm text-gray-900">Cell content</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+#### 5. Badge/Tag Components
+
+```vue
+<!-- Color-coded badges -->
+<span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+  Daily
+</span>
+
+<span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+  Weekly
+</span>
+
+<span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+  Monthly
+</span>
+
+<span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+  Manual
+</span>
+```
+
+#### 6. Status Indicators
+
+```vue
+<!-- Success/healthy status -->
+<span class="text-lg font-semibold text-green-600">✓ Normal</span>
+
+<!-- Error/unhealthy status -->
+<span class="text-lg font-semibold text-red-600">✗ Error</span>
+
+<!-- Warning status -->
+<span class="text-lg font-semibold text-orange-600">⚠ Warning</span>
+```
+
+#### 7. Layout Utilities
+
+```vue
+<!-- Flex layouts -->
+<div class="flex items-center justify-between gap-4">
+  <div class="flex-1">Flexible content</div>
+  <div class="flex gap-2">
+    <button>Action 1</button>
+    <button>Action 2</button>
+  </div>
+</div>
+
+<!-- Grid layouts -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div>Item 1</div>
+  <div>Item 2</div>
+  <div>Item 3</div>
+</div>
+
+<!-- Spacing -->
+<div class="space-y-6 p-6">
+  <div>Section 1</div>
+  <div>Section 2</div>
+</div>
+```
+
+#### 8. Alert/Warning Boxes
+
+```vue
+<!-- Warning alert -->
+<div class="bg-orange-50 border-l-4 border-orange-500 p-4 mb-4">
+  <p class="font-semibold text-gray-900 mb-2">Warning Title</p>
+  <p class="text-sm text-gray-700">Warning message content</p>
+</div>
+
+<!-- Info alert -->
+<div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+  <p class="text-sm text-gray-700">Info message</p>
+</div>
+
+<!-- Error alert -->
+<div class="bg-red-50 border-l-4 border-red-500 p-4">
+  <p class="text-sm text-red-700">Error message</p>
+</div>
+```
+
+#### 9. Modal/Dialog
+
+```vue
+<!-- Overlay -->
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <!-- Dialog -->
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <!-- Header -->
+    <div class="p-6 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Dialog Title</h3>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6">
+      <p class="text-sm text-gray-700">Dialog content</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+      <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg">Cancel</button>
+      <button class="px-4 py-2 bg-blue-600 text-white rounded-lg">Confirm</button>
+    </div>
+  </div>
+</div>
+```
+
+### Color System
+
+#### Primary Colors
+- **Blue**: `bg-blue-600`, `text-blue-600`, `border-blue-600`
+- **Red**: `bg-red-600`, `text-red-600`, `border-red-600`
+- **Green**: `bg-green-600`, `text-green-600`, `border-green-600`
+- **Orange**: `bg-orange-600`, `text-orange-600`, `border-orange-600`
+
+#### Gray Scale
+- **Background**: `bg-gray-50` (light), `bg-gray-100`, `bg-gray-200`
+- **Borders**: `border-gray-200`, `border-gray-300`
+- **Text**: `text-gray-600` (secondary), `text-gray-700`, `text-gray-900` (primary)
+
+#### Semantic Colors
+- **Success**: Green (`text-green-600`)
+- **Error/Danger**: Red (`text-red-600`, `bg-red-600`)
+- **Warning**: Orange (`text-orange-600`, `bg-orange-50`)
+- **Info**: Blue (`text-blue-600`, `bg-blue-50`)
+
+### Spacing Scale
+
+- **xs**: `gap-1`, `p-1` (0.25rem / 4px)
+- **sm**: `gap-2`, `p-2` (0.5rem / 8px)
+- **md**: `gap-3`, `p-3` (0.75rem / 12px)
+- **base**: `gap-4`, `p-4` (1rem / 16px)
+- **lg**: `gap-6`, `p-6` (1.5rem / 24px)
+- **xl**: `gap-8`, `p-8` (2rem / 32px)
+
+### Typography
+
+```vue
+<!-- Headings -->
+<h1 class="text-2xl font-bold text-gray-900">Main Title</h1>
+<h2 class="text-xl font-semibold text-gray-900">Section Title</h2>
+<h3 class="text-lg font-semibold text-gray-900">Subsection</h3>
+
+<!-- Body text -->
+<p class="text-sm text-gray-600">Description text</p>
+<span class="text-xs text-gray-500">Small text / label</span>
+
+<!-- Monospace (for code/filenames) -->
+<code class="bg-black bg-opacity-10 px-2 py-0.5 rounded text-xs font-mono">filename.sql</code>
+```
+
+### Anti-Patterns to Avoid
+
+❌ **Don't use CSS variables**
+```vue
+<!-- Bad -->
+<div :style="{ color: 'var(--primary)', background: 'var(--card-bg)' }">
+
+<!-- Good -->
+<div class="text-blue-600 bg-white">
+```
+
+❌ **Don't use scoped styles**
+```vue
+<!-- Bad -->
+<style scoped>
+.my-button {
+  background-color: #3b82f6;
+  padding: 0.5rem 1rem;
+}
+</style>
+
+<!-- Good -->
+<button class="bg-blue-600 px-4 py-2">
+```
+
+❌ **Don't use inline styles**
+```vue
+<!-- Bad -->
+<div style="background-color: white; padding: 1.5rem;">
+
+<!-- Good -->
+<div class="bg-white p-6">
+```
+
+### Examples
+
+See implementation in:
+- `frontend/src/views/admin/BackupManagement.vue` - Complete UI with cards, tables, buttons, badges, and modals
+- `frontend/src/components/Sidebar.vue` - Navigation components with active states
+- `frontend/src/views/Dashboard.vue` - Responsive grid layouts and stat cards
+
 ## Currency Display
 
 ### Overview

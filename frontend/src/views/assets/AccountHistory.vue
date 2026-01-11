@@ -628,7 +628,6 @@ import { getTodayDate } from '@/lib/utils'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { useProtectedDelete } from '@/composables/useProtectedDelete'
-import { ElMessageBox } from 'element-plus'
 
 Chart.register(...registerables)
 

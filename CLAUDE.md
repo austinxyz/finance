@@ -43,11 +43,11 @@ Examples:
 
 **ALWAYS use Composition API** - No Options API. All new components use `<script setup>`.
 
-**NEVER use inline styles** - Use Tailwind classes or CSS variables. See `docs/frontend-best-practices.md` for theme system.
+**ALWAYS use Tailwind CSS utility classes** - Never use CSS variables or custom scoped styles. Project uses Tailwind for all styling.
+
+**NEVER use inline styles** - Use Tailwind utility classes. See `docs/frontend-best-practices.md` for styling patterns.
 
 **ALWAYS format currency with symbols** - Use `formatCurrency(value, currency)` helper. Never display raw numbers.
-
-**NEVER hardcode colors** - Use CSS variables (`--primary`, `--secondary`) for theme support.
 
 **Family API calls for non-admin users**:
 - ✅ Correct: `familyAPI.getDefault()` - Gets authenticated user's family
