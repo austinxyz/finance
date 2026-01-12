@@ -5,17 +5,6 @@
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
         <h1 class="text-xl md:text-2xl font-bold text-gray-900">支出年度趋势分析</h1>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
-          <!-- 家庭选择 -->
-          <div class="flex items-center gap-2">
-            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭：</label>
-            <select v-model.number="familyId" @change="onFamilyChange"
-                    class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm min-w-0 sm:min-w-[180px]">
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-
           <!-- 年份选择 -->
           <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示年数：</label>
@@ -375,19 +364,21 @@ import { ref, onMounted, nextTick, computed, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { expenseAnalysisAPI } from '@/api/expense'
 import { exchangeRateAPI } from '@/api/exchangeRate'
-import familyAPI from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 
 Chart.register(...registerables)
 
 // 数据
 const trendData = ref([])
+// Family store
+const familyStore = useFamilyStore()
+const familyId = computed(() => familyStore.currentFamilyId)
+
 const categoryData = ref([])
 const summaryTableData = ref({ years: [], categories: [], rows: [] })
-const families = ref([])
 const loading = ref(false)
 const summaryTableLoading = ref(false)
 const displayYears = ref(5)
-const familyId = ref(null)
 const selectedCurrency = ref('USD')
 const selectedCategories = ref([])
 const exchangeRates = ref([]) // 汇率数据
@@ -415,34 +406,12 @@ const convertedTrendData = computed(() => {
   }))
 })
 
-// 获取家庭列表
-const fetchFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!familyId.value) {
-        familyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('获取家庭列表失败:', error)
-    families.value = []
+// Watch for family changes
+watch(familyId, (newFamilyId) => {
+  if (newFamilyId) {
+    fetchData()
   }
-}
-
-// 家庭切换事件
-const onFamilyChange = () => {
-  fetchData()
-}
+})
 
 // 货币切换事件
 const onCurrencyChange = () => {
@@ -1106,8 +1075,11 @@ watch([categoryData, categoryTrendChartCanvas], async () => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  await fetchFamilies()
   await fetchExchangeRates()  // 获取汇率数据
-  await fetchData()
+
+  // Load data if family is already available
+  if (familyId.value) {
+    await fetchData()
+  }
 })
 </script>

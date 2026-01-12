@@ -38,10 +38,10 @@ public class ExpenseBudgetController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use getAuthorizedFamilyId to support admin family switching
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            List<ExpenseBudgetDTO> budgets = budgetService.getBudgets(authenticatedFamilyId, budgetYear, currency);
+            List<ExpenseBudgetDTO> budgets = budgetService.getBudgets(authorizedFamilyId, budgetYear, currency);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -70,9 +70,9 @@ public class ExpenseBudgetController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
-            // Set familyId from authenticated user
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
-            request.setFamilyId(authenticatedFamilyId);
+            // Use getAuthorizedFamilyId to support admin family switching
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, request.getFamilyId());
+            request.setFamilyId(authorizedFamilyId);
 
             List<ExpenseBudgetDTO> savedBudgets = budgetService.batchSaveBudgets(request);
 

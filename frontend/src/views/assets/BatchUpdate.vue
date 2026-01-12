@@ -4,18 +4,6 @@
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex items-center gap-2">
-          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-          <select
-            v-model="selectedFamilyId"
-            @change="onFamilyChange"
-            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
           <label class="text-xs font-medium text-gray-700 whitespace-nowrap">分类:</label>
           <select
             v-model="selectedCategoryType"
@@ -151,7 +139,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { assetAccountAPI, assetRecordAPI } from '@/api/asset'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { getExchangeRate } from '@/utils/exchangeRate'
 import { getTodayDate } from '@/lib/utils'
 
@@ -164,9 +152,9 @@ const accountPreviousValues = ref({}) // 存储每个账户在选择日期的之
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
 
-// 家庭相关
-const families = ref([])
-const selectedFamilyId = ref(null)
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 // 记录日期，默认为今天（使用洛杉矶时区）
 const today = getTodayDate()
@@ -270,11 +258,9 @@ const formatNumber = (num) => {
   if (!num) return '0.00'
   return parseFloat(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
-
   // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
   let year, month, day
   if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -285,17 +271,13 @@ const formatDate = (dateString) => {
     month = date.getMonth() + 1
     day = date.getDate()
   }
-
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
   const recordDate = new Date(year, month, day)
-
   const diffDays = Math.floor((today - recordDate) / (1000 * 60 * 60 * 24))
-
   if (diffDays === 0) return '今天'
   if (diffDays === 1) return '昨天'
   if (diffDays < 7) return `${diffDays}天前`
-
   return `${month}/${day}`
 }
 
@@ -317,7 +299,6 @@ const formatFullDate = (dateString) => {
     year: 'numeric'
   })
 }
-
 // 获取大类别标签
 const getTypeLabel = (type) => {
   const typeMap = {
@@ -349,7 +330,6 @@ const getCurrencySymbol = (currency) => {
   }
   return currencyMap[currency] || currency + ' '
 }
-
 // 标记为已修改
 const markAsChanged = (accountId) => {
   const amount = accountAmounts.value[accountId]
@@ -369,53 +349,12 @@ const formatDifference = (accountId, currentAmount, currency) => {
   const sign = diff >= 0 ? '+' : ''
   return `${sign}${getCurrencySymbol(currency)}${formatNumber(Math.abs(diff))}`
 }
-
 // 获取差额样式类
 const getDifferenceClass = (accountId, currentAmount) => {
   const newAmount = parseFloat(accountAmounts.value[accountId])
   if (!newAmount || isNaN(newAmount)) return ''
-
   const diff = newAmount - (currentAmount || 0)
   return diff >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
-}
-
-// 加载家庭列表
-const loadFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-    if (response.success) {
-      families.value = response.data ? [response.data] : []
-    }
-
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      }
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-  }
-}
-
-// 家庭切换事件处理
-const onFamilyChange = () => {
-  // 清空当前数据
-  accountAmounts.value = {}
-  accountPreviousValues.value = {}
-  changedAccounts.value.clear()
-  // 重新加载账户列表
-  loadAccounts()
 }
 
 // 加载账户列表
@@ -476,11 +415,9 @@ const loadAccounts = async () => {
     loading.value = false
   }
 }
-
 // 加载所有账户在选择日期的之前值
 const loadPreviousValues = async () => {
   if (!accounts.value || accounts.value.length === 0) return
-
   try {
     // 为每个账户获取在选择日期的之前值
     const promises = accounts.value.map(async (account) => {
@@ -506,7 +443,6 @@ const loadPreviousValues = async () => {
         }
       }
     })
-
     await Promise.all(promises)
   } catch (error) {
     console.error('加载之前值失败:', error)
@@ -643,16 +579,22 @@ const saveAll = async (overwriteExisting = false) => {
     saving.value = false
   }
 }
-
-// 监听selectedFamilyId变化，自动加载账户数据
+// 监听selectedFamilyId变化，自动加载账户数据（管理员切换家庭时）
 watch(selectedFamilyId, (newId) => {
   if (newId) {
+    // 清空当前数据
+    accountAmounts.value = {}
+    accountPreviousValues.value = {}
+    changedAccounts.value.clear()
+    // 重新加载账户列表
     loadAccounts()
   }
 })
 
 onMounted(async () => {
-  await loadFamilies()
-  // loadAccounts 将通过 watcher 自动调用
+  // 如果家庭已加载，立即加载账户
+  if (selectedFamilyId.value) {
+    await loadAccounts()
+  }
 })
 </script>

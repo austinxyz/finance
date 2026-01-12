@@ -6,18 +6,6 @@
         <h2 class="text-md md:text-lg font-semibold text-gray-900">资产配置</h2>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
           <div class="flex items-center gap-2">
-            <label class="text-xs md:text-sm font-medium text-gray-700">选择家庭：</label>
-            <select
-              v-model="selectedFamilyId"
-              @change="onFamilyChange"
-              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-            >
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-          <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
             <input
               v-model="selectedDate"
@@ -477,7 +465,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { analysisAPI } from '@/api/analysis'
 import { assetAccountAPI } from '@/api/asset'
 import { liabilityAccountAPI } from '@/api/liability'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 
 // 注册 Chart.js 组件
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels)
@@ -502,10 +490,6 @@ const excludedCategories = ref(new Set())
 const selectedCurrency = ref('USD')
 const exchangeRate = ref(7.2) // USD to CNY 默认汇率
 
-// 家庭选择
-const families = ref([])
-const selectedFamilyId = ref(null) // 将从默认家庭API获取
-
 // 日期选择
 const selectedDate = ref('')
 const actualDataDate = ref(null)  // 实际数据日期
@@ -513,9 +497,12 @@ const actualDataDate = ref(null)  // 实际数据日期
 const summary = ref({
   totalAssets: 0,
   totalLiabilities: 0,
-  netWorth: 0,
-  actualDate: null
+  netWorth: 0
 })
+
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 const netAllocation = ref({
   total: 0,
@@ -1420,29 +1407,6 @@ const loadCurrencyAllocation = async () => {
 }
 
 // 加载家庭列表
-const loadFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-    families.value = []
-  }
-}
-
 // 家庭切换事件处理
 const onFamilyChange = () => {
   // 重新加载所有数据
@@ -1472,7 +1436,13 @@ watch(selectedFamilyId, (newId) => {
 })
 
 onMounted(async () => {
-  await loadFamilies()
-  // loadFamilies会设置selectedFamilyId，然后watcher会自动加载数据
+  // familyStore 会自动加载，watcher 会自动触发数据加载
+  if (selectedFamilyId.value) {
+    loadSummary()
+    loadNetAllocation()
+    loadTaxStatusAllocation()
+    loadMemberAllocation()
+    loadCurrencyAllocation()
+  }
 })
 </script>

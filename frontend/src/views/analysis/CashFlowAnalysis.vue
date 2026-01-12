@@ -22,16 +22,6 @@
           </svg>
           <span>{{ refreshing ? '刷新中...' : '刷新数据' }}</span>
         </button>
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-
         <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份:</label>
         <select
           v-model="selectedYear"
@@ -155,15 +145,17 @@
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
-import { familyAPI } from '@/api/family';
+import { useFamilyStore } from '@/stores/family';
 import { incomeRecordAPI } from '@/api/income';
 import { expenseRecordAPI } from '@/api/expense';
 
 Chart.register(...registerables);
 
+// Family store
+const familyStore = useFamilyStore();
+
 // 响应式数据
-const families = ref([]);
-const selectedFamilyId = ref(null);
+const selectedFamilyId = computed(() => familyStore.currentFamilyId);
 const selectedYear = ref(new Date().getFullYear());
 const selectedCurrency = ref('All');
 const refreshing = ref(false);
@@ -221,30 +213,12 @@ const getSavingsRateClass = (rate) => {
   return 'text-red-600';
 };
 
-// 加载默认家庭
-const loadFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault();
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data];
-
-      // 设置默认选中
-      selectedFamilyId.value = response.data.id;
-    } else {
-      families.value = [];
-      console.error('获取默认家庭失败: 返回数据格式错误', response);
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error);
-    families.value = [];
-  }
-};
-
 // 加载收入数据 - 直接从记录中按月汇总
 const loadIncomeData = async () => {
-  if (!selectedFamilyId.value) return;
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize');
+    return;
+  }
 
   try {
     const startPeriod = `${selectedYear.value}-01`;
@@ -312,7 +286,10 @@ const loadIncomeData = async () => {
 
 // 加载支出数据 - 直接从记录中按月汇总
 const loadExpenseData = async () => {
-  if (!selectedFamilyId.value) return;
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize');
+    return;
+  }
 
   try {
     const startPeriod = `${selectedYear.value}-01`;
@@ -595,12 +572,20 @@ const refreshData = async () => {
 
 // 初始化
 onMounted(async () => {
-  await loadFamilies();
-  await refreshData();
+  // Load page data if family is already available
+  if (selectedFamilyId.value) {
+    await refreshData();
+  }
 });
 
 // 监听筛选条件变化
-watch([selectedFamilyId, selectedYear, selectedCurrency], () => {
-  refreshData();
+watch([() => familyStore.currentFamilyId, selectedYear, selectedCurrency], ([newFamilyId, newYear, newCurrency], [oldFamilyId]) => {
+  if (newFamilyId && newFamilyId !== oldFamilyId) {
+    console.log('[CashFlowAnalysis] Family changed, reloading data for family:', newFamilyId);
+    refreshData();
+  } else if (newFamilyId) {
+    // Year or currency changed
+    refreshData();
+  }
 });
 </script>

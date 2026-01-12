@@ -48,14 +48,14 @@ public class AnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         // Get asset summary with authenticated family
-        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, authenticatedFamilyId, asOfDate, false, currency);
+        AssetSummaryDTO summary = assetAnalysisService.getAssetSummary(userId, authorizedFamilyId, asOfDate, false, currency);
 
         // Add liability data using AnalysisService
-        summary = analysisService.addLiabilityDataToSummary(summary, userId, authenticatedFamilyId, asOfDate, currency);
+        summary = analysisService.addLiabilityDataToSummary(summary, userId, authorizedFamilyId, asOfDate, currency);
 
         return ApiResponse.success(summary);
     }
@@ -93,10 +93,10 @@ public class AnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = assetAnalysisService.getAssetAllocationByType(userId, authenticatedFamilyId, asOfDate, currency);
+        Map<String, Object> allocation = assetAnalysisService.getAssetAllocationByType(userId, authorizedFamilyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -109,10 +109,10 @@ public class AnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, authenticatedFamilyId, asOfDate, currency);
+        Map<String, Object> allocation = analysisService.getNetAssetAllocation(userId, authorizedFamilyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -125,10 +125,10 @@ public class AnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = liabilityAnalysisService.getLiabilityAllocationByType(userId, authenticatedFamilyId, asOfDate, currency);
+        Map<String, Object> allocation = liabilityAnalysisService.getLiabilityAllocationByType(userId, authorizedFamilyId, asOfDate, currency);
         return ApiResponse.success(allocation);
     }
 
@@ -140,10 +140,10 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<OverallTrendDataPointDTO> trends = analysisService.getOverallTrend(startDate, endDate, authenticatedFamilyId);
+        List<OverallTrendDataPointDTO> trends = analysisService.getOverallTrend(startDate, endDate, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -156,10 +156,10 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<TrendDataPointDTO> trends = assetAnalysisService.getAssetCategoryTrend(categoryType, startDate, endDate, authenticatedFamilyId);
+        List<TrendDataPointDTO> trends = assetAnalysisService.getAssetCategoryTrend(categoryType, startDate, endDate, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -172,10 +172,10 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<TrendDataPointDTO> trends = liabilityAnalysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, authenticatedFamilyId);
+        List<TrendDataPointDTO> trends = liabilityAnalysisService.getLiabilityCategoryTrend(categoryType, startDate, endDate, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -188,10 +188,10 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<TrendDataPointDTO> trends = analysisService.getNetAssetCategoryTrend(categoryCode, startDate, endDate, authenticatedFamilyId);
+        List<TrendDataPointDTO> trends = analysisService.getNetAssetCategoryTrend(categoryCode, startDate, endDate, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -204,10 +204,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<Map<String, Object>> accounts = assetAnalysisService.getAssetAccountsWithBalancesByType(categoryType, userId, authenticatedFamilyId, asOfDate);
+        List<Map<String, Object>> accounts = assetAnalysisService.getAssetAccountsWithBalancesByType(categoryType, userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -220,10 +220,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<Map<String, Object>> accounts = liabilityAnalysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, authenticatedFamilyId, asOfDate);
+        List<Map<String, Object>> accounts = liabilityAnalysisService.getLiabilityAccountsWithBalancesByType(categoryType, userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -237,11 +237,11 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         Map<String, List<AccountTrendDataPointDTO>> trends = assetAnalysisService.getAssetAccountsTrendByCategory(
-            categoryType, startDate, endDate, userId, authenticatedFamilyId);
+            categoryType, startDate, endDate, userId, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -255,11 +255,11 @@ public class AnalysisController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         Map<String, List<AccountTrendDataPointDTO>> trends = liabilityAnalysisService.getLiabilityAccountsTrendByCategory(
-            categoryType, startDate, endDate, userId, authenticatedFamilyId);
+            categoryType, startDate, endDate, userId, authorizedFamilyId);
         return ApiResponse.success(trends);
     }
 
@@ -272,10 +272,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, authenticatedFamilyId, asOfDate);
+        Map<String, Object> accounts = analysisService.getNetAssetCategoryAccounts(categoryCode, userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(accounts);
     }
 
@@ -287,10 +287,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, authenticatedFamilyId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByTaxStatus(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -302,10 +302,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = analysisService.getNetWorthByMember(userId, authenticatedFamilyId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByMember(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -317,10 +317,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        Map<String, Object> allocation = analysisService.getNetWorthByCurrency(userId, authenticatedFamilyId, asOfDate);
+        Map<String, Object> allocation = analysisService.getNetWorthByCurrency(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(allocation);
     }
 
@@ -332,10 +332,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, authenticatedFamilyId, asOfDate);
+        FinancialMetricsDTO metrics = analysisService.getFinancialMetrics(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(metrics);
     }
 
@@ -347,10 +347,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        EnhancedFinancialMetricsDTO metrics = analysisService.getEnhancedFinancialMetrics(userId, authenticatedFamilyId, asOfDate);
+        EnhancedFinancialMetricsDTO metrics = analysisService.getEnhancedFinancialMetrics(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(metrics);
     }
 
@@ -362,10 +362,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        RiskAssessmentDTO assessment = analysisService.getRiskAssessment(userId, authenticatedFamilyId, asOfDate);
+        RiskAssessmentDTO assessment = analysisService.getRiskAssessment(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(assessment);
     }
 
@@ -377,10 +377,10 @@ public class AnalysisController {
             @RequestParam(required = false) LocalDate asOfDate,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        OptimizationRecommendationDTO recommendations = analysisService.getOptimizationRecommendations(userId, authenticatedFamilyId, asOfDate);
+        OptimizationRecommendationDTO recommendations = analysisService.getOptimizationRecommendations(userId, authorizedFamilyId, asOfDate);
         return ApiResponse.success(recommendations);
     }
 
@@ -390,12 +390,12 @@ public class AnalysisController {
             @RequestBody AIAdviceRequestDTO request,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, request.getFamilyId());
 
             // Get current optimization recommendations with authenticated family
             OptimizationRecommendationDTO recommendations =
-                analysisService.getOptimizationRecommendations(request.getUserId(), authenticatedFamilyId, LocalDate.now());
+                analysisService.getOptimizationRecommendations(request.getUserId(), authorizedFamilyId, LocalDate.now());
 
             // Convert to Map for Claude API
             Map<String, Object> financialData = objectMapper.convertValue(recommendations, Map.class);

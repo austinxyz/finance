@@ -5,19 +5,6 @@
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
         <h1 class="text-xl md:text-2xl font-bold text-gray-900">趋势分析</h1>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
-          <!-- 家庭选择器 -->
-          <div class="flex items-center gap-2">
-            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭：</label>
-            <select
-              v-model="selectedFamilyId"
-              @change="onFamilyChange"
-              class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm min-w-0 sm:min-w-[180px]"
-            >
-              <option v-for="family in allFamilies" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
           <!-- 显示货币 -->
           <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示货币：</label>
@@ -1131,7 +1118,7 @@ import {
 } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { analysisAPI } from '@/api/analysis'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import request from '@/api/request'
 
 // 注册 Chart.js 组件
@@ -1255,8 +1242,9 @@ const liabilityCategories = [
 const netAssetCategories = ref([])
 
 // 家庭管理
-const allFamilies = ref([])
-const selectedFamilyId = ref(null)
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 // 货币符号
 const currencySymbol = computed(() => {
@@ -2966,6 +2954,12 @@ const selectLiabilityCategory = async (stat) => {
 
 // 加载所有趋势
 const loadAllTrends = () => {
+  // Guard: wait for family store to initialize
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   // 切换tab时清除选中的分类
   selectedAssetCategory.value = null
   accountsTrendData.value = {}
@@ -2983,49 +2977,30 @@ const loadAllTrends = () => {
   }
 }
 
-// 加载默认家庭
-const loadAllFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
 
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    if (response && response.success && response.data && response.data.id) {
-      allFamilies.value = [response.data]
 
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-      }
-    } else {
-      allFamilies.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-  }
-}
-
-// 家庭变更处理
-const onFamilyChange = () => {
-  if (selectedFamilyId.value) {
-    // 清除之前选中的分类
+// Watch for family changes (admin can switch families)
+watch(selectedFamilyId, (newFamilyId) => {
+  if (newFamilyId) {
+    // Clear previous selections
     selectedAssetCategory.value = null
     selectedLiabilityCategory.value = null
     accountsTrendData.value = {}
     liabilityAccountsTrendData.value = {}
-
-    // 重新加载当前tab的数据（后端会自动聚合该家庭所有成员的数据）
+    // Reload data for new family
     loadAllTrends()
   }
-}
+})
 
 // 监听 tab 切换
 watch(activeTab, () => {
   loadAllTrends()
 })
 
-onMounted(async () => {
-  await loadAllFamilies()
-  loadAllTrends()
+onMounted(() => {
+  // Load data if family is already available
+  if (selectedFamilyId.value) {
+    loadAllTrends()
+  }
 })
 </script>

@@ -18,19 +18,6 @@
           <span>{{ category.categoryName }}</span>
         </button>
       </nav>
-
-      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- 三列布局：账户列表 + 账户详情 -->
@@ -309,15 +296,17 @@
 <script>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { investmentAccountAPI, investmentTransactionAPI } from '@/api/investment'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import Chart from 'chart.js/auto'
 
 export default {
   name: 'InvestmentRecords',
   setup() {
+    // Family store
+    const familyStore = useFamilyStore()
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
     // 数据
-    const families = ref([])
-    const selectedFamilyId = ref(null)
     const investmentCategories = ref([])
     const selectedCategory = ref(null)
     const accounts = ref([])
@@ -368,43 +357,6 @@ export default {
       return symbols[currency] || currency
     }
 
-    // 家庭选择
-    const onFamilyChange = async () => {
-      await loadInvestmentCategories()
-      if (investmentCategories.value.length > 0) {
-        selectedCategory.value = investmentCategories.value[0]
-      }
-    }
-
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-        if (response.success) {
-          families.value = response.data ? [response.data] : []
-
-          // 尝试获取默认家庭
-          if (families.value.length > 0) {
-            try {
-              const defaultResponse = await familyAPI.getDefault()
-              if (defaultResponse.success && defaultResponse.data) {
-                selectedFamilyId.value = defaultResponse.data.id
-              } else {
-                // 如果没有默认家庭，使用第一个
-                selectedFamilyId.value = families.value[0].id
-              }
-            } catch (err) {
-              console.error('获取默认家庭失败:', err)
-              // 如果获取默认家庭失败，使用第一个
-              selectedFamilyId.value = families.value[0].id
-            }
-            await onFamilyChange()
-          }
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-      }
-    }
 
     // 加载投资大类（从资产分类表中获取is_investment = TRUE的分类）
     const loadInvestmentCategories = async () => {
@@ -631,14 +583,28 @@ export default {
       }
     })
 
+    // 监听家庭切换（管理员切换家庭时自动刷新）
+    watch(selectedFamilyId, async (newFamilyId) => {
+      if (newFamilyId) {
+        await loadInvestmentCategories()
+        if (investmentCategories.value.length > 0) {
+          selectedCategory.value = investmentCategories.value[0]
+        }
+      }
+    })
+
     // 初始化
-    onMounted(() => {
-      loadFamilies()
+    onMounted(async () => {
+      if (selectedFamilyId.value) {
+        await loadInvestmentCategories()
+        if (investmentCategories.value.length > 0) {
+          selectedCategory.value = investmentCategories.value[0]
+        }
+      }
     })
 
     return {
       // 数据
-      families,
       selectedFamilyId,
       investmentCategories,
       selectedCategory,
@@ -668,7 +634,6 @@ export default {
       // 方法
       formatNumber,
       getCurrencySymbol,
-      onFamilyChange,
       selectAccount,
       openTransactionDialog,
       closeTransactionDialog,

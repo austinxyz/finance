@@ -8,14 +8,31 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   config => {
+    const timestamp = Date.now()
+
     // Add Authorization header if token exists
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-      console.log(`[Request] ${config.method?.toUpperCase()} ${config.url} - Token present: YES (${token.substring(0, 20)}...)`)
-    } else {
-      console.warn(`[Request] ${config.method?.toUpperCase()} ${config.url} - Token present: NO`)
     }
+
+    // Enhanced logging with full URL and params
+    const method = config.method?.toUpperCase()
+    const url = config.url
+    const params = config.params || {}
+    const hasToken = !!token
+
+    // Construct full URL with query string for display
+    const queryString = Object.keys(params).length > 0
+      ? '?' + Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&')
+      : ''
+    const fullUrl = `${url}${queryString}`
+
+    console.log(`[Request ${timestamp}] ${method} ${fullUrl}`)
+    console.log(`[Request ${timestamp}] Token:`, hasToken ? 'YES' : 'NO')
+    console.log(`[Request ${timestamp}] Params:`, params)
+    console.log(`[Request ${timestamp}] Headers:`, { ...config.headers })
+
     return config
   },
   error => {

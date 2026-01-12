@@ -7,16 +7,6 @@
         <p class="text-xs md:text-sm text-gray-600 mt-1">分析年度支出结构和趋势</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-
         <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份:</label>
         <select
           v-model="selectedYear"
@@ -275,7 +265,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI, expenseCategoryAPI } from '@/api/expense'
 
@@ -284,9 +274,9 @@ Chart.register(...registerables, ChartDataLabels)
 export default {
   name: 'ExpenseAnnual',
   setup() {
+    const familyStore = useFamilyStore()
     // 响应式数据
-    const families = ref([])
-    const selectedFamilyId = ref(null)
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
     const selectedYear = ref(new Date().getFullYear())
     const currencies = ref(['All'])
     const selectedCurrency = ref('USD')
@@ -398,28 +388,6 @@ export default {
     const minorCategoryBudgetTotal = computed(() => {
       return minorCategoryData.value.reduce((sum, item) => sum + parseFloat(item.budgetAmount || 0), 0)
     })
-
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-
-        // getDefault() 返回单个家庭对象，需要包装成数组
-        if (response && response.success && response.data && response.data.id) {
-          families.value = [response.data]
-
-          // 设置默认选中
-          if (!selectedFamilyId.value) {
-            selectedFamilyId.value = response.data.id
-          }
-        } else {
-          families.value = []
-          console.error('获取默认家庭失败: 返回数据格式错误', response)
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-      }
-    }
 
     // 加载货币列表
     const loadCurrencies = async () => {
@@ -903,20 +871,24 @@ export default {
       return symbols[selectedCurrency.value] || '$'
     }
 
+    // Watch for family changes and reload data
+    watch(() => familyStore.currentFamilyId, (newFamilyId, oldFamilyId) => {
+      if (newFamilyId && newFamilyId !== oldFamilyId) {
+        console.log('[ExpenseAnnual] Family changed from', oldFamilyId, 'to', newFamilyId, '- reloading data')
+        loadMajorCategoryData()
+      }
+    })
+
     // 监听选项变化
-    watch([selectedFamilyId, selectedYear, selectedCurrency], () => {
+    watch([selectedYear, selectedCurrency], () => {
       loadMajorCategoryData()
     })
 
-    // 组件挂载时
     onMounted(async () => {
-      await loadFamilies()
       await loadCurrencies()
-      await loadMajorCategoryData()
     })
 
     return {
-      families,
       selectedFamilyId,
       selectedYear,
       availableYears,

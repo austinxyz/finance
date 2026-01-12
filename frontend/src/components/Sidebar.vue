@@ -329,6 +329,14 @@
         <div v-if="isAdmin" class="space-y-1">
           <div class="nav-section-title">系统设置</div>
           <router-link
+            to="/settings/system"
+            class="nav-item"
+            :class="isActive('/settings/system')"
+          >
+            <Settings class="w-5 h-5" />
+            <span>系统设置</span>
+          </router-link>
+          <router-link
             to="/settings/family"
             class="nav-item"
             :class="isActive('/settings/family')"

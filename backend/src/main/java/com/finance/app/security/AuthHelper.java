@@ -112,6 +112,31 @@ public class AuthHelper {
     }
 
     /**
+     * 获取授权的family_id
+     * - 管理员：可以访问请求的familyId（如果提供），否则使用自己的familyId
+     * - 普通用户：只能访问自己的familyId，忽略请求参数
+     *
+     * @param authHeader Authorization header
+     * @param requestedFamilyId 请求的family_id（可为null）
+     * @return 授权的family_id
+     * @throws UnauthorizedException 如果Token无效或权限不足
+     */
+    public Long getAuthorizedFamilyId(String authHeader, Long requestedFamilyId) {
+        String token = extractToken(authHeader);
+        Long userFamilyId = authService.getFamilyIdFromToken(token);
+        boolean isAdmin = authService.isAdminByToken(token);
+
+        // 管理员可以访问任何family
+        if (isAdmin) {
+            // 如果管理员指定了familyId，使用指定的；否则使用自己的
+            return requestedFamilyId != null ? requestedFamilyId : userFamilyId;
+        }
+
+        // 普通用户只能访问自己的family，忽略请求参数
+        return userFamilyId;
+    }
+
+    /**
      * 验证账户的userId是否属于authenticated用户的family
      *
      * @param authHeader Authorization header

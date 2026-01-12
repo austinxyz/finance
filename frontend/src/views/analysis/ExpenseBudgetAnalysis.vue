@@ -8,17 +8,6 @@
       </div>
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
         <div class="flex items-center gap-2">
-          <label class="text-xs md:text-sm font-medium text-gray-700">家庭：</label>
-          <select
-            v-model="selectedFamilyId"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
           <label class="text-xs md:text-sm font-medium text-gray-700">年份：</label>
           <input
             v-model.number="selectedYear"
@@ -196,7 +185,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI } from '@/api/expense'
 import { Chart, registerables } from 'chart.js'
@@ -204,11 +193,13 @@ import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
 // 响应式数据
-const families = ref([])
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
 const currencies = ref([])
 const budgetExecutionData = ref([])
 
-const selectedFamilyId = ref(null)
 const selectedYear = ref(new Date().getFullYear())
 const selectedCurrency = ref('USD')
 
@@ -297,28 +288,6 @@ function formatCurrency(amount) {
   })
 }
 
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-    families.value = []
-  }
-}
 
 // 加载货币列表
 async function loadCurrencies() {
@@ -434,15 +403,21 @@ function updateComparisonChart() {
 }
 
 // 监听选项变化
-watch([selectedFamilyId, selectedYear, selectedCurrency], () => {
-  loadBudgetExecutionData()
+// Watch for family/year/currency changes
+watch([selectedFamilyId, selectedYear, selectedCurrency], ([newFamilyId]) => {
+  if (newFamilyId) {
+    loadBudgetExecutionData()
+  }
 })
 
 // 组件挂载时
 onMounted(async () => {
-  await loadFamilies()
   await loadCurrencies()
-  await loadBudgetExecutionData()
+
+  // Load data if family is already available
+  if (selectedFamilyId.value) {
+    await loadBudgetExecutionData()
+  }
 })
 </script>
 

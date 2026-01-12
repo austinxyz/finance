@@ -4,17 +4,6 @@
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex items-center gap-2">
-          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-          <select
-            v-model="selectedFamilyId"
-            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
           <label class="text-xs font-medium text-gray-700 whitespace-nowrap">货币:</label>
           <select
             v-model="selectedCurrency"
@@ -165,12 +154,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { expenseCategoryAPI, expenseRecordAPI } from '@/api/expense'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 const loading = ref(false)
 const saving = ref(false)
-const families = ref([])
 const currencies = ref([])
 const majorCategories = ref([])
 const allMinorCategories = ref([])
@@ -180,7 +172,6 @@ const historyData = ref({}) // 前3个月历史数据
 const changedRecords = ref(new Set())
 
 // 批量录入基础选项
-const selectedFamilyId = ref(null)
 const selectedCurrency = ref('USD')
 
 // 记录期间，默认为当前月份
@@ -362,30 +353,6 @@ function markAsChanged(categoryId) {
   }
 }
 
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-    families.value = []
-  }
-}
-
 // 加载货币列表
 async function loadCurrencies() {
   try {
@@ -416,6 +383,11 @@ async function loadCurrencies() {
 
 // 加载分类
 async function loadCategories() {
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   loading.value = true
   try {
     const response = await expenseCategoryAPI.getAll()
@@ -626,19 +598,23 @@ watch(recordPeriod, () => {
 })
 
 // 监听家庭和货币变化
-watch([selectedFamilyId, selectedCurrency], () => {
-  categoryAmounts.value = {}
-  categoryRecordIds.value = {}
-  historyData.value = {}
-  changedRecords.value.clear()
-  loadHistoryData()
-  loadCurrentMonthData()
+watch([selectedFamilyId, selectedCurrency], ([newFamilyId]) => {
+  if (newFamilyId) {
+    categoryAmounts.value = {}
+    categoryRecordIds.value = {}
+    historyData.value = {}
+    changedRecords.value.clear()
+    loadCategories()
+  }
 })
 
 // 初始化
-onMounted(() => {
-  loadFamilies()
-  loadCurrencies()
-  loadCategories()
+onMounted(async () => {
+  await loadCurrencies()
+
+  // Load data if family is already available
+  if (selectedFamilyId.value) {
+    await loadCategories()
+  }
 })
 </script>

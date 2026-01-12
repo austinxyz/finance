@@ -56,10 +56,15 @@
             <!-- User Actions / Search / Notifications -->
             <div class="flex items-center space-x-4">
               <div class="text-sm text-muted-foreground">
-                欢迎回来, <span class="font-medium text-foreground">{{ username }}</span>
-                <span v-if="isAdmin" class="ml-2 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded">
-                  管理员
-                </span>
+                <div class="flex items-center gap-2">
+                  <span>欢迎回来, <span class="font-medium text-foreground">{{ username }}</span></span>
+                  <span v-if="isAdmin" class="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded">
+                    管理员
+                  </span>
+                </div>
+                <div v-if="currentFamilyName" class="text-xs text-muted-foreground mt-0.5">
+                  当前家庭: <span class="font-medium text-foreground">{{ currentFamilyName }}</span>
+                </div>
               </div>
               <button
                 @click="handleLogout"
@@ -83,15 +88,17 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { RouterView } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { useFamilyStore } from '../stores/family';
 import Sidebar from './Sidebar.vue';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const familyStore = useFamilyStore();
 const showMobileSidebar = ref(false);
 
 const pageTitle = computed(() => {
@@ -104,6 +111,7 @@ const pageDescription = computed(() => {
 
 const username = computed(() => authStore.username || 'Guest');
 const isAdmin = computed(() => authStore.isAdmin);
+const currentFamilyName = computed(() => familyStore.currentFamily?.familyName || '');
 
 const toggleMobileSidebar = () => {
   showMobileSidebar.value = !showMobileSidebar.value;
@@ -121,5 +129,12 @@ const handleLogout = () => {
 // Auto-close sidebar on route change (mobile)
 watch(() => route.path, () => {
   closeMobileSidebar();
+});
+
+// Initialize family store on mount if not already loaded
+onMounted(async () => {
+  if (!familyStore.isLoaded && authStore.isAuthenticated) {
+    await familyStore.loadFamilies()
+  }
 });
 </script>

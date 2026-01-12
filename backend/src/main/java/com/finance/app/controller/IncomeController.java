@@ -409,11 +409,11 @@ public class IncomeController {
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Verify user belongs to the requested family
-            authHelper.requireFamilyAccess(authHeader, familyId);
+            // Get authorized family ID (handles admin viewing other families)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<IncomeRecordDTO> records = incomeService.getIncomeRecordsByPeriodRange(
-                familyId, startPeriod, endPeriod
+                authorizedFamilyId, startPeriod, endPeriod
             );
 
             Map<String, Object> response = new HashMap<>();

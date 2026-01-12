@@ -22,16 +22,6 @@
           </svg>
           <span>{{ refreshing ? '刷新中...' : '刷新数据' }}</span>
         </button>
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-
         <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份:</label>
         <select
           v-model="selectedYear"
@@ -260,7 +250,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { incomeAnalysisAPI, incomeCategoryAPI } from '@/api/income'
 
@@ -269,9 +259,11 @@ Chart.register(...registerables, ChartDataLabels)
 export default {
   name: 'IncomeAnnual',
   setup() {
+    // Family store
+    const familyStore = useFamilyStore()
+
     // 响应式数据
-    const families = ref([])
-    const selectedFamilyId = ref(null)
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
     const selectedYear = ref(new Date().getFullYear())
     const currencies = ref(['All'])
     const selectedCurrency = ref('USD')
@@ -376,29 +368,6 @@ export default {
       return ((parseFloat(currentAmount) - lastYearAmount) / lastYearAmount) * 100
     }
 
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-
-        // getDefault() 返回单个家庭对象，需要包装成数组
-        if (response && response.success && response.data && response.data.id) {
-          families.value = [response.data]
-
-          // 设置默认选中
-          if (!selectedFamilyId.value) {
-            selectedFamilyId.value = response.data.id
-          }
-        } else {
-          families.value = []
-          console.error('获取默认家庭失败: 返回数据格式错误', response)
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-        families.value = []
-      }
-    }
-
     // 加载货币列表
     const loadCurrencies = async () => {
       try {
@@ -454,7 +423,10 @@ export default {
 
     // 加载大类汇总数据
     const loadMajorCategoryData = async () => {
-      if (!selectedFamilyId.value) return
+      if (!selectedFamilyId.value) {
+        console.warn('No family selected, waiting for family store to initialize')
+        return
+      }
 
       loading.value = true
       try {
@@ -852,19 +824,27 @@ export default {
     }
 
     // 监听选项变化
-    watch([selectedFamilyId, selectedYear, selectedCurrency], () => {
-      loadMajorCategoryData()
+    watch([() => familyStore.currentFamilyId, selectedYear, selectedCurrency], ([newFamilyId, newYear, newCurrency], [oldFamilyId]) => {
+      if (newFamilyId && newFamilyId !== oldFamilyId) {
+        console.log('[IncomeAnnual] Family changed, reloading data for family:', newFamilyId)
+        loadMajorCategoryData()
+      } else if (newFamilyId) {
+        // Year or currency changed
+        loadMajorCategoryData()
+      }
     })
 
     // 组件挂载时
     onMounted(async () => {
-      await loadFamilies()
       await loadCurrencies()
-      await loadMajorCategoryData()
+
+      // Load page data if family is already available
+      if (selectedFamilyId.value) {
+        await loadMajorCategoryData()
+      }
     })
 
     return {
-      families,
       selectedFamilyId,
       selectedYear,
       availableYears,

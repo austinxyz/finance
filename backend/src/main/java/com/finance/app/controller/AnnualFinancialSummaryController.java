@@ -33,10 +33,10 @@ public class AnnualFinancialSummaryController {
             @PathVariable Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            List<AnnualFinancialSummaryDTO> summaries = summaryService.getAllSummaries(authenticatedFamilyId);
+            List<AnnualFinancialSummaryDTO> summaries = summaryService.getAllSummaries(authorizedFamilyId);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -55,10 +55,10 @@ public class AnnualFinancialSummaryController {
             @PathVariable Integer year,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            return summaryService.getSummaryByYear(authenticatedFamilyId, year)
+            return summaryService.getSummaryByYear(authorizedFamilyId, year)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
@@ -77,11 +77,11 @@ public class AnnualFinancialSummaryController {
             @RequestParam Integer endYear,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.getSummariesByYearRange(authenticatedFamilyId, startYear, endYear);
+                    summaryService.getSummariesByYearRange(authorizedFamilyId, startYear, endYear);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -100,11 +100,11 @@ public class AnnualFinancialSummaryController {
             @RequestParam(defaultValue = "5") int limit,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.getRecentYearsSummaries(authenticatedFamilyId, limit);
+                    summaryService.getRecentYearsSummaries(authorizedFamilyId, limit);
             Map<String, Object> response = Map.of("success", true, "data", summaries);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -123,10 +123,10 @@ public class AnnualFinancialSummaryController {
             @PathVariable Integer year,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            AnnualFinancialSummaryDTO summary = summaryService.calculateAndRefreshSummary(authenticatedFamilyId, year);
+            AnnualFinancialSummaryDTO summary = summaryService.calculateAndRefreshSummary(authorizedFamilyId, year);
             return ResponseEntity.ok(summary);
         } catch (Exception e) {
             log.error("计算年度摘要失败", e);
@@ -144,11 +144,11 @@ public class AnnualFinancialSummaryController {
             @RequestBody List<Integer> years,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<AnnualFinancialSummaryDTO> summaries =
-                    summaryService.batchRefreshSummaries(authenticatedFamilyId, years);
+                    summaryService.batchRefreshSummaries(authorizedFamilyId, years);
             return ResponseEntity.ok(summaries);
         } catch (Exception e) {
             log.error("批量计算年度摘要失败", e);
@@ -165,10 +165,10 @@ public class AnnualFinancialSummaryController {
             @PathVariable Integer year,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use authorized family (respects admin's familyId parameter)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            summaryService.deleteSummary(authenticatedFamilyId, year);
+            summaryService.deleteSummary(authorizedFamilyId, year);
             return ResponseEntity.ok(Map.of("message", "删除成功"));
         } catch (Exception e) {
             log.error("删除年度摘要失败", e);
@@ -187,8 +187,8 @@ public class AnnualFinancialSummaryController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
             // Set familyId from authenticated user
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
-            summaryDTO.setFamilyId(authenticatedFamilyId);
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
+            summaryDTO.setFamilyId(authorizedFamilyId);
             AnnualFinancialSummaryDTO saved = summaryService.saveOrUpdateSummary(summaryDTO);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {

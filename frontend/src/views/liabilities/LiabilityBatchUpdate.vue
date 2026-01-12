@@ -4,18 +4,6 @@
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex items-center gap-2">
-          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-          <select
-            v-model="selectedFamilyId"
-            @change="onFamilyChange"
-            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
           <label class="text-xs font-medium text-gray-700 whitespace-nowrap">分类:</label>
           <select
             v-model="selectedCategoryType"
@@ -148,7 +136,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { getExchangeRate } from '@/utils/exchangeRate'
 import { getTodayDate } from '@/lib/utils'
 
@@ -162,8 +150,9 @@ const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
 
 // 家庭相关
-const families = ref([])
-const selectedFamilyId = ref(null)
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 // 记录日期，默认为今天（使用洛杉矶时区）
 const today = getTodayDate()
@@ -266,11 +255,9 @@ const formatNumber = (num) => {
   if (!num) return '0.00'
   return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
-
   // 直接解析字符串格式 YYYY-MM-DD，避免时区转换
   let year, month, day
   if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -281,17 +268,13 @@ const formatDate = (dateString) => {
     month = date.getMonth() + 1
     day = date.getDate()
   }
-
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
   const recordDate = new Date(year, month, day)
-
   const diffDays = Math.floor((today - recordDate) / (1000 * 60 * 60 * 24))
-
   if (diffDays === 0) return '今天'
   if (diffDays === 1) return '昨天'
   if (diffDays < 7) return `${diffDays}天前`
-
   return `${month}/${day}`
 }
 
@@ -313,7 +296,6 @@ const formatFullDate = (dateString) => {
     year: 'numeric'
   })
 }
-
 // 获取货币符号
 const getCurrencySymbol = (currency) => {
   const currencyMap = {
@@ -340,12 +322,10 @@ const markAsChanged = (accountId) => {
     changedAccounts.value.delete(accountId)
   }
 }
-
 // 计算差额（负债减少是好的）
 const formatDifference = (accountId, currentBalance, currency) => {
   const newBalance = parseFloat(accountBalances.value[accountId])
   if (!newBalance || isNaN(newBalance)) return ''
-
   const diff = newBalance - (currentBalance || 0)
   const sign = diff >= 0 ? '+' : ''
   return `${sign}${getCurrencySymbol(currency)}${formatNumber(Math.abs(diff))}`
@@ -360,54 +340,13 @@ const getDifferenceClass = (accountId, currentBalance) => {
   return diff < 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
 }
 
-// 加载家庭列表
-const loadFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-    if (response.success) {
-      families.value = response.data ? [response.data] : []
-    }
-
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      }
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-  }
-}
-
-// 家庭切换事件处理
-const onFamilyChange = () => {
-  // 清空当前数据
-  accountBalances.value = {}
-  accountPreviousValues.value = {}
-  changedAccounts.value.clear()
-  // 重新加载账户列表
-  loadAccounts()
-}
-
 // 加载账户列表
 const loadAccounts = async () => {
   if (!selectedFamilyId.value) return
-
   loading.value = true
   try {
     const response = await liabilityAccountAPI.getAllByFamily(selectedFamilyId.value)
     console.log('Response:', response)
-
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
     if (response && response.success) {
       // 按大类别排序账户
@@ -422,27 +361,21 @@ const loadAccounts = async () => {
           'BUSINESS_LOAN': 6,
           'OTHER': 7
         }
-
         const orderA = categoryOrder[a.liabilityTypeCode] || 999
         const orderB = categoryOrder[b.liabilityTypeCode] || 999
-
         // 首先按大类别排序
         if (orderA !== orderB) {
           return orderA - orderB
         }
-
         // 同一大类别内，按账户名称排序
         return (a.accountName || '').localeCompare(b.accountName || '', 'zh-CN')
       })
-
       accounts.value = sortedAccounts
       console.log('Loaded accounts:', accounts.value)
-
       // 初始化余额输入框，为空字符串以便用户输入
       accounts.value.forEach(account => {
         accountBalances.value[account.id] = ''
       })
-
       // 加载选择日期的之前值
       await loadPreviousValues()
     } else {
@@ -492,70 +425,58 @@ const loadPreviousValues = async () => {
     console.error('加载之前值失败:', error)
   }
 }
-
 // 监听日期变化，重新加载之前值
 watch(recordDate, async (newDate, oldDate) => {
   if (newDate !== oldDate && accounts.value.length > 0) {
     await loadPreviousValues()
   }
 })
-
 // 保存全部
 const saveAll = async (overwriteExisting = false) => {
   saving.value = true
   try {
     // 构建所有账户列表（包括有修改和没有修改的）
     const allAccountIds = accounts.value.map(a => a.id)
-
     // 检查哪些账户在指定日期已有记录
     const checkResponse = await liabilityRecordAPI.checkExisting({
       recordDate: recordDate.value,
       accountIds: allAccountIds
     })
-
     const existingAccountIds = checkResponse.success ? checkResponse.data : []
-
     // 如果有用户修改的账户在指定日期已有记录，且不是覆盖模式，询问用户
     const changedAccountsArray = Array.from(changedAccounts.value)
     const conflictingAccounts = changedAccountsArray.filter(id => existingAccountIds.includes(id))
-
     if (!overwriteExisting && conflictingAccounts.length > 0) {
       const existingAccountNames = conflictingAccounts.map(accountId => {
         const account = accounts.value.find(a => a.id === accountId)
         return account ? account.accountName : `账户 ${accountId}`
       }).join(', ')
-
       const confirmed = confirm(
         `以下账户在 ${recordDate.value} 已有记录：\n${existingAccountNames}\n\n` +
         `是否覆盖这些记录？\n` +
         `点击"确定"覆盖，点击"取消"跳过这些账户。`
       )
-
       if (confirmed) {
         // 用户选择覆盖，递归调用并设置覆盖标志
         return await saveAll(true)
       }
       // 用户选择跳过，继续执行（overwriteExisting=false）
     }
-
     // 构建批量更新请求
     const batchData = {
       recordDate: recordDate.value,
       overwriteExisting: Boolean(overwriteExisting),
       accounts: []
     }
-
     // 遍历所有账户
     accounts.value.forEach(account => {
       // 如果这个账户在指定日期已有记录，且用户选择不覆盖，跳过
       if (existingAccountIds.includes(account.id) && !overwriteExisting) {
         return
       }
-
       // 获取用户输入的余额
       const inputBalance = accountBalances.value[account.id]
       let balance = null
-
       // 处理余额逻辑:
       // 1. 如果用户明确填了余额(包括0)，使用用户填的值
       // 2. 如果用户没填(空字符串或null)，使用该日期的之前值
@@ -572,12 +493,10 @@ const saveAll = async (overwriteExisting = false) => {
           return
         }
       }
-
       // 添加到批量更新列表 (允许余额为0)
       if (balance !== null && balance !== undefined && !isNaN(balance)) {
         const currency = account.currency || 'USD'
         const exchangeRate = getExchangeRate(currency)
-
         batchData.accounts.push({
           accountId: account.id,
           amount: balance,
@@ -586,12 +505,10 @@ const saveAll = async (overwriteExisting = false) => {
         })
       }
     })
-
     if (batchData.accounts.length === 0) {
       alert('没有需要保存的记录')
       return
     }
-
     console.log('批量更新请求数据:', JSON.stringify(batchData, null, 2))
     const response = await liabilityRecordAPI.batchUpdate(batchData)
     if (response.success) {
@@ -600,7 +517,6 @@ const saveAll = async (overwriteExisting = false) => {
       const autoFilledCount = batchData.accounts.length - changedAccountsArray.filter(id =>
         batchData.accounts.some(a => a.accountId === id)
       ).length
-
       let message = `成功更新 ${updatedCount} 个账户的负债记录`
       if (userChangedCount > 0) {
         message += `\n其中用户修改: ${userChangedCount} 个`
@@ -609,7 +525,6 @@ const saveAll = async (overwriteExisting = false) => {
         message += `\n自动填充(使用最近记录): ${autoFilledCount} 个`
       }
       alert(message)
-
       changedAccounts.value.clear()
       // 重新加载账户数据
       await loadAccounts()
@@ -625,14 +540,22 @@ const saveAll = async (overwriteExisting = false) => {
 }
 
 // 监听selectedFamilyId变化，自动加载账户数据
+// 监听家庭切换（管理员切换家庭时自动刷新）
 watch(selectedFamilyId, (newId) => {
   if (newId) {
+    // 清空当前数据
+    accountBalances.value = {}
+    accountPreviousValues.value = {}
+    changedAccounts.value.clear()
+    // 重新加载账户列表
     loadAccounts()
   }
 })
 
+// 初始化
 onMounted(async () => {
-  await loadFamilies()
-  // loadAccounts 将通过 watcher 自动调用
+  if (selectedFamilyId.value) {
+    await loadAccounts()
+  }
 })
 </script>

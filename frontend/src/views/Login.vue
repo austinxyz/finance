@@ -69,9 +69,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useFamilyStore } from '../stores/family'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const familyStore = useFamilyStore()
 
 const form = ref({
   username: '',
@@ -109,6 +111,9 @@ const handleLogin = async () => {
     error.value = ''
 
     await authStore.login(form.value.username, form.value.password)
+
+    // Initialize family store after successful login
+    await familyStore.loadFamilies()
 
     // Redirect to dashboard after successful login
     router.push('/dashboard')

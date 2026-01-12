@@ -311,6 +311,15 @@ const routes = [
           description: '管理数据库备份和恢复'
         }
       },
+      {
+        path: 'settings/system',
+        name: 'SystemSettings',
+        component: () => import('../views/admin/SystemSettings.vue'),
+        meta: {
+          title: '系统设置',
+          description: '管理员系统配置'
+        }
+      },
       // 工具
       {
         path: 'tools/exchange-rates',

@@ -19,18 +19,6 @@
         </button>
       </nav>
 
-      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- 三列布局：子分类列表 + 趋势图 + 历史记录 -->
@@ -341,17 +329,6 @@
         </div>
         <div class="px-6 py-4 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">家庭 *</label>
-            <select
-              v-model="recordForm.familyId"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-          <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">资产账户</label>
             <select
               v-model="recordForm.assetAccountId"
@@ -430,10 +407,14 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { Chart } from 'chart.js/auto'
 import 'chartjs-adapter-date-fns'
 import { incomeCategoryAPI, incomeRecordAPI } from '@/api/income'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { userAPI } from '@/api/user'
 import { assetAccountAPI } from '@/api/asset'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 // 数据状态
 const loadingCategories = ref(false)
@@ -443,10 +424,8 @@ const selectedMajorCategory = ref(null)
 const minorCategories = ref([])
 const selectedMinorCategory = ref(null)
 const records = ref([])
-const families = ref([])
 const users = ref([])
 const assetAccounts = ref([])
-const selectedFamilyId = ref(null)
 const currencies = ref([])
 
 // 时间范围
@@ -505,28 +484,6 @@ function getCurrencySymbol(currency) {
 function getUserName(userId) {
   const user = users.value.find(u => u.id === userId)
   return user ? user.username : '未知'
-}
-
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() returns a single family object, wrap it in an array
-    if (response.success && response.data) {
-      families.value = [response.data]
-
-      // Set the default family
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-        recordForm.value.familyId = response.data.id
-        await loadUsers(response.data.id)
-        await loadAssetAccounts(response.data.id)
-      }
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-  }
 }
 
 // 加载用户列表
@@ -615,7 +572,10 @@ async function loadMajorCategories() {
 
 // 加载子分类
 async function loadMinorCategories() {
-  if (!selectedMajorCategory.value || !selectedFamilyId.value) return
+  if (!selectedMajorCategory.value || !selectedFamilyId.value) {
+    console.warn('No major category or family selected, waiting for initialization')
+    return
+  }
 
   loadingCategories.value = true
   try {
@@ -650,7 +610,10 @@ async function selectMinorCategory(category) {
 
 // 加载记录
 async function loadRecords() {
-  if (!selectedMinorCategory.value || !selectedFamilyId.value) return
+  if (!selectedMinorCategory.value || !selectedFamilyId.value) {
+    console.warn('No minor category or family selected, waiting for initialization')
+    return
+  }
 
   loadingRecords.value = true
   try {
@@ -972,26 +935,18 @@ async function deleteRecord(record) {
   }
 }
 
-// 家庭切换事件处理
-async function onFamilyChange() {
-  // 清空当前选中的子分类和记录
-  selectedMinorCategory.value = null
-  records.value = []
-  // 更新记录表单的家庭ID
-  recordForm.value.familyId = selectedFamilyId.value
-  // 重新加载用户和资产账户
-  await loadUsers(selectedFamilyId.value)
-  await loadAssetAccounts(selectedFamilyId.value)
-  // 重新加载子分类
-  loadMinorCategories()
-}
-
-// 监听selectedFamilyId变化
+// 监听selectedFamilyId变化 (for admin family switching)
 watch(selectedFamilyId, async (newId) => {
   if (newId) {
+    // 清空当前选中的子分类和记录
+    selectedMinorCategory.value = null
+    records.value = []
+    // 更新记录表单的家庭ID
     recordForm.value.familyId = newId
+    // 重新加载用户和资产账户
     await loadUsers(newId)
     await loadAssetAccounts(newId)
+    // 重新加载子分类
     loadMinorCategories()
   }
 })
@@ -1011,9 +966,15 @@ watch(selectedTimeRange, () => {
 })
 
 // 初始化
-onMounted(() => {
-  loadFamilies()
+onMounted(async () => {
   loadCurrencies()
   loadMajorCategories()
+
+  // Load data if family is already available
+  if (selectedFamilyId.value) {
+    recordForm.value.familyId = selectedFamilyId.value
+    await loadUsers(selectedFamilyId.value)
+    await loadAssetAccounts(selectedFamilyId.value)
+  }
 })
 </script>

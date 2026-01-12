@@ -4,17 +4,6 @@
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex items-center gap-2">
-          <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-          <select
-            v-model="selectedFamilyId"
-            class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
           <label class="text-xs font-medium text-gray-700 whitespace-nowrap">年份:</label>
           <input
             v-model.number="selectedYear"
@@ -200,13 +189,16 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI } from '@/api/expense'
 import request from '@/api/request'
 
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
 // 响应式数据
-const families = ref([])
 const currencies = ref([])
 const budgets = ref([])
 const budgetAmounts = ref({})  // categoryId -> amount
@@ -218,7 +210,6 @@ const currentYearActualData = ref([])  // 当前年份实际支出
 const lastYearBudgetData = ref([])     // 前一年预算
 const lastYearActualData = ref([])     // 前一年实际支出
 
-const selectedFamilyId = ref(null)
 const selectedYear = ref(new Date().getFullYear())
 const selectedCurrency = ref('USD')
 
@@ -352,30 +343,6 @@ function markAsChanged(categoryId) {
   }
 }
 
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-    families.value = []
-  }
-}
-
 // 加载货币列表
 async function loadCurrencies() {
   try {
@@ -404,7 +371,12 @@ async function loadCurrencies() {
 
 // 加载预算数据
 async function loadBudgets() {
-  if (!selectedFamilyId.value || !selectedYear.value || !selectedCurrency.value) {
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
+  if (!selectedYear.value || !selectedCurrency.value) {
     return
   }
 
@@ -415,6 +387,7 @@ async function loadBudgets() {
       // 当前年份预算
       request.get('/expense-budgets', {
         params: {
+          familyId: selectedFamilyId.value,
           budgetYear: selectedYear.value,
           currency: selectedCurrency.value
         }
@@ -428,6 +401,7 @@ async function loadBudgets() {
       // 前一年预算
       request.get('/expense-budgets', {
         params: {
+          familyId: selectedFamilyId.value,
           budgetYear: selectedYear.value - 1,
           currency: selectedCurrency.value
         }
@@ -541,14 +515,19 @@ async function saveAll() {
 }
 
 // 监听选择器变化
-watch([selectedFamilyId, selectedYear, selectedCurrency], () => {
-  loadBudgets()
+watch([selectedFamilyId, selectedYear, selectedCurrency], ([newFamilyId]) => {
+  if (newFamilyId) {
+    loadBudgets()
+  }
 })
 
 // 组件挂载
 onMounted(async () => {
-  await loadFamilies()
   await loadCurrencies()
-  await loadBudgets()
+
+  // Load data if family is already available
+  if (selectedFamilyId.value) {
+    await loadBudgets()
+  }
 })
 </script>

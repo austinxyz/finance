@@ -35,10 +35,10 @@ public class InvestmentAnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Admin can view any family, regular users can only view their own
+        Long targetFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<InvestmentCategoryAnalysisDTO> result = analysisService.getAnnualByCategory(authenticatedFamilyId, year, currency);
+        List<InvestmentCategoryAnalysisDTO> result = analysisService.getAnnualByCategory(targetFamilyId, year, currency);
         return ApiResponse.success(result);
     }
 
@@ -53,10 +53,10 @@ public class InvestmentAnalysisController {
             @RequestParam(defaultValue = "All") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Admin can view any family, regular users can only view their own
+        Long targetFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        List<InvestmentAccountAnalysisDTO> result = analysisService.getAnnualByAccount(authenticatedFamilyId, year, assetTypeId, currency);
+        List<InvestmentAccountAnalysisDTO> result = analysisService.getAnnualByAccount(targetFamilyId, year, assetTypeId, currency);
         return ApiResponse.success(result);
     }
 

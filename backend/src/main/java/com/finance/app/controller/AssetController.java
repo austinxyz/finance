@@ -58,11 +58,10 @@ public class AssetController {
             @RequestParam(required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Get authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Admin can view any family, regular user can only view their own family
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        // Use authenticated family_id (ignore query params for security)
-        List<AssetAccountDTO> accounts = assetService.getAllAccounts(userId, authenticatedFamilyId);
+        List<AssetAccountDTO> accounts = assetService.getAllAccounts(userId, authorizedFamilyId);
         return ApiResponse.success(accounts);
     }
 

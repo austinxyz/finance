@@ -7,16 +7,6 @@
         <p class="text-xs md:text-sm text-gray-600 mt-1">经资产负债调整后的实际年度支出</p>
       </div>
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
-        <!-- 家庭选择 -->
-        <select
-          v-model="selectedFamilyId"
-          class="px-3 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm md:text-base"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-
         <!-- 年份选择 -->
         <select
           v-model="selectedYear"
@@ -189,17 +179,19 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { familyAPI } from '@/api/family'
 import { expenseAnalysisAPI, expenseCategoryAPI } from '@/api/expense'
+import { useFamilyStore } from '@/stores/family'
 
 Chart.register(...registerables, ChartDataLabels)
 
 export default {
   name: 'ExpenseAnnualActual',
   setup() {
+    // Family store
+    const familyStore = useFamilyStore()
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
     // 响应式数据
-    const families = ref([])
-    const selectedFamilyId = ref(null)
     const selectedYear = ref(new Date().getFullYear())
     const loading = ref(false)
     const refreshing = ref(false)
@@ -241,29 +233,6 @@ export default {
       const currentYear = parseFloat(totalRow.value.actualExpenseAmount || 0)
       return ((currentYear - lastYearTotalExpense.value) / lastYearTotalExpense.value) * 100
     })
-
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-
-        // getDefault() 返回单个家庭对象，需要包装成数组
-        if (response && response.success && response.data && response.data.id) {
-          families.value = [response.data]
-
-          // 设置默认选中
-          if (!selectedFamilyId.value) {
-            selectedFamilyId.value = response.data.id
-          }
-        } else {
-          families.value = []
-          console.error('获取默认家庭失败: 返回数据格式错误', response)
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-        families.value = []
-      }
-    }
 
     // 加载年度支出汇总数据
     const loadSummaryData = async () => {
@@ -484,18 +453,27 @@ export default {
     }
 
     // 监听选项变化
-    watch([selectedFamilyId, selectedYear], () => {
+    // Watch for family changes and reload data
+    watch(() => familyStore.currentFamilyId, (newFamilyId, oldFamilyId) => {
+      if (newFamilyId && newFamilyId !== oldFamilyId) {
+        console.log('[ExpenseAnnualActual] Family changed from', oldFamilyId, 'to', newFamilyId, '- reloading data')
+        loadSummaryData()
+      }
+    })
+
+    watch(selectedYear, () => {
       loadSummaryData()
     })
 
     // 组件挂载时
     onMounted(async () => {
-      await loadFamilies()
-      await loadSummaryData()
+      // familyStore会自动加载，watcher会自动触发数据加载
+      if (selectedFamilyId.value) {
+        await loadSummaryData()
+      }
     })
 
     return {
-      families,
       selectedFamilyId,
       selectedYear,
       availableYears,

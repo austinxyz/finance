@@ -1,8 +1,8 @@
 <template>
   <div class="p-6 space-y-6">
-    <!-- 家庭选择器和负债分类 Tab 在同一行 -->
-    <div class="flex items-center justify-between gap-4 border-b border-gray-200">
-      <nav class="-mb-px flex space-x-4 overflow-x-auto flex-1" aria-label="Tabs">
+    <!-- 负债分类 Tab -->
+    <div class="border-b border-gray-200">
+      <nav class="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
         <button
           v-for="category in categories"
           :key="category.type"
@@ -18,19 +18,6 @@
           <span>{{ category.name }}</span>
         </button>
       </nav>
-
-      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- 三列布局：账户列表 + 趋势图 + 历史记录 -->
@@ -526,7 +513,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { liabilityTypeAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { assetAccountAPI } from '@/api/asset'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 
@@ -544,8 +531,9 @@ const CATEGORY_TYPE_NAMES = {
 }
 
 // 家庭相关
-const families = ref([])
-const selectedFamilyId = ref(null)
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 const categories = ref([])
 const allCategories = ref([])  // 存储完整的分类信息（包含ID）
@@ -727,41 +715,12 @@ const loadCategories = async () => {
   }
 }
 
-// 加载家庭列表
-const loadFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-    if (response.success) {
-      families.value = response.data ? [response.data] : []
-    }
-
-    // 如果selectedFamilyId还未设置，获取默认家庭
-    if (!selectedFamilyId.value) {
-      try {
-        const defaultResponse = await familyAPI.getDefault()
-        if (defaultResponse.success && defaultResponse.data) {
-          selectedFamilyId.value = defaultResponse.data.id
-        } else if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      } catch (err) {
-        console.error('获取默认家庭失败:', err)
-        if (families.value.length > 0) {
-          selectedFamilyId.value = families.value[0].id
-        }
-      }
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-  }
-}
-
 // 加载用户列表（只加载当前家庭的成员）
 const loadUsers = async () => {
   if (!selectedFamilyId.value) return
 
   try {
-    const response = await familyAPI.getMembers(selectedFamilyId.value)
+    const response = await userAPI.getByFamily(selectedFamilyId.value)
     if (response.success) {
       users.value = response.data
     }
@@ -1122,31 +1081,28 @@ const disableAccount = async (account) => {
   }
 }
 
-// 家庭切换事件处理
-const onFamilyChange = () => {
-  // 重新加载用户列表和账户列表
-  loadUsers()
-  loadAccounts()
-  // 清空当前选中的账户和记录
-  selectedAccount.value = null
-  records.value = []
-  if (chartInstance) {
-    chartInstance.destroy()
-    chartInstance = null
-  }
-}
-
-// 监听selectedFamilyId变化，自动加载用户和账户数据
+// 监听selectedFamilyId变化，自动加载用户和账户数据（管理员切换家庭时）
 watch(selectedFamilyId, (newId) => {
   if (newId) {
+    // 清空当前选中的账户和记录
+    selectedAccount.value = null
+    records.value = []
+    if (chartInstance) {
+      chartInstance.destroy()
+      chartInstance = null
+    }
+    // 重新加载用户列表和账户列表
     loadUsers()
     loadAccounts()
   }
 })
 
 onMounted(async () => {
-  await loadFamilies()
   await loadCategories()
-  // loadUsers 和 loadAccounts 将通过 watcher 自动调用
+  // 如果家庭已加载，立即加载用户和账户
+  if (selectedFamilyId.value) {
+    await loadUsers()
+    await loadAccounts()
+  }
 })
 </script>

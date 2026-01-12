@@ -19,18 +19,6 @@
         </button>
       </nav>
 
-      <div class="flex items-center gap-2 flex-shrink-0 pb-3">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFamilyChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- 三列布局：子分类列表 + 趋势图 + 历史记录 -->
@@ -351,14 +339,11 @@
         <div class="px-6 py-4 space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">家庭 *</label>
-            <select
-              v-model="recordForm.familyId"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
+            <input
+              :value="familyStore.currentFamilyName"
+              disabled
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+            />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">货币 *</label>
@@ -427,8 +412,12 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { Chart } from 'chart.js/auto'
 import 'chartjs-adapter-date-fns'
 import { expenseCategoryAPI, expenseRecordAPI } from '@/api/expense'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 // 数据状态
 const loadingCategories = ref(false)
@@ -438,8 +427,6 @@ const selectedMajorCategory = ref(null)
 const minorCategories = ref([])
 const selectedMinorCategory = ref(null)
 const records = ref([])
-const families = ref([])
-const selectedFamilyId = ref(null)
 const currencies = ref([])
 
 // 时间范围
@@ -493,31 +480,6 @@ function formatNumber(num) {
 
 function getCurrencySymbol(currency) {
   return currency === 'CNY' ? '¥' : '$'
-}
-
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!selectedFamilyId.value) {
-        selectedFamilyId.value = response.data.id
-        recordForm.value.familyId = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('加载家庭列表失败:', error)
-    families.value = []
-  }
 }
 
 // 加载货币列表
@@ -575,6 +537,10 @@ async function loadMajorCategories() {
 // 加载子分类
 async function loadMinorCategories() {
   if (!selectedMajorCategory.value) return
+  if (!selectedFamilyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
 
   loadingCategories.value = true
   try {
@@ -820,11 +786,11 @@ function openRecordDialog(record = null) {
       description: record.description || ''
     }
   } else {
-    // 新建模式 - 默认本月，默认第一个家庭
+    // 新建模式 - 默认本月，使用当前选中的家庭
     const now = new Date()
     const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     recordForm.value = {
-      familyId: families.value.length > 0 ? families.value[0].id : null,
+      familyId: selectedFamilyId.value,
       currency: 'USD',
       expensePeriod: period,
       amount: '',
@@ -881,7 +847,7 @@ function closeRecordDialog() {
   showRecordDialog.value = false
   editingRecord.value = null
   recordForm.value = {
-    familyId: families.value.length > 0 ? families.value[0].id : null,
+    familyId: selectedFamilyId.value,
     currency: 'USD',
     expensePeriod: '',
     amount: '',
@@ -917,21 +883,13 @@ async function deleteRecord(record) {
   }
 }
 
-// 家庭切换事件处理
-function onFamilyChange() {
-  // 清空当前选中的子分类和记录
-  selectedMinorCategory.value = null
-  records.value = []
-  // 更新记录表单的家庭ID
-  recordForm.value.familyId = selectedFamilyId.value
-  // 重新加载子分类
-  loadMinorCategories()
-}
-
 // 监听selectedFamilyId变化
 watch(selectedFamilyId, (newId) => {
   if (newId) {
-    recordForm.value.familyId = newId
+    // 清空当前选中的子分类和记录
+    selectedMinorCategory.value = null
+    records.value = []
+    // 重新加载子分类
     loadMinorCategories()
   }
 })
@@ -951,9 +909,8 @@ watch(selectedTimeRange, () => {
 })
 
 // 初始化
-onMounted(() => {
-  loadFamilies()
-  loadCurrencies()
-  loadMajorCategories()
+onMounted(async () => {
+  await loadCurrencies()
+  await loadMajorCategories()
 })
 </script>

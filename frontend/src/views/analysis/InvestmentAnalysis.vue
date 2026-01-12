@@ -7,17 +7,6 @@
         <p class="text-xs md:text-sm text-gray-600 mt-1">分析年度投资结构和净投入情况</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          v-model="selectedFamilyId"
-          @change="onFilterChange"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-
         <label class="text-sm font-medium text-gray-700 whitespace-nowrap">年份:</label>
         <select
           v-model="selectedYear"
@@ -286,7 +275,7 @@
 
 <script>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 import { investmentAnalysisAPI } from '@/api/investment'
 import Chart from 'chart.js/auto'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
@@ -294,6 +283,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels'
 export default {
   name: 'InvestmentAnalysis',
   setup() {
+    const familyStore = useFamilyStore()
     // ========== 图表配置常量 ==========
     // 使用色彩学上更和谐的颜色方案（基于Material Design）
     const CHART_COLORS = [
@@ -423,10 +413,9 @@ export default {
     })
 
     // 数据
-    const families = ref([])
-    const selectedFamilyId = ref(null)
-    // 默认选择去年，因为今年数据可能还不完整
-    const selectedYear = ref(new Date().getFullYear() - 1)
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+    // 默认选择当前年
+    const selectedYear = ref(new Date().getFullYear())
     const selectedCurrency = ref('USD')
     const availableYears = ref([])
 
@@ -550,29 +539,12 @@ export default {
       availableYears.value = years
     }
 
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-
-        // getDefault() 返回单个家庭对象，需要包装成数组
-        // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-        if (response && response.success && response.data && response.data.id) {
-          families.value = [response.data]
-          selectedFamilyId.value = response.data.id
-          await loadMajorCategoryData()
-        } else {
-          families.value = []
-          console.error('获取默认家庭失败: 返回数据格式错误', response)
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-        families.value = []
-      }
-    }
-
     // 加载大类分布数据
     const loadMajorCategoryData = async () => {
+      if (!selectedFamilyId.value) {
+        return
+      }
+
       try {
         const response = await investmentAnalysisAPI.getAnnualByCategory(
           selectedFamilyId.value,
@@ -874,10 +846,17 @@ export default {
       }, 250) // 250ms 防抖
     }
 
+    // Watch for family changes and reload data
+    watch(() => familyStore.currentFamilyId, (newFamilyId, oldFamilyId) => {
+      if (newFamilyId && newFamilyId !== oldFamilyId) {
+        console.log('[InvestmentAnalysis] Family changed from', oldFamilyId, 'to', newFamilyId, '- reloading data')
+        loadMajorCategoryData()
+      }
+    })
+
     // 初始化
     onMounted(() => {
       generateAvailableYears()
-      loadFamilies()
 
       // 添加窗口大小调整监听
       window.addEventListener('resize', handleResize)
@@ -892,8 +871,6 @@ export default {
 
     return {
       // 数据
-      families,
-      selectedFamilyId,
       selectedYear,
       selectedCurrency,
       availableYears,

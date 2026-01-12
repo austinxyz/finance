@@ -47,10 +47,10 @@ public class InvestmentTransactionController {
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Admin can view any family, regular user can only view their own family
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            List<InvestmentAccountDTO> accounts = investmentTransactionService.getInvestmentAccounts(authenticatedFamilyId);
+            List<InvestmentAccountDTO> accounts = investmentTransactionService.getInvestmentAccounts(authorizedFamilyId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -77,11 +77,11 @@ public class InvestmentTransactionController {
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Use authenticated user's family_id
-            Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Admin can view any family, regular user can only view their own family
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<InvestmentAccountDTO> accounts = investmentTransactionService
-                .getInvestmentAccountsByCategory(authenticatedFamilyId, categoryId);
+                .getInvestmentAccountsByCategory(authorizedFamilyId, categoryId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

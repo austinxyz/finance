@@ -6,18 +6,6 @@
         <h2 class="text-md md:text-lg font-semibold text-gray-900">风险评估</h2>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
           <div class="flex items-center gap-2">
-            <label class="text-xs md:text-sm font-medium text-gray-700">选择家庭：</label>
-            <select
-              v-model="selectedFamilyId"
-              @change="onFamilyChange"
-              class="px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-            >
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-          <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700">查询日期：</label>
           <input
             v-model="selectedDate"
@@ -362,14 +350,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { analysisAPI } from '@/api/analysis'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
+
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
 const loading = ref(false)
 const selectedDate = ref('')
-const families = ref([])
-const selectedFamilyId = ref(null) // 将从默认家庭API获取
 const assessment = ref({
   asOfDate: '',
   overallRiskScore: 0,
@@ -584,7 +574,9 @@ watch(selectedFamilyId, (newId) => {
 })
 
 onMounted(async () => {
-  await loadFamilies()
-  // loadFamilies会设置selectedFamilyId，然后watcher会自动加载数据
+  // familyStore会自动加载，watcher会自动触发数据加载
+  if (selectedFamilyId.value) {
+    await loadRiskAssessment()
+  }
 })
 </script>

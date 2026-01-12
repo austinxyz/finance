@@ -280,14 +280,15 @@ public class ExpenseController {
      */
     @GetMapping("/records")
     public ResponseEntity<Map<String, Object>> getExpenseRecordsByPeriod(
+        @RequestParam(required = false) Long familyId,
         @RequestParam String period,
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Use authenticated user's family_id
-            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Use getAuthorizedFamilyId to support admin family switching
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-            List<ExpenseRecordDTO> records = expenseService.getExpenseRecordsByPeriod(familyId, period);
+            List<ExpenseRecordDTO> records = expenseService.getExpenseRecordsByPeriod(authorizedFamilyId, period);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -305,20 +306,21 @@ public class ExpenseController {
 
     /**
      * 查询支出记录（按期间范围）
-     * GET /api/expenses/records/range?startPeriod=2024-01&endPeriod=2024-12
+     * GET /api/expenses/records/range?familyId=1&startPeriod=2024-01&endPeriod=2024-12
      */
     @GetMapping("/records/range")
     public ResponseEntity<Map<String, Object>> getExpenseRecordsByPeriodRange(
+        @RequestParam Long familyId,
         @RequestParam String startPeriod,
         @RequestParam String endPeriod,
         @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         try {
-            // Use authenticated user's family_id
-            Long familyId = authHelper.getFamilyIdFromAuth(authHeader);
+            // Get authorized family ID (handles admin viewing other families)
+            Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
             List<ExpenseRecordDTO> records = expenseService.getExpenseRecordsByPeriodRange(
-                familyId, startPeriod, endPeriod
+                authorizedFamilyId, startPeriod, endPeriod
             );
 
             Map<String, Object> response = new HashMap<>();

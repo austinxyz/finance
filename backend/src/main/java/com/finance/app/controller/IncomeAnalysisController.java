@@ -29,11 +29,11 @@ public class IncomeAnalysisController {
             @RequestParam(defaultValue = "USD") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         List<IncomeAnnualMajorCategoryDTO> result = incomeAnalysisService.getAnnualMajorCategorySummary(
-                authenticatedFamilyId, year, currency);
+                authorizedFamilyId, year, currency);
         return ApiResponse.success(result);
     }
 
@@ -48,11 +48,11 @@ public class IncomeAnalysisController {
             @RequestParam(defaultValue = "USD") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         List<IncomeAnnualMinorCategoryDTO> result = incomeAnalysisService.getAnnualMinorCategorySummary(
-                authenticatedFamilyId, year, majorCategoryId, currency);
+                authorizedFamilyId, year, majorCategoryId, currency);
         return ApiResponse.success(result);
     }
 
@@ -68,11 +68,11 @@ public class IncomeAnalysisController {
             @RequestParam(defaultValue = "USD") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
         List<IncomeMonthlyTrendDTO> result = incomeAnalysisService.getAnnualMonthlyTrend(
-                authenticatedFamilyId, year, majorCategoryId, minorCategoryId, currency);
+                authorizedFamilyId, year, majorCategoryId, minorCategoryId, currency);
         return ApiResponse.success(result);
     }
 
@@ -86,10 +86,10 @@ public class IncomeAnalysisController {
             @RequestParam(defaultValue = "USD") String currency,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Use authenticated user's family_id
-        Long authenticatedFamilyId = authHelper.getFamilyIdFromAuth(authHeader);
+        // Use authorized family (respects admin's familyId parameter)
+        Long authorizedFamilyId = authHelper.getAuthorizedFamilyId(authHeader, familyId);
 
-        incomeAnalysisService.refreshAnnualIncomeSummary(authenticatedFamilyId, year, currency);
+        incomeAnalysisService.refreshAnnualIncomeSummary(authorizedFamilyId, year, currency);
         return ApiResponse.success("年度收入汇总数据已刷新");
     }
 }

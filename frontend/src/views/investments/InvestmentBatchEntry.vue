@@ -1,7 +1,7 @@
 <template>
   <div class="p-3 md:p-4 space-y-3">
-    <!-- Tab 切换和家庭选择器 -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-2">
+    <!-- Tab 切换 -->
+    <div class="border-b border-gray-200 pb-2">
       <nav class="-mb-2 flex space-x-2" aria-label="Tabs">
         <button
           @click="activeTab = 'by-month'"
@@ -26,19 +26,6 @@
           按账户录入
         </button>
       </nav>
-
-      <div class="flex items-center gap-2">
-        <label class="text-xs font-medium text-gray-700 whitespace-nowrap">家庭:</label>
-        <select
-          :value="activeTab === 'by-month' ? selectedFamilyId : selectedFamilyIdYear"
-          @change="handleFamilyChange($event.target.value)"
-          class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          <option v-for="family in families" :key="family.id" :value="family.id">
-            {{ family.familyName }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- 按月份录入模式 -->
@@ -360,19 +347,19 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import { investmentAccountAPI, investmentTransactionAPI } from '@/api/investment'
-import { familyAPI } from '@/api/family'
+import { useFamilyStore } from '@/stores/family'
 
 export default {
   name: 'InvestmentBatchEntry',
   setup() {
+    // Family store
+    const familyStore = useFamilyStore()
+    const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
     // Tab状态
     const activeTab = ref('by-account')
 
-    // 通用数据
-    const families = ref([])
-
     // 按月份模式的数据
-    const selectedFamilyId = ref(null)
     const transactionPeriod = ref('')
     const selectedMonthCategory = ref('')
     const investmentCategories = ref([])
@@ -384,7 +371,6 @@ export default {
     const savingMonth = ref(false)
 
     // 按账户模式的数据
-    const selectedFamilyIdYear = ref(null)
     const selectedYear = ref(new Date().getFullYear())
     const selectedAccountId = ref('')
     const yearAccounts = ref([])
@@ -562,38 +548,6 @@ export default {
       changedYearMonths.value.add(month)
     }
 
-    // 加载家庭列表
-    const loadFamilies = async () => {
-      try {
-        const response = await familyAPI.getDefault()
-        if (response.success) {
-          families.value = response.data ? [response.data] : []
-
-          // 尝试获取默认家庭
-          if (families.value.length > 0) {
-            try {
-              const defaultResponse = await familyAPI.getDefault()
-              if (defaultResponse.success && defaultResponse.data) {
-                selectedFamilyId.value = defaultResponse.data.id
-                selectedFamilyIdYear.value = defaultResponse.data.id
-              } else {
-                // 如果没有默认家庭，使用第一个
-                selectedFamilyId.value = families.value[0].id
-                selectedFamilyIdYear.value = families.value[0].id
-              }
-            } catch (err) {
-              console.error('获取默认家庭失败:', err)
-              // 如果获取默认家庭失败，使用第一个
-              selectedFamilyId.value = families.value[0].id
-              selectedFamilyIdYear.value = families.value[0].id
-            }
-          }
-        }
-      } catch (error) {
-        console.error('加载家庭列表失败:', error)
-      }
-    }
-
     // 加载投资分类
     const loadInvestmentCategories = async () => {
       try {
@@ -611,26 +565,23 @@ export default {
       // 过滤通过computed属性filteredMonthAccounts实现，这里不需要额外操作
     }
 
-    // 处理家庭选择变化
-    const handleFamilyChange = (familyId) => {
-      const id = parseInt(familyId)
-      if (activeTab.value === 'by-month') {
-        selectedFamilyId.value = id
-        loadMonthData()
-      } else {
-        selectedFamilyIdYear.value = id
-        loadYearAccounts()
-      }
-    }
 
     // 按月份模式 - 加载数据
     const loadMonthData = async () => {
-      if (!selectedFamilyId.value || !transactionPeriod.value) return
+      if (!selectedFamilyId.value || !transactionPeriod.value) {
+        console.warn('[InvestmentBatchEntry] loadMonthData - No family or period', {
+          familyId: selectedFamilyId.value,
+          period: transactionPeriod.value
+        })
+        return
+      }
 
+      console.log('[InvestmentBatchEntry] Loading month data for family:', selectedFamilyId.value)
       loadingMonth.value = true
       try {
         const accountsResponse = await investmentAccountAPI.getAll(selectedFamilyId.value)
         if (accountsResponse.success) {
+          console.log('[InvestmentBatchEntry] Month accounts loaded:', accountsResponse.data.length)
           monthAccounts.value = accountsResponse.data
 
           monthAmounts.value = {}
@@ -739,11 +690,16 @@ export default {
 
     // 按账户模式 - 加载账户列表
     const loadYearAccounts = async () => {
-      if (!selectedFamilyIdYear.value) return
+      if (!selectedFamilyId.value) {
+        console.warn('[InvestmentBatchEntry] loadYearAccounts - No family selected')
+        return
+      }
 
+      console.log('[InvestmentBatchEntry] Loading year accounts for family:', selectedFamilyId.value)
       try {
-        const response = await investmentAccountAPI.getAll(selectedFamilyIdYear.value)
+        const response = await investmentAccountAPI.getAll(selectedFamilyId.value)
         if (response.success) {
+          console.log('[InvestmentBatchEntry] Year accounts loaded:', response.data.length)
           yearAccounts.value = response.data
           if (yearAccounts.value.length > 0 && !selectedAccountId.value) {
             selectedAccountId.value = yearAccounts.value[0].accountId
@@ -816,7 +772,7 @@ export default {
           }]
 
           const response = await investmentTransactionAPI.batchSave({
-            familyId: selectedFamilyIdYear.value,
+            familyId: selectedFamilyId.value,
             transactionPeriod: period,
             transactions
           })
@@ -858,36 +814,69 @@ export default {
     }
 
     // 初始化
-    onMounted(() => {
-      loadFamilies()
-      loadInvestmentCategories()
+    onMounted(async () => {
+      console.log('[InvestmentBatchEntry] onMounted - Current family ID:', selectedFamilyId.value)
+      console.log('[InvestmentBatchEntry] onMounted - Family store state:', {
+        currentFamilyId: familyStore.currentFamilyId,
+        isAdmin: familyStore.isAdmin,
+        families: familyStore.families.length
+      })
+
+      await loadInvestmentCategories()
       const now = new Date()
       transactionPeriod.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      // Load data if family is already available
+      if (selectedFamilyId.value) {
+        console.log('[InvestmentBatchEntry] Loading data for active tab:', activeTab.value)
+        if (activeTab.value === 'by-month') {
+          await loadMonthData()
+        } else {
+          await loadYearAccounts()
+          if (selectedAccountId.value) {
+            await loadYearData()
+          }
+        }
+      } else {
+        console.warn('[InvestmentBatchEntry] No family ID available on mount, waiting for family store')
+      }
     })
 
-    // 监听变化
-    watch([selectedFamilyId, transactionPeriod], () => {
-      if (activeTab.value === 'by-month') {
+    // 监听家庭切换（管理员切换家庭时自动刷新）
+    watch(selectedFamilyId, (newFamilyId) => {
+      if (newFamilyId) {
+        if (activeTab.value === 'by-month') {
+          changedMonthAccounts.value.clear()
+          loadMonthData()
+        } else {
+          loadYearAccounts()
+        }
+      }
+    })
+
+    // 监听按月份模式的时间段变化
+    watch(transactionPeriod, () => {
+      if (activeTab.value === 'by-month' && selectedFamilyId.value) {
         changedMonthAccounts.value.clear()
         loadMonthData()
       }
     })
 
-    watch(selectedFamilyIdYear, () => {
-      loadYearAccounts()
-    })
-
+    // 监听按账户模式的账户和年份变化
     watch([selectedAccountId, selectedYear], () => {
-      if (activeTab.value === 'by-account') {
+      if (activeTab.value === 'by-account' && selectedAccountId.value) {
         changedYearMonths.value.clear()
         loadYearData()
       }
     })
 
+    // 监听Tab切换
     watch(activeTab, (newTab) => {
-      if (newTab === 'by-month' && selectedFamilyId.value && transactionPeriod.value) {
+      if (!selectedFamilyId.value) return
+
+      if (newTab === 'by-month' && transactionPeriod.value) {
         loadMonthData()
-      } else if (newTab === 'by-account' && selectedFamilyIdYear.value) {
+      } else if (newTab === 'by-account') {
         loadYearAccounts().then(() => {
           if (selectedAccountId.value) {
             loadYearData()
@@ -901,8 +890,6 @@ export default {
       activeTab,
 
       // 通用
-      families,
-      handleFamilyChange,
       formatCurrency,
       formatAmount,
       getCurrencySymbol,
@@ -933,7 +920,6 @@ export default {
       filterMonthAccounts,
 
       // 按账户
-      selectedFamilyIdYear,
       selectedYear,
       yearOptions,
       selectedAccountId,

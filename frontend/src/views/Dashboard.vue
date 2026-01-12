@@ -9,18 +9,6 @@
         </p>
       </div>
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭:</label>
-          <select
-            v-model="familyId"
-            @change="onFamilyChange"
-            class="flex-1 sm:flex-none min-w-0 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-          >
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
         <!-- Google Sheets 同步 -->
         <button
           @click="showGoogleSheetsSync = true"
@@ -461,7 +449,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { assetAccountAPI, liabilityAccountAPI, familyAPI } from '@/api'
+import { useFamilyStore } from '@/stores/family'
+import { assetAccountAPI, liabilityAccountAPI } from '@/api'
 import { analysisAPI } from '@/api/analysis'
 import { annualSummaryAPI } from '@/api/annualSummary'
 import { expenseAnalysisAPI } from '@/api/expense'
@@ -591,9 +580,11 @@ const createDoughnutChartOptions = (formatFn, showDataLabels = true) => ({
   }
 })
 
+// Family store
+const familyStore = useFamilyStore()
+
 const userId = ref(1) // TODO: 从用户登录状态获取
-const families = ref([])
-const familyId = ref(null) // 将从默认家庭API获取
+const familyId = computed(() => familyStore.currentFamilyId)
 const showGoogleSheetsSync = ref(false)
 const assetAccounts = ref([])
 const liabilityAccounts = ref([])
@@ -1184,6 +1175,11 @@ async function loadFinancialMetrics() {
 
 // 加载账户数据
 async function loadAccounts() {
+  if (!familyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   loading.value = true
   try {
     // 使用familyId过滤所有API调用
@@ -1232,6 +1228,11 @@ async function loadAccounts() {
 
 // 加载综合趋势
 async function loadOverallTrend() {
+  if (!familyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   loadingTrend.value = true
   try {
     // 使用AnnualSummary API代替OverallTrend API以确保数据一致性
@@ -1489,6 +1490,11 @@ function updateIncomeChart() {
 
 // 加载年度支出汇总数据
 async function loadAnnualExpenseSummary() {
+  if (!familyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   loadingExpense.value = true
   try {
     console.log('开始加载年度支出汇总, familyId:', familyId.value, 'year:', currentYear.value)
@@ -1525,6 +1531,11 @@ async function loadAnnualExpenseSummary() {
 
 // 加载年度收入汇总数据
 async function loadAnnualIncomeSummary() {
+  if (!familyId.value) {
+    console.warn('No family selected, waiting for family store to initialize')
+    return
+  }
+
   loadingIncome.value = true
   try {
     console.log('开始加载年度收入汇总, familyId:', familyId.value, 'year:', currentYear.value)
@@ -1580,43 +1591,6 @@ watch(overallTrendData, async () => {
   }
 }, { deep: true })
 
-// 加载家庭列表
-async function loadFamilies() {
-  try {
-    console.log('开始加载家庭信息...')
-
-    // Get current user's default family
-    const defaultResponse = await familyAPI.getDefault()
-    console.log('默认家庭响应:', defaultResponse)
-
-    if (defaultResponse.success && defaultResponse.data) {
-      const defaultFamily = defaultResponse.data
-
-      // Set families list to only include user's family
-      families.value = [defaultFamily]
-      console.log('已加载家庭:', families.value)
-
-      // Set the familyId
-      if (!familyId.value) {
-        familyId.value = defaultFamily.id
-        console.log('设置家庭ID:', familyId.value)
-      }
-    }
-  } catch (error) {
-    console.error('加载家庭信息失败:', error)
-    // Don't redirect to login here - the response interceptor will handle 401
-  }
-}
-
-// 家庭切换事件处理
-function onFamilyChange() {
-  // 重新加载所有数据
-  loadAccounts()
-  loadOverallTrend()
-  loadAnnualExpenseSummary()
-  loadAnnualIncomeSummary()
-}
-
 
 // Google Sheets同步成功回调
 function onSyncSuccess(data) {
@@ -1648,15 +1622,17 @@ watch(incomeCategories, async () => {
   }
 }, { deep: true })
 
-// 监听familyId变化，自动加载数据
-watch(familyId, (newId) => {
-  if (newId) {
+// 监听familyId变化，自动加载数据（用于admin切换家庭）
+watch(() => familyStore.currentFamilyId, (newId, oldId) => {
+  console.log('[Dashboard] Family changed from', oldId, 'to', newId)
+  if (newId && newId !== oldId) {
+    console.log('[Dashboard] Reloading all data for new family:', newId)
     loadAccounts()
     loadOverallTrend()
     loadAnnualExpenseSummary()
     loadAnnualIncomeSummary()
   }
-})
+}, { immediate: false })
 
 // 清理所有图表实例
 function destroyAllCharts() {
@@ -1708,8 +1684,13 @@ function handleResize() {
 }
 
 onMounted(async () => {
-  await loadFamilies()
-  // loadFamilies会设置familyId，然后watcher会自动加载数据
+  // Load page data if family is already available
+  if (familyId.value) {
+    loadAccounts()
+    loadOverallTrend()
+    loadAnnualExpenseSummary()
+    loadAnnualIncomeSummary()
+  }
 
   // 添加窗口大小调整监听
   window.addEventListener('resize', handleResize)

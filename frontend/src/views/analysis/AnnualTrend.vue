@@ -5,17 +5,6 @@
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-4">
         <h1 class="text-xl md:text-2xl font-bold text-gray-900">年度趋势分析</h1>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
-          <!-- 家庭选择 -->
-          <div class="flex items-center gap-2">
-            <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">选择家庭：</label>
-            <select v-model.number="familyId" @change="onFamilyChange"
-                    class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm min-w-0 sm:min-w-[180px]">
-              <option v-for="family in families" :key="family.id" :value="family.id">
-                {{ family.familyName }}
-              </option>
-            </select>
-          </div>
-
           <!-- 年份选择 -->
           <div class="flex items-center gap-2">
             <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示年数：</label>
@@ -369,19 +358,6 @@
 
     <!-- 无数据提示 -->
     <div v-else>
-      <!-- 家庭选择（无数据时） -->
-      <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
-        <div class="flex items-center gap-3">
-          <label class="text-sm font-medium text-gray-700">家庭：</label>
-          <select v-model.number="familyId" @change="onFamilyChange"
-                  class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]">
-            <option v-for="family in families" :key="family.id" :value="family.id">
-              {{ family.familyName }}
-            </option>
-          </select>
-        </div>
-      </div>
-
       <!-- 无数据提示 -->
       <div class="bg-white rounded-lg shadow border border-gray-200 p-12 text-center">
         <div class="text-gray-400 mb-2">
@@ -405,17 +381,19 @@
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import annualSummaryAPI from '@/api/annualSummary'
-import familyAPI from '@/api/family'
 import exchangeRateAPI from '@/api/exchangeRate'
+import { useFamilyStore } from '@/stores/family'
 
 Chart.register(...registerables)
 
+// Family store
+const familyStore = useFamilyStore()
+const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+
 // 数据
 const summaries = ref([])
-const families = ref([])
 const loading = ref(false)
 const displayYears = ref(5)
-const familyId = ref(null)
 const activeTab = ref('overall')
 const expandedYears = ref(new Set())
 const selectedCurrency = ref('USD')
@@ -541,34 +519,6 @@ const yearRange = computed(() => {
   return `${earliest}-${latest}`
 })
 
-// 获取家庭列表
-const fetchFamilies = async () => {
-  try {
-    const response = await familyAPI.getDefault()
-
-    // getDefault() 返回单个家庭对象，需要包装成数组
-    // 响应拦截器已经解包一层，所以response就是 { success: true, data: {...} }
-    if (response && response.success && response.data && response.data.id) {
-      families.value = [response.data]
-
-      // 设置默认选中
-      if (!familyId.value) {
-        familyId.value = response.data.id
-      }
-    } else {
-      families.value = []
-      console.error('获取默认家庭失败: 返回数据格式错误', response)
-    }
-  } catch (error) {
-    console.error('获取家庭列表失败:', error)
-    families.value = []
-  }
-}
-
-// 家庭切换事件
-const onFamilyChange = () => {
-  fetchData()
-}
 
 // 计算基于显示货币的同比数据
 const recalculateYoYMetrics = () => {
@@ -626,11 +576,11 @@ const recalculateYoYMetrics = () => {
 
 // 获取数据
 const fetchData = async () => {
-  if (!familyId.value) return
+  if (!selectedFamilyId.value) return
 
   loading.value = true
   try {
-    const response = await annualSummaryAPI.getRecent(familyId.value, displayYears.value)
+    const response = await annualSummaryAPI.getRecent(selectedFamilyId.value, displayYears.value)
     summaries.value = response.data.sort((a, b) => b.year - a.year)
 
     // 设置基础货币
@@ -729,6 +679,8 @@ const onCurrencyChange = async () => {
 
 // 计算年度汇总
 const calculateSummary = async () => {
+  if (!selectedFamilyId.value) return
+
   loading.value = true
   try {
     // 生成从2000年到当前年份的所有年份
@@ -740,7 +692,7 @@ const calculateSummary = async () => {
     }
 
     // 批量计算所有年份（存储过程会自动跳过没有数据的年份）
-    await annualSummaryAPI.batchCalculate(familyId.value, allYears)
+    await annualSummaryAPI.batchCalculate(selectedFamilyId.value, allYears)
 
     await fetchData()
   } catch (error) {
@@ -1414,10 +1366,18 @@ watch(activeTab, async () => {
   renderCharts()
 })
 
+// 监听 selectedFamilyId 变化
+watch(selectedFamilyId, (newId) => {
+  if (newId) {
+    fetchData()
+  }
+})
+
 // 组件挂载时获取数据
 onMounted(async () => {
-  await fetchFamilies()
-  await fetchData()
+  if (selectedFamilyId.value) {
+    await fetchData()
+  }
 })
 </script>
 
