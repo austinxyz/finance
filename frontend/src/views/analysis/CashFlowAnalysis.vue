@@ -581,7 +581,6 @@ onMounted(async () => {
 // 监听筛选条件变化
 watch([() => familyStore.currentFamilyId, selectedYear, selectedCurrency], ([newFamilyId, newYear, newCurrency], [oldFamilyId]) => {
   if (newFamilyId && newFamilyId !== oldFamilyId) {
-    console.log('[CashFlowAnalysis] Family changed, reloading data for family:', newFamilyId);
     refreshData();
   } else if (newFamilyId) {
     // Year or currency changed

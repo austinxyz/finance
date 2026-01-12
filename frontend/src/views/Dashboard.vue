@@ -1026,7 +1026,6 @@ function updateAnnualNetWorthChart() {
     annualNetWorthChartInstance = null
   }
 
-  console.log('Creating annual net worth chart with', overallTrendData.value.length, 'data points')
 
   // 准备数据
   const years = overallTrendData.value.map(item => new Date(item.date).getFullYear())
@@ -1152,9 +1151,7 @@ function getReturnColor(amount) {
 // 加载财务指标数据
 async function loadFinancialMetrics() {
   try {
-    console.log('开始加载财务指标, familyId:', familyId.value)
     const response = await analysisAPI.getFinancialMetrics(null, familyId.value, null)
-    console.log('财务指标响应:', response)
     if (response.success && response.data) {
       financialMetrics.value = {
         currentNetWorth: response.data.currentNetWorth || 0,
@@ -1164,7 +1161,6 @@ async function loadFinancialMetrics() {
         annualWorkIncome: response.data.annualWorkIncome || 0,
         year: response.data.year || new Date().getFullYear()
       }
-      console.log('财务指标已设置:', financialMetrics.value)
     } else {
       console.warn('财务指标响应失败或无数据:', response)
     }
@@ -1497,18 +1493,15 @@ async function loadAnnualExpenseSummary() {
 
   loadingExpense.value = true
   try {
-    console.log('开始加载年度支出汇总, familyId:', familyId.value, 'year:', currentYear.value)
     const response = await expenseAnalysisAPI.getAnnualSummary(
       familyId.value,
       currentYear.value,
       'USD',
       true
     )
-    console.log('年度支出响应:', response)
 
     if (response.success) {
       annualExpenseSummary.value = response.data || []
-      console.log('年度支出数据已设置:', annualExpenseSummary.value.length, '条记录')
       // 使用setTimeout确保DOM完全渲染后再更新图表
       setTimeout(() => {
         if (baseExpenseChartCanvas.value && baseExpenseCategories.value.length > 0) {
@@ -1538,17 +1531,14 @@ async function loadAnnualIncomeSummary() {
 
   loadingIncome.value = true
   try {
-    console.log('开始加载年度收入汇总, familyId:', familyId.value, 'year:', currentYear.value)
     const response = await incomeAnalysisAPI.getAnnualMajorCategories(
       familyId.value,
       currentYear.value,
       'USD'
     )
-    console.log('年度收入响应:', response)
 
     if (response.success) {
       annualIncomeSummary.value = response.data || []
-      console.log('年度收入数据已设置:', annualIncomeSummary.value.length, '条记录')
       // 使用setTimeout确保DOM完全渲染后再更新图表
       setTimeout(() => {
         if (incomeChartCanvas.value && incomeCategories.value.length > 0) {
@@ -1594,7 +1584,6 @@ watch(overallTrendData, async () => {
 
 // Google Sheets同步成功回调
 function onSyncSuccess(data) {
-  console.log('同步到Google Sheets成功:', data)
   // 可以在这里显示成功通知
 }
 
@@ -1624,9 +1613,7 @@ watch(incomeCategories, async () => {
 
 // 监听familyId变化，自动加载数据（用于admin切换家庭）
 watch(() => familyStore.currentFamilyId, (newId, oldId) => {
-  console.log('[Dashboard] Family changed from', oldId, 'to', newId)
   if (newId && newId !== oldId) {
-    console.log('[Dashboard] Reloading all data for new family:', newId)
     loadAccounts()
     loadOverallTrend()
     loadAnnualExpenseSummary()

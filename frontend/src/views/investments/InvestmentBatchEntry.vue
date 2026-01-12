@@ -576,12 +576,10 @@ export default {
         return
       }
 
-      console.log('[InvestmentBatchEntry] Loading month data for family:', selectedFamilyId.value)
       loadingMonth.value = true
       try {
         const accountsResponse = await investmentAccountAPI.getAll(selectedFamilyId.value)
         if (accountsResponse.success) {
-          console.log('[InvestmentBatchEntry] Month accounts loaded:', accountsResponse.data.length)
           monthAccounts.value = accountsResponse.data
 
           monthAmounts.value = {}
@@ -695,11 +693,9 @@ export default {
         return
       }
 
-      console.log('[InvestmentBatchEntry] Loading year accounts for family:', selectedFamilyId.value)
       try {
         const response = await investmentAccountAPI.getAll(selectedFamilyId.value)
         if (response.success) {
-          console.log('[InvestmentBatchEntry] Year accounts loaded:', response.data.length)
           yearAccounts.value = response.data
           if (yearAccounts.value.length > 0 && !selectedAccountId.value) {
             selectedAccountId.value = yearAccounts.value[0].accountId
@@ -815,8 +811,6 @@ export default {
 
     // 初始化
     onMounted(async () => {
-      console.log('[InvestmentBatchEntry] onMounted - Current family ID:', selectedFamilyId.value)
-      console.log('[InvestmentBatchEntry] onMounted - Family store state:', {
         currentFamilyId: familyStore.currentFamilyId,
         isAdmin: familyStore.isAdmin,
         families: familyStore.families.length
@@ -828,7 +822,6 @@ export default {
 
       // Load data if family is already available
       if (selectedFamilyId.value) {
-        console.log('[InvestmentBatchEntry] Loading data for active tab:', activeTab.value)
         if (activeTab.value === 'by-month') {
           await loadMonthData()
         } else {

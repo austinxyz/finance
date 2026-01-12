@@ -32,7 +32,6 @@ export function useProtectedDelete() {
     if (confirmed) {
       try {
         await onConfirm()
-        console.log('删除成功')
         return true
       } catch (err) {
         console.error('删除失败:', err.response?.data?.message || err.message)
@@ -45,7 +44,6 @@ export function useProtectedDelete() {
   const executeDelete = async (deleteAction, options = {}) => {
     try {
       await deleteAction()
-      console.log(options.successMessage || '删除成功')
       return true
     } catch (error) {
       if (isProtectedError(error)) {

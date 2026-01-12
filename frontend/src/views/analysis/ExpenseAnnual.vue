@@ -874,7 +874,6 @@ export default {
     // Watch for family changes and reload data
     watch(() => familyStore.currentFamilyId, (newFamilyId, oldFamilyId) => {
       if (newFamilyId && newFamilyId !== oldFamilyId) {
-        console.log('[ExpenseAnnual] Family changed from', oldFamilyId, 'to', newFamilyId, '- reloading data')
         loadMajorCategoryData()
       }
     })

@@ -204,12 +204,8 @@ public class LiabilityService {
     @Transactional
     public List<LiabilityRecordDTO> batchUpdateRecords(BatchRecordUpdateDTO batchUpdate) {
         LocalDate recordDate = batchUpdate.getRecordDate();
-        System.out.println("=== 批量更新负债记录 ===");
-        System.out.println("接收到的日期: " + batchUpdate.getRecordDate());
-        System.out.println("处理后的日期: " + recordDate);
         if (recordDate == null) {
             recordDate = LocalDate.now();
-            System.out.println("使用当前日期: " + recordDate);
         }
 
         List<LiabilityRecord> savedRecords = new ArrayList<>();

@@ -26,7 +26,6 @@ public class DatabaseMigration implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("开始执行数据库迁移...");
 
         // 读取SQL文件
         String sqlFilePath = "/Users/yanzxu/claude/finance/database/add_retirement_fund_net_category.sql";
@@ -47,23 +46,17 @@ public class DatabaseMigration implements CommandLineRunner {
 
             // 跳过 SELECT 语句（验证查询）
             if (trimmed.toUpperCase().startsWith("SELECT")) {
-                System.out.println("跳过验证查询: " + trimmed.substring(0, Math.min(50, trimmed.length())) + "...");
                 continue;
             }
 
             try {
-                System.out.println("执行: " + trimmed.substring(0, Math.min(80, trimmed.length())) + "...");
                 jdbcTemplate.execute(trimmed);
                 successCount++;
-                System.out.println("✓ 成功");
             } catch (Exception e) {
                 errorCount++;
                 System.err.println("✗ 失败: " + e.getMessage());
             }
         }
 
-        System.out.println("\n数据库迁移完成！");
-        System.out.println("成功: " + successCount + " 条语句");
-        System.out.println("失败: " + errorCount + " 条语句");
     }
 }

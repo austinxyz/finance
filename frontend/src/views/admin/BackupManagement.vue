@@ -227,15 +227,12 @@ async function refreshData() {
 // 加载服务状态
 async function loadStatus() {
   try {
-    console.log('[BackupManagement] Loading status...');
     const data = await backupAPI.getStatus();
-    console.log('[BackupManagement] Received status data:', data);
     status.value = data;
 
     // Update database name from status
     if (data.dbName) {
       dbName.value = data.dbName;
-      console.log('[BackupManagement] Database name:', dbName.value);
     }
   } catch (error) {
     console.error('Failed to load status:', error);
@@ -246,12 +243,8 @@ async function loadStatus() {
 async function loadBackups() {
   try {
     loading.value = true;
-    console.log('[BackupManagement] Loading backups, selectedType:', selectedType.value);
     const data = await backupAPI.listBackups(selectedType.value === 'all' ? null : selectedType.value);
-    console.log('[BackupManagement] Received backup data:', data);
-    console.log('[BackupManagement] Data type:', typeof data, 'Is array:', Array.isArray(data));
     backups.value = data;
-    console.log('[BackupManagement] Set backups.value:', backups.value);
   } catch (error) {
     console.error('Failed to load backups:', error);
     alert('加载备份列表失败：' + error.message);
@@ -291,11 +284,9 @@ async function triggerBackup() {
 
 // 确认恢复
 function confirmRestore(backup) {
-  console.log('[BackupManagement] confirmRestore called with:', backup);
   selectedBackup.value = backup;
   confirmDbName.value = '';
   showRestoreDialog.value = true;
-  console.log('[BackupManagement] Dialog should show now. showRestoreDialog:', showRestoreDialog.value);
 }
 
 // 执行恢复

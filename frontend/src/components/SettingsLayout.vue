@@ -55,11 +55,6 @@ const isAdmin = computed(() => authStore.isAdmin);
 
 // 调试信息
 onMounted(() => {
-  console.log('=== SettingsLayout Debug ===');
-  console.log('authStore.user:', authStore.user);
-  console.log('authStore.isAdmin:', authStore.isAdmin);
-  console.log('isAdmin computed:', isAdmin.value);
-  console.log('===========================');
 });
 
 const personalMenuItems = [

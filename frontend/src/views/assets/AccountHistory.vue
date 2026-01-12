@@ -1020,9 +1020,6 @@ const editRecord = (record) => {
   editingRecord.value = record
 
   // 调试：打印原始数据
-  console.log('原始 record.recordDate:', record.recordDate)
-  console.log('类型:', typeof record.recordDate)
-  console.log('是否为数组:', Array.isArray(record.recordDate))
 
   // 处理日期格式 - 确保转换为 YYYY-MM-DD 字符串
   let dateStr = record.recordDate
@@ -1030,13 +1027,10 @@ const editRecord = (record) => {
     // 如果是数组格式 [year, month, day]
     const [year, month, day] = record.recordDate
     dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    console.log('转换后的日期 (从数组):', dateStr)
   } else if (typeof record.recordDate === 'string' && record.recordDate.includes('T')) {
     // 如果是 ISO 8601 格式，只取日期部分
     dateStr = record.recordDate.split('T')[0]
-    console.log('转换后的日期 (从ISO):', dateStr)
   } else {
-    console.log('使用原始日期:', dateStr)
   }
 
   formData.value = {
@@ -1162,7 +1156,6 @@ const openAccountDialog = async (account = null) => {
         }
       } catch (error) {
         // 如果没有找到房产记录，使用空表单
-        console.log('该房产账户暂无房产记录')
         propertyFormData.value = {
           purchaseDate: '',
           propertyValue: '',

@@ -93,13 +93,9 @@ onMounted(async () => {
 
 const handleFamilyChange = () => {
   const timestamp = Date.now()
-  console.log(`[SystemSettings ${timestamp}] handleFamilyChange START - selectedFamilyId:`, selectedFamilyId.value)
-  console.log(`[SystemSettings ${timestamp}] Current familyStore.currentFamilyId:`, familyStore.currentFamilyId)
 
   const success = familyStore.setCurrentFamily(selectedFamilyId.value)
 
-  console.log(`[SystemSettings ${timestamp}] setCurrentFamily result:`, success)
-  console.log(`[SystemSettings ${timestamp}] After setCurrentFamily - familyStore.currentFamilyId:`, familyStore.currentFamilyId)
 
   if (success) {
     saveMessage.value = '家庭切换成功！页面数据将更新为所选家庭。'
@@ -117,23 +113,15 @@ const handleFamilyChange = () => {
     selectedFamilyId.value = familyStore.currentFamilyId
   }
 
-  console.log(`[SystemSettings ${timestamp}] handleFamilyChange END - selectedFamilyId:`, selectedFamilyId.value)
 }
 
 // Watch for external family changes
 watch(() => familyStore.currentFamilyId, (newId, oldId) => {
   const timestamp = Date.now()
-  console.log(`[SystemSettings ${timestamp}] WATCH TRIGGERED - familyStore.currentFamilyId changed`)
-  console.log(`[SystemSettings ${timestamp}] Old value:`, oldId)
-  console.log(`[SystemSettings ${timestamp}] New value:`, newId)
-  console.log(`[SystemSettings ${timestamp}] Current selectedFamilyId.value:`, selectedFamilyId.value)
 
   if (newId !== selectedFamilyId.value) {
-    console.log(`[SystemSettings ${timestamp}] Watch updating selectedFamilyId from`, selectedFamilyId.value, 'to', newId)
     selectedFamilyId.value = newId
-    console.log(`[SystemSettings ${timestamp}] Watch update complete - selectedFamilyId.value:`, selectedFamilyId.value)
   } else {
-    console.log(`[SystemSettings ${timestamp}] Watch skipped - newId matches selectedFamilyId.value`)
   }
 })
 </script>

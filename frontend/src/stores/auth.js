@@ -32,19 +32,11 @@ export const useAuthStore = defineStore('auth', () => {
         const savedToken = localStorage.getItem('token')
         const savedUser = localStorage.getItem('user')
 
-        console.log('=== Login Debug Info ===')
-        console.log('Login successful for:', username)
-        console.log('User data:', {
           id: user.value.id,
           username: user.value.username,
           role: user.value.role,
           familyId: user.value.familyId
         })
-        console.log('Token saved:', !!savedToken)
-        console.log('Token length:', savedToken?.length || 0)
-        console.log('Token preview:', savedToken?.substring(0, 50) + '...')
-        console.log('User saved:', !!savedUser)
-        console.log('=======================')
 
         return response
       } else {
@@ -65,7 +57,6 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
 
-    console.log('Logout successful')
   }
 
   const refreshUser = async () => {

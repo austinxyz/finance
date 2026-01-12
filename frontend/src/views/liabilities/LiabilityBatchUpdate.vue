@@ -346,7 +346,6 @@ const loadAccounts = async () => {
   loading.value = true
   try {
     const response = await liabilityAccountAPI.getAllByFamily(selectedFamilyId.value)
-    console.log('Response:', response)
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
     if (response && response.success) {
       // 按大类别排序账户
@@ -371,7 +370,6 @@ const loadAccounts = async () => {
         return (a.accountName || '').localeCompare(b.accountName || '', 'zh-CN')
       })
       accounts.value = sortedAccounts
-      console.log('Loaded accounts:', accounts.value)
       // 初始化余额输入框，为空字符串以便用户输入
       accounts.value.forEach(account => {
         accountBalances.value[account.id] = ''
@@ -509,7 +507,6 @@ const saveAll = async (overwriteExisting = false) => {
       alert('没有需要保存的记录')
       return
     }
-    console.log('批量更新请求数据:', JSON.stringify(batchData, null, 2))
     const response = await liabilityRecordAPI.batchUpdate(batchData)
     if (response.success) {
       const updatedCount = response.data.length
@@ -531,8 +528,6 @@ const saveAll = async (overwriteExisting = false) => {
     }
   } catch (error) {
     console.error('批量更新失败:', error)
-    console.error('错误响应:', error.response)
-    console.error('错误数据:', error.response?.data)
     alert('批量更新失败: ' + (error.response?.data?.message || error.message))
   } finally {
     saving.value = false

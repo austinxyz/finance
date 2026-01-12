@@ -1145,7 +1145,6 @@ const loadLiabilityAllocation = async () => {
   loading.value = true
   try {
     const response = await analysisAPI.getLiabilityAllocation(null, selectedFamilyId.value, selectedDate.value || null, selectedCurrency.value)
-    console.log('Liability allocation response:', response)
     if (response.success) {
       liabilityAllocation.value = response.data
     }
@@ -1161,7 +1160,6 @@ const loadTaxStatusAllocation = async () => {
   loadingTaxStatus.value = true
   try {
     const response = await analysisAPI.getNetWorthByTaxStatus(null, selectedFamilyId.value, selectedDate.value || null)
-    console.log('Tax status allocation response:', response)
     if (response.success) {
       taxStatusAllocation.value = response.data
     }
@@ -1177,7 +1175,6 @@ const loadMemberAllocation = async () => {
   loadingMember.value = true
   try {
     const response = await analysisAPI.getNetWorthByMember(null, selectedFamilyId.value, selectedDate.value || null)
-    console.log('Member allocation response:', response)
     if (response.success) {
       memberAllocation.value = response.data
     }
@@ -1247,14 +1244,12 @@ const selectCategory = async (item) => {
   try {
     if (activeTab.value === 'net') {
       // 对于净资产，获取该净资产类别下的所有资产账户和负债账户
-      console.log('Loading net asset category accounts for:', item.code, 'familyId:', selectedFamilyId.value)
       const response = await analysisAPI.getNetAssetCategoryAccounts(
         item.code,
         null,
         selectedFamilyId.value,
         selectedDate.value || null
       )
-      console.log('Net asset category accounts response:', response)
       if (response.success) {
         drillDownData.value = response.data
       }
@@ -1273,14 +1268,12 @@ const selectCategory = async (item) => {
 
       const categoryType = typeMap[item.name]
       if (categoryType) {
-        console.log('Loading asset accounts for:', categoryType, 'familyId:', selectedFamilyId.value)
         const response = await analysisAPI.getAssetAccountsWithBalances(
           categoryType,
           null,
           selectedFamilyId.value,
           selectedDate.value || null
         )
-        console.log('Asset accounts response:', response)
         if (response.success) {
           drillDownData.value = response.data
         }
@@ -1299,14 +1292,12 @@ const selectCategory = async (item) => {
 
       const categoryType = typeMap[item.name]
       if (categoryType) {
-        console.log('Loading liability accounts for:', categoryType, 'familyId:', selectedFamilyId.value)
         const response = await analysisAPI.getLiabilityAccountsWithBalances(
           categoryType,
           null,
           selectedFamilyId.value,
           selectedDate.value || null
         )
-        console.log('Liability accounts response:', response)
         if (response.success) {
           drillDownData.value = response.data
         }
@@ -1395,7 +1386,6 @@ const loadCurrencyAllocation = async () => {
   loadingCurrency.value = true
   try {
     const response = await analysisAPI.getNetWorthByCurrency(null, selectedFamilyId.value, selectedDate.value || null)
-    console.log('Currency allocation response:', response)
     if (response.success) {
       currencyAllocation.value = response.data
     }

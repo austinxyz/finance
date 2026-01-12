@@ -28,10 +28,6 @@ request.interceptors.request.use(
       : ''
     const fullUrl = `${url}${queryString}`
 
-    console.log(`[Request ${timestamp}] ${method} ${fullUrl}`)
-    console.log(`[Request ${timestamp}] Token:`, hasToken ? 'YES' : 'NO')
-    console.log(`[Request ${timestamp}] Params:`, params)
-    console.log(`[Request ${timestamp}] Headers:`, { ...config.headers })
 
     return config
   },
@@ -62,7 +58,6 @@ request.interceptors.response.use(
       console.error('URL:', debugInfo.url)
       console.error('Method:', debugInfo.method)
       console.error('Had token:', debugInfo.hadToken)
-      console.error('Response:', debugInfo.response)
       console.error('========================')
 
       // Save error to sessionStorage so we can see it after redirect

@@ -364,7 +364,6 @@ const loadAccounts = async () => {
   loading.value = true
   try {
     const response = await assetAccountAPI.getAllByFamily(selectedFamilyId.value)
-    console.log('Response:', response)
 
     // Axios 拦截器已经返回了 response.data，所以 response 就是后端的完整响应
     if (response && response.success) {
@@ -395,7 +394,6 @@ const loadAccounts = async () => {
       })
 
       accounts.value = sortedAccounts
-      console.log('Loaded accounts:', accounts.value)
 
       // 初始化金额输入框，为空字符串以便用户输入
       accounts.value.forEach(account => {
@@ -548,7 +546,6 @@ const saveAll = async (overwriteExisting = false) => {
       return
     }
 
-    console.log('批量更新请求数据:', JSON.stringify(batchData, null, 2))
     const response = await assetRecordAPI.batchUpdate(batchData)
     if (response.success) {
       const updatedCount = response.data.count
@@ -572,8 +569,6 @@ const saveAll = async (overwriteExisting = false) => {
     }
   } catch (error) {
     console.error('批量更新失败:', error)
-    console.error('错误响应:', error.response)
-    console.error('错误数据:', error.response?.data)
     alert('批量更新失败: ' + (error.response?.data?.message || error.message))
   } finally {
     saving.value = false

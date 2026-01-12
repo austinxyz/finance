@@ -826,7 +826,6 @@ export default {
     // 监听选项变化
     watch([() => familyStore.currentFamilyId, selectedYear, selectedCurrency], ([newFamilyId, newYear, newCurrency], [oldFamilyId]) => {
       if (newFamilyId && newFamilyId !== oldFamilyId) {
-        console.log('[IncomeAnnual] Family changed, reloading data for family:', newFamilyId)
         loadMajorCategoryData()
       } else if (newFamilyId) {
         // Year or currency changed
