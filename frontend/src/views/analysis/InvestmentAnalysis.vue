@@ -854,8 +854,13 @@ export default {
     })
 
     // 初始化
-    onMounted(() => {
+    onMounted(async () => {
       generateAvailableYears()
+
+      // Load page data if family is already available
+      if (selectedFamilyId.value) {
+        await loadMajorCategoryData()
+      }
 
       // 添加窗口大小调整监听
       window.addEventListener('resize', handleResize)
