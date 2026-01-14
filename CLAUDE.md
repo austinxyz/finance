@@ -23,7 +23,22 @@ Examples:
 
 **NEVER commit `backend/.env`** - Contains DB credentials. Already in `.gitignore`.
 
-**ALWAYS use `./backend/start.sh` to start backend** - Loads environment variables from `backend/.env` and starts Spring Boot. Works from any directory.
+**ALWAYS use `./backend/start.sh` to start backend** - Loads environment variables from `backend/.env` and starts Spring Boot in **dev profile**. Works from any directory.
+
+**Environment Profiles**:
+- **dev** (开发环境): Local development via `./backend/start.sh`
+  - SQL logging enabled (`spring.jpa.show-sql=true`)
+  - Debug logging enabled (`logging.level.com.finance=debug`)
+  - SQL parameter binding visible
+- **prod** (生产环境): Docker deployment via `docker-compose up`
+  - SQL logging disabled
+  - Info-level logging only
+  - Minimal console output
+
+Configuration files:
+- `application.properties` - Shared config (DB, JWT, server)
+- `application-dev.properties` - Development overrides
+- `application-prod.properties` - Production overrides
 
 ### Backend Development
 
@@ -118,8 +133,9 @@ frontend/
 ## Development Workflow
 
 ```bash
-# 1. Backend development
-./backend/start.sh              # Loads .env and starts Spring Boot (auto-reload with DevTools)
+# 1. Backend development (开发环境 - dev profile)
+./backend/start.sh              # Loads .env, sets profile=dev, starts Spring Boot
+                                 # Features: SQL logging, debug logs, auto-reload
 
 # 2. Frontend development
 cd frontend
@@ -130,6 +146,17 @@ npm run dev                     # HMR at localhost:3000
 
 # 4. Commit changes
 /git-commit-push
+```
+
+## Production Deployment (生产环境)
+
+```bash
+# Docker部署自动使用 prod profile
+docker-compose up -d            # SPRING_PROFILES_ACTIVE=prod
+                                 # Features: No SQL logging, info logs only
+
+# 查看日志
+docker-compose logs -f backend
 ```
 
 ## When Things Go Wrong

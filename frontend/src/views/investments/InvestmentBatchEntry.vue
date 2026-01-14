@@ -811,11 +811,6 @@ export default {
 
     // 初始化
     onMounted(async () => {
-        currentFamilyId: familyStore.currentFamilyId,
-        isAdmin: familyStore.isAdmin,
-        families: familyStore.families.length
-      })
-
       await loadInvestmentCategories()
       const now = new Date()
       transactionPeriod.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`

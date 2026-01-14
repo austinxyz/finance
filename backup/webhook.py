@@ -120,8 +120,9 @@ def get_backup_files(backup_type):
                 "timestamp": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                 "mtime": stat.st_mtime
             })
-        except Exception as e:
-            print(f"Error reading file {filepath}: {e}")
+        except Exception:
+            # Silently skip unreadable files
+            pass
 
     return result
 

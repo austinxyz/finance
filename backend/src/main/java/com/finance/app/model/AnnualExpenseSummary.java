@@ -55,9 +55,9 @@ public class AnnualExpenseSummary {
     private Integer summaryYear;
 
     /**
-     * 大类ID (0表示总计)
+     * 大类ID (NULL表示总计行)
      */
-    @Column(name = "major_category_id", nullable = false)
+    @Column(name = "major_category_id", nullable = true)
     private Long majorCategoryId;
 
     /**

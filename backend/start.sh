@@ -41,6 +41,10 @@ jwt_secret = os.environ.get('JWT_SECRET', '')
 print('✅ Environment variables loaded')
 print(f'   DB: {db_user}@{db_host}:{db_port}/{db_name}')
 print(f'   JWT_SECRET: {jwt_secret[:30]}...')
+
+# Set development profile for local development
+os.environ['SPRING_PROFILES_ACTIVE'] = 'dev'
+print('🔧 Using profile: dev (development environment)')
 print('🚀 Starting Spring Boot application...')
 
 # Run Maven with loaded environment

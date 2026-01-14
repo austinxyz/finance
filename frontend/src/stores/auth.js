@@ -28,16 +28,6 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('token', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
 
-        // Verify token was saved
-        const savedToken = localStorage.getItem('token')
-        const savedUser = localStorage.getItem('user')
-
-          id: user.value.id,
-          username: user.value.username,
-          role: user.value.role,
-          familyId: user.value.familyId
-        })
-
         return response
       } else {
         throw new Error(response.message || 'Login failed')
