@@ -62,21 +62,31 @@
       </div>
     </div>
 
-    <!-- 大类分布：饼图和表格横向排列 -->
+    <!-- 大类分布：图表和表格 -->
     <div class="bg-white rounded-lg shadow border border-gray-200 p-4">
       <h3 class="text-base font-semibold text-gray-900 mb-3">大类分布</h3>
 
-      <div class="flex flex-col lg:flex-row gap-4">
-        <!-- 左侧：饼图 -->
-        <div class="flex-shrink-0 w-full lg:w-80 h-64">
-          <canvas ref="majorCategoryChartCanvas" v-if="majorCategoryData.length > 0"></canvas>
-          <div v-else class="h-full flex items-center justify-center text-gray-500 text-sm">
-            暂无数据
+      <!-- 图表区域：资产配置饼图 + 回报率柱状图 -->
+      <div v-if="majorCategoryData.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <!-- 左侧：资产配置饼图 -->
+        <div class="flex flex-col">
+          <h4 class="text-sm font-medium text-gray-700 mb-2 text-center">资产配置占比</h4>
+          <div class="h-64">
+            <canvas ref="majorCategoryAssetChartCanvas"></canvas>
           </div>
         </div>
 
-        <!-- 右侧：表格 -->
-        <div class="flex-1 overflow-auto">
+        <!-- 右侧：回报率柱状图 -->
+        <div class="flex flex-col">
+          <h4 class="text-sm font-medium text-gray-700 mb-2 text-center">投资回报率对比</h4>
+          <div class="h-64">
+            <canvas ref="majorCategoryReturnChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表格 -->
+      <div class="overflow-auto">
           <table v-if="majorCategoryData.length > 0" class="min-w-full text-xs">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
@@ -127,7 +137,6 @@
           <div v-else class="text-center py-8 text-gray-500 text-sm">
             暂无大类分布数据
           </div>
-        </div>
       </div>
     </div>
 
@@ -139,14 +148,17 @@
           {{ selectedMajorCategoryName }} - 账户分布
         </h3>
 
-        <!-- 饼图和表格横向排列 -->
+        <!-- 饼图和表格 -->
         <div class="flex flex-col gap-3">
-          <!-- 账户饼图 -->
-          <div class="w-full h-48">
-            <canvas ref="accountChartCanvas" v-if="accountData.length > 0"></canvas>
-            <div v-else class="h-full flex items-center justify-center text-gray-500 text-sm">
-              暂无账户数据
+          <!-- 账户资产配置饼图 -->
+          <div v-if="accountData.length > 0">
+            <h4 class="text-sm font-medium text-gray-700 mb-2 text-center">账户资产占比</h4>
+            <div class="w-full h-48">
+              <canvas ref="accountChartCanvas"></canvas>
             </div>
+          </div>
+          <div v-else class="h-48 flex items-center justify-center text-gray-500 text-sm">
+            暂无账户数据
           </div>
 
           <!-- 账户表格 -->
@@ -434,10 +446,12 @@ export default {
     const accountSummary = ref({})
 
     // 图表实例
-    const majorCategoryChartCanvas = ref(null)
+    const majorCategoryAssetChartCanvas = ref(null)
+    const majorCategoryReturnChartCanvas = ref(null)
     const accountChartCanvas = ref(null)
     const monthlyTrendChartCanvas = ref(null)
-    const majorCategoryChartInstance = ref(null)
+    const majorCategoryAssetChartInstance = ref(null)
+    const majorCategoryReturnChartInstance = ref(null)
     const accountChartInstance = ref(null)
     const monthlyTrendChartInstance = ref(null)
 
@@ -561,22 +575,27 @@ export default {
       }
     }
 
-    // 渲染大类饼图
+    // 渲染大类图表（资产配置饼图 + 回报率柱状图）
     const renderMajorCategoryChart = () => {
-      if (!majorCategoryChartCanvas.value || majorCategoryData.value.length === 0) return
+      renderMajorCategoryAssetChart()
+      renderMajorCategoryReturnChart()
+    }
+
+    // 渲染大类资产配置饼图
+    const renderMajorCategoryAssetChart = () => {
+      if (!majorCategoryAssetChartCanvas.value || majorCategoryData.value.length === 0) return
 
       // 销毁旧图表
-      if (majorCategoryChartInstance.value) {
-        majorCategoryChartInstance.value.destroy()
+      if (majorCategoryAssetChartInstance.value) {
+        majorCategoryAssetChartInstance.value.destroy()
       }
 
-      const ctx = majorCategoryChartCanvas.value.getContext('2d')
+      const ctx = majorCategoryAssetChartCanvas.value.getContext('2d')
 
-      // 准备数据 - 使用绝对值来处理负值净投入
+      // 准备数据 - 使用当前资产值
       const chartData = majorCategoryData.value.map(item => ({
         label: item.categoryName,
-        value: item.netDeposits,
-        absValue: Math.abs(item.netDeposits || 0)
+        value: item.currentAssets || 0
       }))
 
       // 为每个分类分配颜色
@@ -585,7 +604,7 @@ export default {
       // 注册 datalabels 插件
       Chart.register(ChartDataLabels)
 
-      majorCategoryChartInstance.value = new Chart(ctx, {
+      majorCategoryAssetChartInstance.value = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: chartData.map(item => item.label),
@@ -596,10 +615,118 @@ export default {
             borderColor: '#fff',
             hoverBorderWidth: 3,
             hoverBorderColor: '#fff',
-            hoverOffset: 10 // 鼠标悬停时的偏移效果
+            hoverOffset: 10
           }]
         },
         options: createPieChartOptions(formatCurrency, true)
+      })
+    }
+
+    // 渲染大类回报率柱状图
+    const renderMajorCategoryReturnChart = () => {
+      if (!majorCategoryReturnChartCanvas.value || majorCategoryData.value.length === 0) return
+
+      // 销毁旧图表
+      if (majorCategoryReturnChartInstance.value) {
+        majorCategoryReturnChartInstance.value.destroy()
+      }
+
+      const ctx = majorCategoryReturnChartCanvas.value.getContext('2d')
+
+      // 准备数据
+      const labels = majorCategoryData.value.map(item => item.categoryName)
+      const returnRates = majorCategoryData.value.map(item => item.returnRate || 0)
+
+      // 根据回报率正负设置颜色
+      const backgroundColors = returnRates.map(rate => rate >= 0 ? '#10b981' : '#ef4444')
+
+      // 计算平均回报率
+      const avgReturnRate = returnRates.length > 0
+        ? returnRates.reduce((sum, rate) => sum + rate, 0) / returnRates.length
+        : 0
+
+      majorCategoryReturnChartInstance.value = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '回报率 (%)',
+            data: returnRates,
+            backgroundColor: backgroundColors,
+            borderColor: backgroundColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          ...CHART_DEFAULTS,
+          indexAxis: 'y', // 横向柱状图
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 12,
+              titleFont: {
+                size: 14,
+                weight: 'bold'
+              },
+              bodyFont: {
+                size: 13
+              },
+              cornerRadius: 6,
+              callbacks: {
+                label: function(context) {
+                  return `回报率: ${context.parsed.x.toFixed(2)}%`
+                },
+                afterBody: function() {
+                  return `平均回报率: ${avgReturnRate.toFixed(2)}%`
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '回报率 (%)',
+                font: {
+                  size: 12
+                }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toFixed(1) + '%'
+                }
+              },
+              // 添加零线
+              grid: {
+                color: function(context) {
+                  if (context.tick.value === 0) {
+                    return '#000'
+                  }
+                  return '#e5e7eb'
+                },
+                lineWidth: function(context) {
+                  if (context.tick.value === 0) {
+                    return 2
+                  }
+                  return 1
+                }
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: '投资类别',
+                font: {
+                  size: 12
+                }
+              }
+            }
+          }
+        }
       })
     }
 
@@ -631,7 +758,7 @@ export default {
       }
     }
 
-    // 渲染账户饼图
+    // 渲染账户资产配置饼图
     const renderAccountChart = () => {
       if (!accountChartCanvas.value || accountData.value.length === 0) return
 
@@ -642,11 +769,10 @@ export default {
 
       const ctx = accountChartCanvas.value.getContext('2d')
 
-      // 准备数据 - 处理负值净投入
+      // 准备数据 - 使用当前资产值
       const chartData = accountData.value.map(item => ({
         label: item.accountName,
-        value: item.netDeposits,
-        absValue: Math.abs(item.netDeposits || 0)
+        value: item.currentAssets || 0
       }))
 
       // 为每个账户分配颜色
@@ -813,9 +939,13 @@ export default {
 
     // 清理所有图表实例
     const destroyAllCharts = () => {
-      if (majorCategoryChartInstance.value) {
-        majorCategoryChartInstance.value.destroy()
-        majorCategoryChartInstance.value = null
+      if (majorCategoryAssetChartInstance.value) {
+        majorCategoryAssetChartInstance.value.destroy()
+        majorCategoryAssetChartInstance.value = null
+      }
+      if (majorCategoryReturnChartInstance.value) {
+        majorCategoryReturnChartInstance.value.destroy()
+        majorCategoryReturnChartInstance.value = null
       }
       if (accountChartInstance.value) {
         accountChartInstance.value.destroy()
@@ -888,7 +1018,8 @@ export default {
       accountSummary,
 
       // 图表引用
-      majorCategoryChartCanvas,
+      majorCategoryAssetChartCanvas,
+      majorCategoryReturnChartCanvas,
       accountChartCanvas,
       monthlyTrendChartCanvas,
 
