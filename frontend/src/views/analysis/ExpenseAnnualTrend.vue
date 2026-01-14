@@ -44,7 +44,7 @@
     </div>
 
     <!-- Tab选项卡 -->
-    <div v-else-if="trendData.length > 0" class="bg-white rounded-lg shadow">
+    <div v-else-if="trendData.length > 0 || categoryData.length > 0" class="bg-white rounded-lg shadow">
       <!-- Tab头部 -->
       <div class="border-b border-gray-200">
         <nav class="flex -mb-px">
@@ -84,7 +84,10 @@
                 <p class="text-xs md:text-sm text-gray-500 mt-1">基础支出和实际支出年度变化及同比增长率</p>
               </div>
               <div class="h-96 md:h-[500px] w-full">
-                <canvas ref="trendChartCanvas" class="w-full h-full"></canvas>
+                <canvas v-if="trendData.length > 0" ref="trendChartCanvas" class="w-full h-full"></canvas>
+                <div v-else class="h-full flex items-center justify-center text-gray-500 text-sm">
+                  暂无年度支出趋势数据
+                </div>
               </div>
             </div>
 
@@ -95,7 +98,10 @@
                 <p class="text-xs md:text-sm text-gray-500 mt-1">各年度支出数据对比</p>
               </div>
               <div class="overflow-y-auto max-h-96 md:max-h-[500px]">
-                <table class="w-full border-separate border-spacing-0">
+                <div v-if="trendData.length === 0" class="h-96 flex items-center justify-center text-gray-500 text-sm">
+                  暂无年度汇总数据
+                </div>
+                <table v-else class="w-full border-separate border-spacing-0">
                   <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th class="px-2 md:px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase">年份</th>
@@ -417,8 +423,12 @@ watch(familyId, (newFamilyId) => {
 const onCurrencyChange = () => {
   // 货币切换时只需要重新渲染图表，不需要重新获取数据
   // 汇总表数据已经是USD基准货币，前端根据选中货币换算显示，无需重新获取
-  renderChart()
-  renderCategoryTrendChart()
+
+  // 只在trend tab时才渲染图表（避免canvas元素不在DOM中的错误）
+  if (activeTab.value === 'trend') {
+    renderChart()
+    renderCategoryTrendChart()
+  }
 }
 
 // 获取汇率数据（获取所有启用的汇率）
@@ -540,10 +550,16 @@ const fetchSummaryTable = async () => {
   }
 }
 
-// 监听tab切换，切换到汇总表时加载数据
+// 监听tab切换，切换到汇总表时加载数据，切换到趋势图时重新渲染图表
 watch(activeTab, (newTab) => {
   if (newTab === 'table' && summaryTableData.value.rows.length === 0) {
     fetchSummaryTable()
+  } else if (newTab === 'trend') {
+    // 切换回趋势图tab时，重新渲染图表（以应用可能的货币切换）
+    nextTick(() => {
+      renderChart()
+      renderCategoryTrendChart()
+    })
   }
 })
 
@@ -719,7 +735,6 @@ const renderCategoryTrendChart = () => {
   if (categoryData.value.length === 0) return
 
   if (!categoryTrendChartCanvas.value) {
-    console.error('Category trend canvas element not found')
     return
   }
 
