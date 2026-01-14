@@ -597,11 +597,18 @@ const fetchData = async () => {
     // 重新计算基于显示货币的同比数据
     recalculateYoYMetrics()
 
+    // 必须先设置loading=false，否则v-if="loading"会阻止canvas渲染
+    loading.value = false
+
+    // 等待DOM更新（v-else-if="summaries.length > 0"触发渲染canvas）
     await nextTick()
+    // 使用requestAnimationFrame等待浏览器完成渲染
+    await new Promise(resolve => requestAnimationFrame(() => {
+      requestAnimationFrame(resolve)
+    }))
     renderCharts()
   } catch (error) {
     console.error('获取年度汇总数据失败:', error)
-  } finally {
     loading.value = false
   }
 }
@@ -674,6 +681,10 @@ const onCurrencyChange = async () => {
   // 重新计算基于显示货币的同比数据
   recalculateYoYMetrics()
   await nextTick()
+  // 等待浏览器完成渲染
+  await new Promise(resolve => requestAnimationFrame(() => {
+    requestAnimationFrame(resolve)
+  }))
   renderCharts()
 }
 
@@ -705,27 +716,28 @@ const calculateSummary = async () => {
 
 // 渲染图表
 const renderCharts = () => {
-  if (summaries.value.length === 0) return
+  try {
+    if (summaries.value.length === 0) return
 
-  const sortedData = [...summaries.value].reverse() // 从旧到新排序
-  const years = sortedData.map(s => s.year)
-  // 使用每年各自的汇率进行转换
-  const assets = sortedData.map(s => convertAmount(s.totalAssets, s.year))
-  const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities, s.year))
-  const netWorths = sortedData.map(s => convertAmount(s.netWorth, s.year))
-  const realEstateAssets = sortedData.map(s => convertAmount(s.realEstateAssets || 0, s.year))
-  const nonRealEstateAssets = sortedData.map(s => convertAmount(s.totalAssets, s.year) - convertAmount(s.realEstateAssets || 0, s.year))
-  // 使用基于显示货币重新计算的同比百分比
-  const assetGrowths = sortedData.map(s => s.displayYoyAssetChangePct || 0)
-  const liabilityGrowths = sortedData.map(s => s.displayYoyLiabilityChangePct || 0)
-  const netWorthGrowths = sortedData.map(s => s.displayYoyNetWorthChangePct || 0)
+    const sortedData = [...summaries.value].reverse() // 从旧到新排序
+    const years = sortedData.map(s => s.year)
+    // 使用每年各自的汇率进行转换
+    const assets = sortedData.map(s => convertAmount(s.totalAssets, s.year))
+    const liabilities = sortedData.map(s => convertAmount(s.totalLiabilities, s.year))
+    const netWorths = sortedData.map(s => convertAmount(s.netWorth, s.year))
+    const realEstateAssets = sortedData.map(s => convertAmount(s.realEstateAssets || 0, s.year))
+    const nonRealEstateAssets = sortedData.map(s => convertAmount(s.totalAssets, s.year) - convertAmount(s.realEstateAssets || 0, s.year))
+    // 使用基于显示货币重新计算的同比百分比
+    const assetGrowths = sortedData.map(s => s.displayYoyAssetChangePct || 0)
+    const liabilityGrowths = sortedData.map(s => s.displayYoyLiabilityChangePct || 0)
+    const netWorthGrowths = sortedData.map(s => s.displayYoyNetWorthChangePct || 0)
 
-  const currencySymbol = getCurrencySymbol(selectedCurrency.value)
+    const currencySymbol = getCurrencySymbol(selectedCurrency.value)
 
-  // 综合趋势图
-  if (comprehensiveChart) comprehensiveChart.destroy()
-  if (comprehensiveChartCanvas.value) {
-    comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
+    // 综合趋势图
+    if (comprehensiveChart) comprehensiveChart.destroy()
+    if (comprehensiveChartCanvas.value) {
+      comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
       type: 'line',
       data: {
         labels: years,
@@ -1224,6 +1236,9 @@ const renderCharts = () => {
         }
       }
     })
+  }
+  } catch (error) {
+    console.error('AnnualTrend: Error rendering charts:', error)
   }
 }
 

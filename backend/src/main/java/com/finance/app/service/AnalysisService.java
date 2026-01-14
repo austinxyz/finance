@@ -265,54 +265,95 @@ public class AnalysisService {
         LocalDate startDate = LocalDate.parse(startDateStr);
         LocalDate endDate = LocalDate.parse(endDateStr);
 
-        // Get all asset accounts
-        List<AssetAccount> assetAccounts;
+        // Get user IDs once for both asset and liability accounts
+        List<Long> userIds;
         if (familyId != null) {
             List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
-            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
-            assetAccounts = accountRepository.findByUserIdInAndIsActiveTrue(userIds);
+            userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
+            if (userIds.isEmpty()) {
+                return new ArrayList<>();  // Early return if no users found
+            }
         } else {
-            assetAccounts = accountRepository.findByIsActiveTrue();
+            userIds = null;
         }
+
+        // Get all asset accounts
+        List<AssetAccount> assetAccounts = (userIds != null)
+            ? accountRepository.findByUserIdInAndIsActiveTrue(userIds)
+            : accountRepository.findByIsActiveTrue();
 
         // Get all liability accounts
-        List<LiabilityAccount> liabilityAccounts;
-        if (familyId != null) {
-            List<User> familyMembers = userRepository.findByFamilyIdAndIsActiveTrue(familyId);
-            List<Long> userIds = familyMembers.stream().map(User::getId).collect(Collectors.toList());
-            liabilityAccounts = liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds);
-        } else {
-            liabilityAccounts = liabilityAccountRepository.findByIsActiveTrue();
+        List<LiabilityAccount> liabilityAccounts = (userIds != null)
+            ? liabilityAccountRepository.findByUserIdInAndIsActiveTrue(userIds)
+            : liabilityAccountRepository.findByIsActiveTrue();
+
+        // Batch query: Get all asset records at once
+        List<AssetRecord> allAssetRecords = new ArrayList<>();
+        if (!assetAccounts.isEmpty()) {
+            List<Long> assetAccountIds = assetAccounts.stream()
+                .map(AssetAccount::getId)
+                .collect(Collectors.toList());
+            allAssetRecords = recordRepository
+                .findByAccountIdInAndRecordDateBetweenOrderByRecordDateDesc(assetAccountIds, startDate, endDate);
         }
 
-        // Get asset records by date
+        // Batch query: Get all liability records at once
+        List<LiabilityRecord> allLiabilityRecords = new ArrayList<>();
+        if (!liabilityAccounts.isEmpty()) {
+            List<Long> liabilityAccountIds = liabilityAccounts.stream()
+                .map(LiabilityAccount::getId)
+                .collect(Collectors.toList());
+            allLiabilityRecords = liabilityRecordRepository
+                .findByAccountIdInAndRecordDateBetweenOrderByRecordDateDesc(liabilityAccountIds, startDate, endDate);
+        }
+
+        // OPTIMIZATION: Pre-fetch all exchange rates to avoid N+1 queries
+        Map<String, BigDecimal> exchangeRateCache = new HashMap<>();
+
+        // Collect unique (currency, date) pairs from asset records
+        for (AssetRecord record : allAssetRecords) {
+            if (record.getCurrency() != null && !record.getCurrency().equalsIgnoreCase("USD")) {
+                String key = record.getCurrency() + "_" + record.getRecordDate();
+                if (!exchangeRateCache.containsKey(key)) {
+                    BigDecimal rate = exchangeRateService.getExchangeRate(record.getCurrency(), record.getRecordDate());
+                    exchangeRateCache.put(key, rate);
+                }
+            }
+        }
+
+        // Collect unique (currency, date) pairs from liability records
+        for (LiabilityRecord record : allLiabilityRecords) {
+            if (record.getCurrency() != null && !record.getCurrency().equalsIgnoreCase("USD")) {
+                String key = record.getCurrency() + "_" + record.getRecordDate();
+                if (!exchangeRateCache.containsKey(key)) {
+                    BigDecimal rate = exchangeRateService.getExchangeRate(record.getCurrency(), record.getRecordDate());
+                    exchangeRateCache.put(key, rate);
+                }
+            }
+        }
+
+        // Process asset records with cached exchange rates
         Map<LocalDate, BigDecimal> assetsByDate = new HashMap<>();
-        for (AssetAccount account : assetAccounts) {
-            List<AssetRecord> records = recordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-            for (AssetRecord record : records) {
-                BigDecimal amount = convertToUSD(
-                    record.getAmount(),
-                    record.getCurrency(),
-                    record.getRecordDate()
-                );
-                assetsByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
-            }
+        for (AssetRecord record : allAssetRecords) {
+            BigDecimal amount = convertToUSDWithCache(
+                record.getAmount(),
+                record.getCurrency(),
+                record.getRecordDate(),
+                exchangeRateCache
+            );
+            assetsByDate.merge(record.getRecordDate(), amount, BigDecimal::add);
         }
 
-        // Get liability records by date
+        // Process liability records with cached exchange rates
         Map<LocalDate, BigDecimal> liabilitiesByDate = new HashMap<>();
-        for (LiabilityAccount account : liabilityAccounts) {
-            List<LiabilityRecord> records = liabilityRecordRepository.findByAccountIdAndRecordDateBetweenOrderByRecordDateDesc(
-                account.getId(), startDate, endDate);
-            for (LiabilityRecord record : records) {
-                BigDecimal balance = convertToUSD(
-                    record.getOutstandingBalance(),
-                    record.getCurrency(),
-                    record.getRecordDate()
-                );
-                liabilitiesByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
-            }
+        for (LiabilityRecord record : allLiabilityRecords) {
+            BigDecimal balance = convertToUSDWithCache(
+                record.getOutstandingBalance(),
+                record.getCurrency(),
+                record.getRecordDate(),
+                exchangeRateCache
+            );
+            liabilitiesByDate.merge(record.getRecordDate(), balance, BigDecimal::add);
         }
 
         // Merge all dates
@@ -1017,6 +1058,30 @@ public class AnalysisService {
 
     private BigDecimal convertToUSD(BigDecimal amount, String currency, LocalDate asOfDate) {
         return convertToBaseCurrency(amount, currency, asOfDate, "USD");
+    }
+
+    /**
+     * Convert amount to USD using pre-fetched exchange rate cache
+     * Eliminates N+1 query problem for batch conversions
+     */
+    private BigDecimal convertToUSDWithCache(BigDecimal amount, String currency, LocalDate asOfDate, Map<String, BigDecimal> exchangeRateCache) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+
+        if (currency == null || currency.equalsIgnoreCase("USD")) {
+            return amount;
+        }
+
+        String key = currency + "_" + asOfDate;
+        BigDecimal rate = exchangeRateCache.get(key);
+
+        if (rate == null) {
+            // Fallback to direct lookup if not in cache (shouldn't happen if cache is properly initialized)
+            rate = exchangeRateService.getExchangeRate(currency, asOfDate);
+        }
+
+        return amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String getCurrencyName(String currencyCode) {

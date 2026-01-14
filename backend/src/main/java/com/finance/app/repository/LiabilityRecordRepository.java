@@ -92,4 +92,10 @@ public interface LiabilityRecordRepository extends JpaRepository<LiabilityRecord
     List<LiabilityRecord> findLatestByAccountIdsBeforeOrEqualDate(
             @Param("accountIds") List<Long> accountIds,
             @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * 批量查询多个账户在日期范围内的所有记录（用于趋势分析性能优化）
+     */
+    List<LiabilityRecord> findByAccountIdInAndRecordDateBetweenOrderByRecordDateDesc(
+            List<Long> accountIds, LocalDate startDate, LocalDate endDate);
 }
