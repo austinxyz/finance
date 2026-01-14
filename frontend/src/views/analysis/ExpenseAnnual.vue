@@ -514,15 +514,21 @@ export default {
         minorCategoryData.value = []
         monthlyTrendData.value = []
 
-        // 更新大类饼图
+        // 必须先设置loading=false，否则v-if会阻止canvas渲染
+        loading.value = false
+
+        // 等待DOM更新后渲染图表
         await nextTick()
+        // 使用requestAnimationFrame等待浏览器完成渲染
+        await new Promise(resolve => requestAnimationFrame(() => {
+          requestAnimationFrame(resolve)
+        }))
         updateMajorCategoryChart()
       } catch (error) {
         console.error('加载大类数据失败:', error)
         majorCategoryData.value = []
         lastYearTotalExpense.value = 0
         lastYearMajorCategoryData.value = []
-      } finally {
         loading.value = false
       }
     }
