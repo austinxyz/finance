@@ -804,9 +804,9 @@ public class ExpenseAnalysisService {
             Map<String, Object> row = new HashMap<>();
             row.put("year", currentYear);
 
-            // 该年总计数据
+            // 该年总计数据（major_category_id IS NULL 表示总计）
             AnnualExpenseSummary totalSummary = allSummaries.stream()
-                    .filter(s -> s.getSummaryYear().equals(currentYear) && s.getMajorCategoryId() == 0)
+                    .filter(s -> s.getSummaryYear().equals(currentYear) && s.getMajorCategoryId() == null)
                     .findFirst()
                     .orElse(null);
 
@@ -814,7 +814,7 @@ public class ExpenseAnalysisService {
             AnnualExpenseSummary previousTotalSummary = null;
             if (previousYear != null) {
                 previousTotalSummary = allSummaries.stream()
-                        .filter(s -> s.getSummaryYear().equals(previousYear) && s.getMajorCategoryId() == 0)
+                        .filter(s -> s.getSummaryYear().equals(previousYear) && s.getMajorCategoryId() == null)
                         .findFirst()
                         .orElse(null);
             }
@@ -824,6 +824,7 @@ public class ExpenseAnalysisService {
             for (ExpenseCategoryMajor category : majorCategories) {
                 AnnualExpenseSummary currentCategorySummary = allSummaries.stream()
                         .filter(s -> s.getSummaryYear().equals(currentYear) &&
+                                    s.getMajorCategoryId() != null &&
                                     s.getMajorCategoryId().equals(category.getId()))
                         .findFirst()
                         .orElse(null);
@@ -832,6 +833,7 @@ public class ExpenseAnalysisService {
                 if (previousYear != null) {
                     previousCategorySummary = allSummaries.stream()
                             .filter(s -> s.getSummaryYear().equals(previousYear) &&
+                                        s.getMajorCategoryId() != null &&
                                         s.getMajorCategoryId().equals(category.getId()))
                             .findFirst()
                             .orElse(null);

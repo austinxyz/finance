@@ -96,7 +96,8 @@ public interface AnnualExpenseSummaryRepository extends JpaRepository<AnnualExpe
      */
     @Query("SELECT s FROM AnnualExpenseSummary s " +
            "WHERE s.familyId = :familyId " +
-           "AND s.majorCategoryId = 0 " +
+           "AND s.majorCategoryId IS NULL " +
+           "AND s.minorCategoryId IS NULL " +
            "ORDER BY s.summaryYear DESC")
     List<AnnualExpenseSummary> findByFamilyIdOrderByYearDesc(@Param("familyId") Long familyId);
 
