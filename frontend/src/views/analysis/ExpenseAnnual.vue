@@ -891,6 +891,10 @@ export default {
 
     onMounted(async () => {
       await loadCurrencies()
+      // 首次加载时，如果familyId已经存在，需要主动加载数据
+      if (familyStore.currentFamilyId) {
+        loadMajorCategoryData()
+      }
     })
 
     return {
