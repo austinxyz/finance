@@ -2953,7 +2953,7 @@ const selectLiabilityCategory = async (stat) => {
 }
 
 // 加载所有趋势
-const loadAllTrends = () => {
+const loadAllTrends = async () => {
   // Guard: wait for family store to initialize
   if (!selectedFamilyId.value) {
     console.warn('No family selected, waiting for family store to initialize')
@@ -2967,20 +2967,20 @@ const loadAllTrends = () => {
   liabilityAccountsTrendData.value = {}
 
   if (activeTab.value === 'overall') {
-    loadOverallTrend()
+    await loadOverallTrend()
   } else if (activeTab.value === 'asset') {
-    loadAssetCategoriesTrend()
+    await loadAssetCategoriesTrend()
   } else if (activeTab.value === 'liability') {
-    loadLiabilityCategoriesTrend()
+    await loadLiabilityCategoriesTrend()
   } else if (activeTab.value === 'netAsset') {
-    loadNetAssetCategoriesTrend()
+    await loadNetAssetCategoriesTrend()
   }
 }
 
 
 
 // Watch for family changes (admin can switch families)
-watch(selectedFamilyId, (newFamilyId) => {
+watch(selectedFamilyId, async (newFamilyId) => {
   if (newFamilyId) {
     // Clear previous selections
     selectedAssetCategory.value = null
@@ -2988,19 +2988,28 @@ watch(selectedFamilyId, (newFamilyId) => {
     accountsTrendData.value = {}
     liabilityAccountsTrendData.value = {}
     // Reload data for new family
-    loadAllTrends()
+    await loadAllTrends()
+    await nextTick()
+    await nextTick()
   }
 })
 
 // 监听 tab 切换
-watch(activeTab, () => {
-  loadAllTrends()
+watch(activeTab, async () => {
+  await loadAllTrends()
+  // 等待 DOM 更新
+  await nextTick()
+  // 再等待一次，确保响应式数据和计算属性更新
+  await nextTick()
 })
 
-onMounted(() => {
+onMounted(async () => {
   // Load data if family is already available
   if (selectedFamilyId.value) {
-    loadAllTrends()
+    await loadAllTrends()
+    // 等待数据加载和 DOM 更新
+    await nextTick()
+    await nextTick()
   }
 })
 </script>
