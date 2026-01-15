@@ -422,15 +422,10 @@ watch(familyId, (newFamilyId) => {
 })
 
 // 货币切换事件
-const onCurrencyChange = () => {
-  // 货币切换时只需要重新渲染图表，不需要重新获取数据
-  // 汇总表数据已经是USD基准货币，前端根据选中货币换算显示，无需重新获取
-
-  // 只在trend tab时才渲染图表（避免canvas元素不在DOM中的错误）
-  if (activeTab.value === 'trend') {
-    renderChart()
-    renderCategoryTrendChart()
-  }
+const onCurrencyChange = async () => {
+  // 货币切换时需要重新获取数据
+  // All: 所有货币折算为USD; CNY/USD: 只统计该货币的支出
+  await fetchData()
 }
 
 // 获取汇率数据（获取所有启用的汇率）
@@ -467,28 +462,10 @@ const getExchangeRateForYear = (currency, year) => {
   return 1
 }
 
-// 将USD金额转换为选中货币（根据年份使用不同汇率）
-const convertCurrency = (usdAmount, year = null) => {
-  if (!usdAmount) return 0
-
-  // All模式或USD：直接返回USD金额
-  if (selectedCurrency.value === 'USD' || selectedCurrency.value === 'All') {
-    return Number(usdAmount)
-  }
-
-  // 如果没有提供年份，使用最新汇率
-  let rate
-  if (year) {
-    rate = getExchangeRateForYear(selectedCurrency.value, year)
-  } else {
-    const latestRate = exchangeRates.value
-      .filter(r => r.currency === selectedCurrency.value && r.isActive)
-      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0]
-    rate = latestRate ? latestRate.rateToUsd : 1
-  }
-
-  // USD转其他货币：USD金额 / 汇率
-  return Number(usdAmount) / rate
+// 货币转换函数（后端已按货币筛选，前端无需转换，直接返回金额）
+const convertCurrency = (amount, year = null) => {
+  if (!amount) return 0
+  return Number(amount)
 }
 
 // 获取趋势图数据
@@ -497,17 +474,18 @@ const fetchData = async () => {
 
   loading.value = true
   try {
-    // 并行获取总支出趋势和大类趋势数据（始终获取USD数据）
+    // 并行获取总支出趋势和大类趋势数据
+    // All: 所有货币折算为USD; CNY/USD: 只统计该货币的支出
     const [trendResponse, categoryResponse] = await Promise.all([
       expenseAnalysisAPI.getAnnualTrend(
         familyId.value,
         displayYears.value,
-        'USD'  // 始终获取USD基准货币数据
+        selectedCurrency.value  // 根据选择的货币获取数据
       ),
       expenseAnalysisAPI.getAnnualCategoryTrend(
         familyId.value,
         displayYears.value,
-        'USD'  // 始终获取USD基准货币数据
+        selectedCurrency.value  // 根据选择的货币获取数据
       )
     ])
 
