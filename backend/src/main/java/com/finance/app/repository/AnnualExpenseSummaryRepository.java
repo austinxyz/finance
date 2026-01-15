@@ -15,23 +15,22 @@ import java.util.List;
 public interface AnnualExpenseSummaryRepository extends JpaRepository<AnnualExpenseSummary, Long> {
 
     /**
-     * 查询大类级别的年度汇总 (minor_category_id IS NULL)
+     * 查询大类级别的年度汇总 (minor_category_id IS NULL, major_category_id IS NOT NULL)
+     * Note: Always returns USD summaries. Currency conversion should be handled at service layer.
      * @param familyId 家庭ID
      * @param summaryYear 汇总年份
-     * @param currency 货币
      * @return 大类级别的汇总列表
      */
     @Query("SELECT s FROM AnnualExpenseSummary s " +
            "WHERE s.familyId = :familyId " +
            "AND s.summaryYear = :summaryYear " +
-           "AND s.currency = :currency " +
+           "AND s.currency = 'USD' " +
            "AND s.minorCategoryId IS NULL " +
-           "AND s.majorCategoryId != 0 " +
+           "AND s.majorCategoryId IS NOT NULL " +
            "ORDER BY s.actualExpenseAmount DESC")
     List<AnnualExpenseSummary> findMajorCategorySummary(
         @Param("familyId") Long familyId,
-        @Param("summaryYear") Integer summaryYear,
-        @Param("currency") String currency
+        @Param("summaryYear") Integer summaryYear
     );
 
     /**
@@ -54,21 +53,19 @@ public interface AnnualExpenseSummaryRepository extends JpaRepository<AnnualExpe
     );
 
     /**
-     * 查询年度总计 (major_category_id = 0)
+     * 查询年度总计 (major_category_id IS NULL)
      * @param familyId 家庭ID
      * @param summaryYear 汇总年份
-     * @param currency 货币
      * @return 年度总计记录
      */
     @Query("SELECT s FROM AnnualExpenseSummary s " +
            "WHERE s.familyId = :familyId " +
            "AND s.summaryYear = :summaryYear " +
-           "AND s.currency = :currency " +
-           "AND s.majorCategoryId = 0")
+           "AND s.currency = 'USD' " +
+           "AND s.majorCategoryId IS NULL")
     AnnualExpenseSummary findTotalSummary(
         @Param("familyId") Long familyId,
-        @Param("summaryYear") Integer summaryYear,
-        @Param("currency") String currency
+        @Param("summaryYear") Integer summaryYear
     );
 
     /**

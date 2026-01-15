@@ -456,10 +456,37 @@ public class ExpenseAnalysisService {
     public List<AnnualExpenseSummaryDTO> getAnnualExpenseSummaryWithAdjustments(
             Long familyId, Integer year, String currency, boolean includeTotals) {
 
+        // annual_expense_summary stores USD-converted summaries
+        // If user selects CNY, we convert USD amounts to CNY using year-end exchange rate
         List<AnnualExpenseSummary> summaries = annualExpenseSummaryRepository
-                .findMajorCategorySummary(familyId, year, currency);
+                .findMajorCategorySummary(familyId, year);
 
         List<AnnualExpenseSummaryDTO> result = new ArrayList<>();
+
+        // Determine display currency and conversion rate
+        String displayCurrency = "All".equalsIgnoreCase(currency) ? "USD" : currency;
+        BigDecimal conversionRate = BigDecimal.ONE;
+
+        // If CNY is selected, get year-end exchange rate to convert USD to CNY
+        if ("CNY".equalsIgnoreCase(currency)) {
+            LocalDate yearEnd = LocalDate.of(year, 12, 31);
+            List<ExchangeRate> rates = exchangeRateRepository.findByIsActiveTrueOrderByEffectiveDateDesc();
+
+            for (ExchangeRate rate : rates) {
+                if ("CNY".equals(rate.getCurrency()) && !rate.getEffectiveDate().isAfter(yearEnd)) {
+                    // CNY to USD rate is stored, we need USD to CNY rate (inverse)
+                    if (rate.getRateToUsd().compareTo(BigDecimal.ZERO) > 0) {
+                        conversionRate = BigDecimal.ONE.divide(rate.getRateToUsd(), 4, RoundingMode.HALF_UP);
+                    }
+                    break;
+                }
+            }
+
+            // Default CNY rate if not found (1 USD = 7.07 CNY)
+            if (conversionRate.compareTo(BigDecimal.ONE) == 0) {
+                conversionRate = new BigDecimal("7.07");
+            }
+        }
 
         for (AnnualExpenseSummary summary : summaries) {
             // 获取大类信息
@@ -471,15 +498,16 @@ public class ExpenseAnalysisService {
             dto.setMajorCategoryName(major != null ? major.getName() : null);
             dto.setMajorCategoryIcon(major != null ? major.getIcon() : null);
             dto.setMajorCategoryCode(major != null ? major.getCode() : null);
-            dto.setMinorCategoryId(null); // 大类汇总没有小类ID
+            dto.setMinorCategoryId(null);
             dto.setMinorCategoryName(null);
 
-            dto.setBaseExpenseAmount(summary.getBaseExpenseAmount());
-            dto.setSpecialExpense(summary.getSpecialExpenseAmount());
-            dto.setAssetAdjustment(summary.getAssetAdjustment());
-            dto.setLiabilityAdjustment(summary.getLiabilityAdjustment());
-            dto.setActualExpenseAmount(summary.getActualExpenseAmount());
-            dto.setCurrency(summary.getCurrency());
+            // Convert amounts if needed
+            dto.setBaseExpenseAmount(summary.getBaseExpenseAmount().multiply(conversionRate));
+            dto.setSpecialExpense(summary.getSpecialExpenseAmount().multiply(conversionRate));
+            dto.setAssetAdjustment(summary.getAssetAdjustment().multiply(conversionRate));
+            dto.setLiabilityAdjustment(summary.getLiabilityAdjustment().multiply(conversionRate));
+            dto.setActualExpenseAmount(summary.getActualExpenseAmount().multiply(conversionRate));
+            dto.setCurrency(displayCurrency);
             dto.setAdjustmentDetails(summary.getAdjustmentDetails());
 
             result.add(dto);
@@ -488,21 +516,23 @@ public class ExpenseAnalysisService {
         // 如果需要总计,添加总计记录
         if (includeTotals) {
             AnnualExpenseSummary totalSummary = annualExpenseSummaryRepository
-                    .findTotalSummary(familyId, year, currency);
+                    .findTotalSummary(familyId, year);
 
             if (totalSummary != null) {
                 AnnualExpenseSummaryDTO totalDTO = new AnnualExpenseSummaryDTO();
                 totalDTO.setSummaryYear(totalSummary.getSummaryYear());
-                totalDTO.setMajorCategoryId(0L);
+                totalDTO.setMajorCategoryId(null);
                 totalDTO.setMajorCategoryName("总计");
                 totalDTO.setMajorCategoryIcon(null);
                 totalDTO.setMajorCategoryCode("TOTAL");
-                totalDTO.setBaseExpenseAmount(totalSummary.getBaseExpenseAmount());
-                totalDTO.setSpecialExpense(totalSummary.getSpecialExpenseAmount());
-                totalDTO.setAssetAdjustment(totalSummary.getAssetAdjustment());
-                totalDTO.setLiabilityAdjustment(totalSummary.getLiabilityAdjustment());
-                totalDTO.setActualExpenseAmount(totalSummary.getActualExpenseAmount());
-                totalDTO.setCurrency(totalSummary.getCurrency());
+
+                // Convert amounts if needed
+                totalDTO.setBaseExpenseAmount(totalSummary.getBaseExpenseAmount().multiply(conversionRate));
+                totalDTO.setSpecialExpense(totalSummary.getSpecialExpenseAmount().multiply(conversionRate));
+                totalDTO.setAssetAdjustment(totalSummary.getAssetAdjustment().multiply(conversionRate));
+                totalDTO.setLiabilityAdjustment(totalSummary.getLiabilityAdjustment().multiply(conversionRate));
+                totalDTO.setActualExpenseAmount(totalSummary.getActualExpenseAmount().multiply(conversionRate));
+                totalDTO.setCurrency(displayCurrency);
                 totalDTO.setAdjustmentDetails(totalSummary.getAdjustmentDetails());
 
                 result.add(totalDTO);
