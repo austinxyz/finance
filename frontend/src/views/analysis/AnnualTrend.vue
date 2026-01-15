@@ -802,6 +802,9 @@ const renderCharts = () => {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
+          datalabels: {
+            display: false  // 禁用数据标签以避免拥挤
+          },
           legend: {
             position: window.innerWidth < 768 ? 'bottom' : 'top',
             labels: {
@@ -908,6 +911,9 @@ const renderCharts = () => {
           intersect: false,
         },
         plugins: {
+          datalabels: {
+            display: false  // 禁用数据标签以避免拥挤
+          },
           legend: {
             position: window.innerWidth < 768 ? 'bottom' : 'top',
             labels: {
@@ -1039,6 +1045,9 @@ const renderCharts = () => {
           intersect: false,
         },
         plugins: {
+          datalabels: {
+            display: false  // 禁用数据标签以避免拥挤
+          },
           legend: {
             position: window.innerWidth < 768 ? 'bottom' : 'top',
             labels: {
@@ -1170,6 +1179,9 @@ const renderCharts = () => {
           intersect: false,
         },
         plugins: {
+          datalabels: {
+            display: false  // 禁用数据标签以避免拥挤
+          },
           legend: {
             position: window.innerWidth < 768 ? 'bottom' : 'top',
             labels: {
