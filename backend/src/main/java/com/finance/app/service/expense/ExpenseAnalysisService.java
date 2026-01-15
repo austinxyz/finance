@@ -270,10 +270,8 @@ public class ExpenseAnalysisService {
         // 手动添加USD基准货币
         rateMap.put("USD", BigDecimal.ONE);
 
-        // 添加默认汇率（以防某些货币查不到）
-        if (!rateMap.containsKey("CNY")) {
-            rateMap.put("CNY", new BigDecimal("0.1414"));
-        }
+        // Note: Default rates for all currencies should be in DB (e.g., 2000-01-01 for CNY)
+        // No hardcoded fallback needed here
 
         return rateMap;
     }
@@ -288,12 +286,9 @@ public class ExpenseAnalysisService {
 
         BigDecimal rate = rateMap.get(currency);
         if (rate == null) {
-            // 默认汇率
-            if ("CNY".equals(currency)) {
-                rate = new BigDecimal("0.1414");
-            } else {
-                rate = BigDecimal.ONE;
-            }
+            // If rate not found, use 1.0 (no conversion)
+            // Note: Default rates should be in DB (e.g., 2000-01-01 for CNY)
+            rate = BigDecimal.ONE;
         }
 
         return amount.multiply(rate);
@@ -482,11 +477,10 @@ public class ExpenseAnalysisService {
                 }
             }
 
-            // Default CNY to USD rate if not found (same as loadExchangeRates)
-            // 1 CNY = 0.1414 USD, so 1 USD = 1/0.1414 CNY
+            // If no rate found (should not happen with 2000-01-01 default rate in DB)
+            // Use 1.0 as fallback to avoid division by zero
             if (conversionRate.compareTo(BigDecimal.ONE) == 0) {
-                BigDecimal defaultCnyToUsd = new BigDecimal("0.1414");
-                conversionRate = BigDecimal.ONE.divide(defaultCnyToUsd, 4, RoundingMode.HALF_UP);
+                conversionRate = BigDecimal.ONE;
             }
         }
 
