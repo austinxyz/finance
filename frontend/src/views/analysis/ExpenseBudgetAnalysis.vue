@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useFamilyStore } from '@/stores/family'
 import { exchangeRateAPI } from '@/api/exchangeRate'
 import { expenseAnalysisAPI } from '@/api/expense'
@@ -334,27 +334,40 @@ async function loadBudgetExecutionData() {
     } else {
       budgetExecutionData.value = []
     }
-
-    // 更新图表
-    setTimeout(() => updateComparisonChart(), 100)
   } catch (error) {
     console.error('加载预算执行数据失败:', error)
     budgetExecutionData.value = []
   } finally {
     loading.value = false
+    // 等待loading状态更新，Canvas元素渲染
+    await nextTick()
+    // 再等待一次，确保计算属性完全更新
+    await nextTick()
+    // 使用 requestAnimationFrame 确保浏览器完成渲染
+    requestAnimationFrame(() => {
+      updateComparisonChart()
+    })
   }
 }
 
 // 更新对比图表
 function updateComparisonChart() {
-  if (!comparisonChartCanvas.value) return
+  if (!comparisonChartCanvas.value) {
+    console.warn('图表Canvas未准备好')
+    return
+  }
+
+  const majors = majorCategories.value
+  if (majors.length === 0) {
+    console.warn('没有分类数据，跳过图表渲染')
+    return
+  }
 
   if (comparisonChart) {
     comparisonChart.destroy()
   }
 
   const ctx = comparisonChartCanvas.value.getContext('2d')
-  const majors = majorCategories.value
 
   comparisonChart = new Chart(ctx, {
     type: 'bar',

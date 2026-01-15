@@ -399,7 +399,15 @@ const calculateMonthlyData = () => {
 
 // 创建收支对比图表
 const createIncomeExpenseChart = () => {
-  if (!incomeExpenseChartCanvas.value) return;
+  if (!incomeExpenseChartCanvas.value) {
+    console.warn('收支对比图表Canvas未准备好');
+    return;
+  }
+
+  if (monthlyData.value.length === 0) {
+    console.warn('没有月度数据，跳过收支对比图表渲染');
+    return;
+  }
 
   const ctx = incomeExpenseChartCanvas.value.getContext('2d');
 
@@ -496,7 +504,15 @@ const createIncomeExpenseChart = () => {
 
 // 创建储蓄率趋势图
 const createSavingsRateChart = () => {
-  if (!savingsRateChartCanvas.value) return;
+  if (!savingsRateChartCanvas.value) {
+    console.warn('储蓄率趋势图Canvas未准备好');
+    return;
+  }
+
+  if (monthlyData.value.length === 0) {
+    console.warn('没有月度数据，跳过储蓄率趋势图渲染');
+    return;
+  }
 
   const ctx = savingsRateChartCanvas.value.getContext('2d');
 
@@ -560,13 +576,19 @@ const refreshData = async () => {
   try {
     await Promise.all([loadIncomeData(), loadExpenseData()]);
     calculateMonthlyData();
-    await nextTick();
-    createIncomeExpenseChart();
-    createSavingsRateChart();
   } catch (error) {
     console.error('刷新数据失败:', error);
   } finally {
     refreshing.value = false;
+    // 等待refreshing状态更新和monthlyData响应式更新完成
+    await nextTick();
+    // 再等待一次，确保所有计算属性和DOM完全更新
+    await nextTick();
+    // 使用 requestAnimationFrame 确保浏览器完成渲染
+    requestAnimationFrame(() => {
+      createIncomeExpenseChart();
+      createSavingsRateChart();
+    });
   }
 };
 
