@@ -596,20 +596,19 @@ const fetchData = async () => {
 
     // 重新计算基于显示货币的同比数据
     recalculateYoYMetrics()
-
-    // 必须先设置loading=false，否则v-if="loading"会阻止canvas渲染
-    loading.value = false
-
-    // 等待DOM更新（v-else-if="summaries.length > 0"触发渲染canvas）
-    await nextTick()
-    // 使用requestAnimationFrame等待浏览器完成渲染
-    await new Promise(resolve => requestAnimationFrame(() => {
-      requestAnimationFrame(resolve)
-    }))
-    renderCharts()
   } catch (error) {
     console.error('获取年度汇总数据失败:', error)
+    summaries.value = []
+  } finally {
     loading.value = false
+    // 等待loading状态更新，Canvas元素渲染
+    await nextTick()
+    // 再等待一次，确保计算属性完全更新
+    await nextTick()
+    // 使用 requestAnimationFrame 确保浏览器完成渲染
+    requestAnimationFrame(() => {
+      renderCharts()
+    })
   }
 }
 
@@ -680,12 +679,14 @@ const onCurrencyChange = async () => {
   await fetchExchangeRatesForAllYears()
   // 重新计算基于显示货币的同比数据
   recalculateYoYMetrics()
+  // 等待响应式数据更新
   await nextTick()
-  // 等待浏览器完成渲染
-  await new Promise(resolve => requestAnimationFrame(() => {
-    requestAnimationFrame(resolve)
-  }))
-  renderCharts()
+  // 再等待一次，确保计算属性完全更新
+  await nextTick()
+  // 使用 requestAnimationFrame 确保浏览器完成渲染
+  requestAnimationFrame(() => {
+    renderCharts()
+  })
 }
 
 // 计算年度汇总
@@ -716,9 +717,12 @@ const calculateSummary = async () => {
 
 // 渲染图表
 const renderCharts = () => {
-  try {
-    if (summaries.value.length === 0) return
+  if (summaries.value.length === 0) {
+    console.warn('AnnualTrend: No summaries data to render')
+    return
+  }
 
+  try {
     const sortedData = [...summaries.value].reverse() // 从旧到新排序
     const years = sortedData.map(s => s.year)
     // 使用每年各自的汇率进行转换
@@ -736,7 +740,9 @@ const renderCharts = () => {
 
     // 综合趋势图
     if (comprehensiveChart) comprehensiveChart.destroy()
-    if (comprehensiveChartCanvas.value) {
+    if (!comprehensiveChartCanvas.value) {
+      console.warn('AnnualTrend: Comprehensive chart canvas not ready')
+    } else {
       comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
       type: 'line',
       data: {
@@ -855,12 +861,14 @@ const renderCharts = () => {
         }
       }
     })
-  }
+    }
 
-  // 净资产趋势图（双Y轴）
-  if (netWorthChart) netWorthChart.destroy()
-  if (netWorthChartCanvas.value) {
-    netWorthChart = new Chart(netWorthChartCanvas.value, {
+    // 净资产趋势图（双Y轴）
+    if (netWorthChart) netWorthChart.destroy()
+    if (!netWorthChartCanvas.value) {
+      console.warn('AnnualTrend: Net worth chart canvas not ready')
+    } else {
+      netWorthChart = new Chart(netWorthChartCanvas.value, {
       type: 'bar',
       data: {
         labels: years,
@@ -982,12 +990,14 @@ const renderCharts = () => {
         }
       }
     })
-  }
+    }
 
-  // 资产趋势图（双Y轴）
-  if (assetChart) assetChart.destroy()
-  if (assetChartCanvas.value) {
-    assetChart = new Chart(assetChartCanvas.value, {
+    // 资产趋势图（双Y轴）
+    if (assetChart) assetChart.destroy()
+    if (!assetChartCanvas.value) {
+      console.warn('AnnualTrend: Asset chart canvas not ready')
+    } else {
+      assetChart = new Chart(assetChartCanvas.value, {
       type: 'bar',
       data: {
         labels: years,
@@ -1109,11 +1119,13 @@ const renderCharts = () => {
         }
       }
     })
-  }
+    }
 
-  // 负债趋势图（双Y轴）
-  if (liabilityChart) liabilityChart.destroy()
-  if (liabilityChartCanvas.value) {
+    // 负债趋势图（双Y轴）
+    if (liabilityChart) liabilityChart.destroy()
+    if (!liabilityChartCanvas.value) {
+      console.warn('AnnualTrend: Liability chart canvas not ready')
+    } else {
     liabilityChart = new Chart(liabilityChartCanvas.value, {
       type: 'bar',
       data: {
@@ -1236,7 +1248,7 @@ const renderCharts = () => {
         }
       }
     })
-  }
+    }
   } catch (error) {
     console.error('AnnualTrend: Error rendering charts:', error)
   }
@@ -1377,8 +1389,14 @@ const isYearExpanded = (year) => {
 
 // 监听 activeTab 变化，重新渲染图表
 watch(activeTab, async () => {
+  // 等待 tab 切换和 DOM 更新
   await nextTick()
-  renderCharts()
+  // 再等待一次，确保所有响应式更新完成
+  await nextTick()
+  // 使用 requestAnimationFrame 确保浏览器完成渲染
+  requestAnimationFrame(() => {
+    renderCharts()
+  })
 })
 
 // 监听 selectedFamilyId 变化
