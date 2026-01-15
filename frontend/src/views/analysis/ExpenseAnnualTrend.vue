@@ -471,7 +471,8 @@ const getExchangeRateForYear = (currency, year) => {
 const convertCurrency = (usdAmount, year = null) => {
   if (!usdAmount) return 0
 
-  if (selectedCurrency.value === 'USD') {
+  // All模式或USD：直接返回USD金额
+  if (selectedCurrency.value === 'USD' || selectedCurrency.value === 'All') {
     return Number(usdAmount)
   }
 
@@ -884,6 +885,7 @@ const renderCategoryTrendChart = () => {
 // 货币符号映射
 const getCurrencySymbol = (currency) => {
   const symbols = {
+    'All': '$',  // All模式显示为USD符号
     'USD': '$',
     'CNY': '¥',
     'EUR': '€',
