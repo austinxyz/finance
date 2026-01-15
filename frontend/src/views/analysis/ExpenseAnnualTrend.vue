@@ -22,8 +22,9 @@
             <label class="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">显示货币：</label>
             <select v-model="selectedCurrency" @change="onCurrencyChange"
                     class="flex-1 sm:flex-none px-2 md:px-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-xs md:text-sm">
-              <option value="USD">USD ($)</option>
-              <option value="CNY">CNY (¥)</option>
+              <option v-for="currency in currencies" :key="currency" :value="currency">
+                {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
+              </option>
             </select>
           </div>
 
@@ -385,7 +386,8 @@ const summaryTableData = ref({ years: [], categories: [], rows: [] })
 const loading = ref(false)
 const summaryTableLoading = ref(false)
 const displayYears = ref(5)
-const selectedCurrency = ref('USD')
+const currencies = ['All', 'CNY', 'USD']
+const selectedCurrency = ref('All')
 const selectedCategories = ref([])
 const exchangeRates = ref([]) // 汇率数据
 const activeTab = ref('trend') // 当前激活的tab

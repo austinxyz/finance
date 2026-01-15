@@ -38,7 +38,7 @@
           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
         >
           <option v-for="currency in currencies" :key="currency" :value="currency">
-            {{ currency }}
+            {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
           </option>
         </select>
       </div>
@@ -265,8 +265,8 @@ export default {
     // 响应式数据
     const selectedFamilyId = computed(() => familyStore.currentFamilyId)
     const selectedYear = ref(new Date().getFullYear())
-    const currencies = ref(['All'])
-    const selectedCurrency = ref('USD')
+    const currencies = ref(['All', 'CNY', 'USD'])
+    const selectedCurrency = ref('All')
     const loading = ref(false)
     const refreshing = ref(false)
 

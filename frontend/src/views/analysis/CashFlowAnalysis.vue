@@ -38,7 +38,7 @@
           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
         >
           <option v-for="currency in currencies" :key="currency" :value="currency">
-            {{ currency }}
+            {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
           </option>
         </select>
       </div>

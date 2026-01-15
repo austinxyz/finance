@@ -24,7 +24,7 @@
             class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option v-for="currency in currencies" :key="currency" :value="currency">
-              {{ currency }}
+              {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
             </option>
           </select>
         </div>
@@ -197,11 +197,11 @@ Chart.register(...registerables)
 const familyStore = useFamilyStore()
 const selectedFamilyId = computed(() => familyStore.currentFamilyId)
 
-const currencies = ref([])
+const currencies = ref(['All', 'CNY', 'USD'])
 const budgetExecutionData = ref([])
 
 const selectedYear = ref(new Date().getFullYear())
-const selectedCurrency = ref('USD')
+const selectedCurrency = ref('All')
 
 const loading = ref(false)
 const comparisonChartCanvas = ref(null)
