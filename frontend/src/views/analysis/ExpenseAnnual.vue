@@ -389,29 +389,10 @@ export default {
       return minorCategoryData.value.reduce((sum, item) => sum + parseFloat(item.budgetAmount || 0), 0)
     })
 
-    // 加载货币列表
+    // 加载货币列表（保持固定顺序：All, CNY, USD）
     const loadCurrencies = async () => {
-      try {
-        const response = await exchangeRateAPI.getAllActive()
-        let data = response.data
-
-        let rates = []
-        if (Array.isArray(data)) {
-          rates = data
-        } else if (data && data.data && Array.isArray(data.data)) {
-          rates = data.data
-        } else if (data && data.success && Array.isArray(data.data)) {
-          rates = data.data
-        }
-
-        const currencySet = new Set(['All'])
-        rates.forEach(rate => currencySet.add(rate.currency))
-        currencySet.add('USD')
-
-        currencies.value = Array.from(currencySet).sort()
-      } catch (error) {
-        console.error('加载货币列表失败:', error)
-      }
+      // 货币列表已在初始化时设置为 ['All', 'CNY', 'USD']
+      // 无需动态加载，保持固定顺序
     }
 
     // 加载预算数据
