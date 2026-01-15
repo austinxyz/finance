@@ -229,12 +229,12 @@ export default {
 
     // 分类数据（排除总计行）
     const categoryData = computed(() => {
-      return summaryData.value.filter(item => item.majorCategoryId !== 0)
+      return summaryData.value.filter(item => item.majorCategoryId !== null && item.majorCategoryId !== 0)
     })
 
-    // 总计行（majorCategoryId为0）
+    // 总计行（majorCategoryId为null或0）
     const totalRow = computed(() => {
-      return summaryData.value.find(item => item.majorCategoryId === 0)
+      return summaryData.value.find(item => item.majorCategoryId === null || item.majorCategoryId === 0)
     })
 
     // 总实际支出（排除总计行）
@@ -307,8 +307,8 @@ export default {
           }
         })
 
-        // 添加总计行（majorCategoryId = 0）
-        const totalRow = expenseMap.get(0)
+        // 添加总计行（majorCategoryId = null 或 0）
+        const totalRow = expenseMap.get(null) || expenseMap.get(0)
         if (totalRow) {
           mergedData.push(totalRow)
         }
@@ -326,7 +326,7 @@ export default {
 
           if (lastYearResponse && lastYearResponse.success) {
             const lastYearData = lastYearResponse.data || []
-            const lastYearTotal = lastYearData.find(item => item.majorCategoryId === 0)
+            const lastYearTotal = lastYearData.find(item => item.majorCategoryId === null || item.majorCategoryId === 0)
             // 使用实际支出（调整后的支出）进行对比
             lastYearTotalExpense.value = lastYearTotal ? parseFloat(lastYearTotal.actualExpenseAmount || 0) : 0
           } else {

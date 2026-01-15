@@ -764,7 +764,7 @@ BEGIN
     )
     SELECT
         p_family_id, NULL, p_summary_year,
-        0, NULL,
+        NULL, NULL,
         SUM(base_expense_amount),
         SUM(COALESCE(special_expense_amount, 0)),
         SUM(COALESCE(asset_adjustment, 0)),
@@ -786,7 +786,7 @@ BEGIN
     FROM annual_expense_summary
     WHERE family_id = p_family_id
       AND summary_year = p_summary_year
-      AND major_category_id != 0
+      AND major_category_id IS NOT NULL
       AND minor_category_id IS NULL
       AND adjustment_details IS NOT NULL
       AND JSON_LENGTH(adjustment_details) > 0;
@@ -795,7 +795,7 @@ BEGIN
     SET adjustment_details = (SELECT aggregated_details FROM temp_adjustment_details)
     WHERE family_id = p_family_id
       AND summary_year = p_summary_year
-      AND major_category_id = 0;
+      AND major_category_id IS NULL;
 
     DROP TEMPORARY TABLE IF EXISTS temp_adjustment_details;
 
@@ -803,7 +803,7 @@ BEGIN
     SELECT
         aes.id,
         aes.summary_year,
-        CASE WHEN aes.major_category_id = 0 THEN '总计' ELSE major.name END AS '大类',
+        CASE WHEN aes.major_category_id IS NULL THEN '总计' ELSE major.name END AS '大类',
         CASE WHEN aes.minor_category_id IS NULL THEN '小计' ELSE minor.name END AS '小类',
         aes.base_expense_amount AS '基础支出',
         aes.special_expense_amount AS '特殊支出',
@@ -818,7 +818,7 @@ BEGIN
     WHERE aes.family_id = p_family_id
       AND aes.summary_year = p_summary_year
     ORDER BY
-        CASE WHEN aes.major_category_id = 0 THEN 999 ELSE aes.major_category_id END,
+        CASE WHEN aes.major_category_id IS NULL THEN 999 ELSE aes.major_category_id END,
         CASE WHEN aes.minor_category_id IS NULL THEN 0 ELSE aes.minor_category_id END;
 
 END //
