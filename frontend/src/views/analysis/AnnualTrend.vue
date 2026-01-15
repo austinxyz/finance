@@ -715,7 +715,7 @@ const calculateSummary = async () => {
   }
 }
 
-// 渲染图表
+// 渲染图表 - 根据当前 activeTab 只渲染可见的图表
 const renderCharts = () => {
   if (summaries.value.length === 0) {
     console.warn('AnnualTrend: No summaries data to render')
@@ -738,12 +738,17 @@ const renderCharts = () => {
 
     const currencySymbol = getCurrencySymbol(selectedCurrency.value)
 
+    // 根据 activeTab 决定渲染哪个图表
+    // 由于使用 v-show，隐藏的 Canvas 宽度为 0，Chart.js 无法正确初始化
+    // 因此只渲染当前可见的图表
+
     // 综合趋势图
-    if (comprehensiveChart) comprehensiveChart.destroy()
-    if (!comprehensiveChartCanvas.value) {
-      console.warn('AnnualTrend: Comprehensive chart canvas not ready')
-    } else {
-      comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
+    if (activeTab.value === 'overall') {
+      if (comprehensiveChart) comprehensiveChart.destroy()
+      if (!comprehensiveChartCanvas.value) {
+        console.warn('AnnualTrend: Comprehensive chart canvas not ready')
+      } else {
+        comprehensiveChart = new Chart(comprehensiveChartCanvas.value, {
       type: 'line',
       data: {
         labels: years,
@@ -860,15 +865,17 @@ const renderCharts = () => {
           }
         }
       }
-    })
+        })
+      }
     }
 
     // 净资产趋势图（双Y轴）
-    if (netWorthChart) netWorthChart.destroy()
-    if (!netWorthChartCanvas.value) {
-      console.warn('AnnualTrend: Net worth chart canvas not ready')
-    } else {
-      netWorthChart = new Chart(netWorthChartCanvas.value, {
+    if (activeTab.value === 'networth') {
+      if (netWorthChart) netWorthChart.destroy()
+      if (!netWorthChartCanvas.value) {
+        console.warn('AnnualTrend: Net worth chart canvas not ready')
+      } else {
+        netWorthChart = new Chart(netWorthChartCanvas.value, {
       type: 'bar',
       data: {
         labels: years,
@@ -989,15 +996,17 @@ const renderCharts = () => {
           }
         }
       }
-    })
+        })
+      }
     }
 
     // 资产趋势图（双Y轴）
-    if (assetChart) assetChart.destroy()
-    if (!assetChartCanvas.value) {
-      console.warn('AnnualTrend: Asset chart canvas not ready')
-    } else {
-      assetChart = new Chart(assetChartCanvas.value, {
+    if (activeTab.value === 'asset') {
+      if (assetChart) assetChart.destroy()
+      if (!assetChartCanvas.value) {
+        console.warn('AnnualTrend: Asset chart canvas not ready')
+      } else {
+        assetChart = new Chart(assetChartCanvas.value, {
       type: 'bar',
       data: {
         labels: years,
@@ -1118,15 +1127,17 @@ const renderCharts = () => {
           }
         }
       }
-    })
+        })
+      }
     }
 
     // 负债趋势图（双Y轴）
-    if (liabilityChart) liabilityChart.destroy()
-    if (!liabilityChartCanvas.value) {
-      console.warn('AnnualTrend: Liability chart canvas not ready')
-    } else {
-    liabilityChart = new Chart(liabilityChartCanvas.value, {
+    if (activeTab.value === 'liability') {
+      if (liabilityChart) liabilityChart.destroy()
+      if (!liabilityChartCanvas.value) {
+        console.warn('AnnualTrend: Liability chart canvas not ready')
+      } else {
+        liabilityChart = new Chart(liabilityChartCanvas.value, {
       type: 'bar',
       data: {
         labels: years,
@@ -1247,7 +1258,8 @@ const renderCharts = () => {
           }
         }
       }
-    })
+        })
+      }
     }
   } catch (error) {
     console.error('AnnualTrend: Error rendering charts:', error)
