@@ -482,9 +482,11 @@ public class ExpenseAnalysisService {
                 }
             }
 
-            // Default CNY rate if not found (1 USD = 7.07 CNY)
+            // Default CNY to USD rate if not found (same as loadExchangeRates)
+            // 1 CNY = 0.1414 USD, so 1 USD = 1/0.1414 CNY
             if (conversionRate.compareTo(BigDecimal.ONE) == 0) {
-                conversionRate = new BigDecimal("7.07");
+                BigDecimal defaultCnyToUsd = new BigDecimal("0.1414");
+                conversionRate = BigDecimal.ONE.divide(defaultCnyToUsd, 4, RoundingMode.HALF_UP);
             }
         }
 

@@ -426,7 +426,13 @@ export default {
 
     // 格式化金额
     const formatCurrency = (amount) => {
-      return '$' + parseFloat(amount).toLocaleString('en-US', {
+      const currencySymbols = {
+        'CNY': '¥',
+        'USD': '$',
+        'All': '$'
+      }
+      const symbol = currencySymbols[selectedCurrency.value] || '$'
+      return symbol + parseFloat(amount).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })
@@ -434,12 +440,19 @@ export default {
 
     // 格式化图表金额（K/M格式）
     const formatChartAmount = (value) => {
+      const currencySymbols = {
+        'CNY': '¥',
+        'USD': '$',
+        'All': '$'
+      }
+      const symbol = currencySymbols[selectedCurrency.value] || '$'
+
       if (value >= 1000000) {
-        return '$' + (value / 1000000).toFixed(2) + 'M'
+        return symbol + (value / 1000000).toFixed(2) + 'M'
       } else if (value >= 1000) {
-        return '$' + (value / 1000).toFixed(2) + 'K'
+        return symbol + (value / 1000).toFixed(2) + 'K'
       } else {
-        return '$' + value.toFixed(2)
+        return symbol + value.toFixed(2)
       }
     }
 

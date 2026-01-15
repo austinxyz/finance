@@ -24,7 +24,7 @@
             class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option v-for="currency in currencies" :key="currency" :value="currency">
-              {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
+              {{ getCurrencyLabel(currency) }}
             </option>
           </select>
         </div>
@@ -268,6 +268,21 @@ const majorCategories = computed(() => {
 
   return result.sort((a, b) => a.id - b.id)
 })
+
+// 获取货币标签
+function getCurrencyLabel(currency) {
+  const currencyLabels = {
+    'All': 'All (折算为USD)',
+    'CNY': 'CNY (¥)',
+    'USD': 'USD ($)',
+    'EUR': 'EUR (€)',
+    'GBP': 'GBP (£)',
+    'JPY': 'JPY (¥)',
+    'AUD': 'AUD (A$)',
+    'CAD': 'CAD (C$)'
+  }
+  return currencyLabels[currency] || currency
+}
 
 // 格式化货币
 function formatCurrency(amount) {
