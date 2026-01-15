@@ -17,6 +17,19 @@
           </option>
         </select>
 
+        <!-- 货币选择 -->
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">币种:</label>
+          <select
+            v-model="selectedCurrency"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white text-sm"
+          >
+            <option v-for="currency in currencies" :key="currency" :value="currency">
+              {{ currency === 'All' ? 'All (折算为USD)' : currency === 'CNY' ? 'CNY (¥)' : 'USD ($)' }}
+            </option>
+          </select>
+        </div>
+
         <!-- 刷新按钮 -->
         <button
           @click="handleRefresh"
@@ -193,6 +206,8 @@ export default {
 
     // 响应式数据
     const selectedYear = ref(new Date().getFullYear())
+    const currencies = ['All', 'CNY', 'USD']
+    const selectedCurrency = ref('All')
     const loading = ref(false)
     const refreshing = ref(false)
     const summaryData = ref([])
@@ -255,7 +270,7 @@ export default {
         const response = await expenseAnalysisAPI.getAnnualSummary(
           selectedFamilyId.value,
           selectedYear.value,
-          'USD',
+          selectedCurrency.value,
           true
         )
 
@@ -305,7 +320,7 @@ export default {
           const lastYearResponse = await expenseAnalysisAPI.getAnnualSummary(
             selectedFamilyId.value,
             selectedYear.value - 1,
-            'USD',
+            selectedCurrency.value,
             true
           )
 
@@ -460,7 +475,7 @@ export default {
       }
     })
 
-    watch(selectedYear, () => {
+    watch([selectedYear, selectedCurrency], () => {
       loadSummaryData()
     })
 
@@ -476,6 +491,8 @@ export default {
       selectedFamilyId,
       selectedYear,
       availableYears,
+      currencies,
+      selectedCurrency,
       loading,
       refreshing,
       summaryData,
