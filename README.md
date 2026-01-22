@@ -2,7 +2,7 @@
 
 A full-stack financial management system built with Spring Boot + Vue.js, supporting asset/liability tracking, income/expense analysis, and cash flow management.
 
-> **Latest Update (v1.1.0)**: Cash Flow Dashboard - Income/Expense comparison, savings rate trends, monthly analysis
+> **Latest Update (v1.2.0)**: Enhanced Exchange Rate Management - Multi-currency support with API integration, historical trends, and time-series charts
 > **Feature Completion**: 98% | **Performance**: Page load <2s | **Multi-platform**: amd64 + arm64
 
 ## ✨ Core Features
@@ -20,6 +20,7 @@ A full-stack financial management system built with Spring Boot + Vue.js, suppor
 - **Income Management** - 10 major income categories, monthly batch entry, annual budget planning ⭐
 - **Expense Management** - 10 major expense categories, batch entry, budget planning, 3-level drill-down
 - **Investment Management** - Transaction records, cost/market value/P&L calculation, annual analysis
+- **Exchange Rate Management** - Multi-currency rate tracking, API integration, historical trends ⭐ New
 
 ### 📈 Data Analysis
 - **Cash Flow Analysis** - Income/expense comparison, savings rate trends, monthly detail analysis ⭐ New
@@ -40,7 +41,8 @@ A full-stack financial management system built with Spring Boot + Vue.js, suppor
 ### Data Integrity
 - Complete coverage of five dimensions: assets, liabilities, income, expenses, investments
 - Complete time-series data recording and historical tracking
-- Multi-currency support (USD/CNY/EUR/GBP/JPY/AUD/CAD)
+- Multi-currency support (USD/CNY/EUR/GBP/JPY/AUD/CAD) with automatic rate conversion
+- Third-party API integration (Frankfurter/ECB) for real-time exchange rates
 
 ### Performance Excellence ⚡
 - Fixed N+1 query issues (batch query optimization)
@@ -124,6 +126,35 @@ kubectl port-forward -n finance svc/finance-frontend 3000:80
 
 See [k8s/README.md](./k8s/README.md) for details.
 
+## 💱 Exchange Rate Management
+
+Advanced multi-currency exchange rate management with automated API integration and trend visualization.
+
+**Key Features:**
+
+### Tab 1: Daily Rate Manager
+- **Date Selection** - Select any date to view/edit exchange rates
+- **API Integration** - One-click fetch from Frankfurter API (European Central Bank data)
+- **Batch Operations** - Edit all 6 currencies (CNY/EUR/GBP/JPY/AUD/CAD) at once
+- **Change Tracking** - Visual indicators for modified rates
+- **Manual Override** - Support for manual rate input when needed
+
+### Tab 2: Rate History & Trends
+- **Currency Selector** - View historical data for any supported currency
+- **Date Range Picker** - Custom time period selection (default: last 7 days)
+- **Time-Series Chart** - Interactive Chart.js line chart with real-time scale
+- **Statistical Cards** - Latest/Maximum/Minimum/Average rate display
+- **Data Table** - Detailed historical records with source tracking
+
+**API Endpoints:**
+- `GET /api/exchange-rates/latest` - Get current rates for all currencies
+- `GET /api/exchange-rates/date/{date}` - Get rates for specific date
+- `GET /api/exchange-rates/currency/{currency}/range` - Date range query
+- `POST /api/exchange-rates/fetch-from-api` - Fetch rates from external API (admin)
+- `POST /api/exchange-rates` - Create/update rate records (admin)
+
+**Data Source:** Frankfurter API (https://www.frankfurter.app/) - Free, reliable European Central Bank data
+
 ## 🗄️ Database Backup System
 
 Automated backup system with scheduled backups, manual triggers, and safe restoration.
@@ -199,12 +230,12 @@ finance/
 - `/api/investments/analysis/*` - Investment analysis (annual, by account, monthly trends)
 
 ### Tools
-- `/api/exchange-rates/*` - Exchange rate management
+- `/api/exchange-rates/*` - Exchange rate management (CRUD, API fetch, date range queries)
 - `/api/google-sheets/*` - Google Sheets export
 
 ## 📅 Development Roadmap
 
-### ✅ Completed (v1.1.0)
+### ✅ Completed (v1.2.0)
 - [x] JWT authentication & authorization system (family-level data isolation)
 - [x] Asset & liability management system
 - [x] Income management module (10 major categories, budget management)
@@ -215,6 +246,7 @@ finance/
 - [x] Google Sheets export
 - [x] Multi-architecture Docker images (amd64/arm64)
 - [x] Database backup & restore system
+- [x] Enhanced exchange rate management (API integration, historical trends, time-series charts)
 
 ### 🔄 In Progress
 - [ ] Financial goal management (short/mid/long-term goal setting and tracking)
