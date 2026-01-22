@@ -83,6 +83,44 @@ export const exchangeRateAPI = {
    */
   initialize() {
     return request.post('/exchange-rates/initialize')
+  },
+
+  /**
+   * 从第三方API获取并保存汇率
+   * @param {String} date - 日期 (可选，格式: YYYY-MM-DD)
+   */
+  fetchFromAPI(date = null) {
+    return request.post('/exchange-rates/fetch-from-api', null, {
+      params: { date }
+    })
+  },
+
+  /**
+   * 获取特定货币在日期范围内的汇率
+   * @param {String} currency - 货币代码
+   * @param {String} startDate - 开始日期 (格式: YYYY-MM-DD)
+   * @param {String} endDate - 结束日期 (格式: YYYY-MM-DD)
+   */
+  getRatesByRange(currency, startDate, endDate) {
+    return request.get(`/exchange-rates/currency/${currency}/range`, {
+      params: { startDate, endDate }
+    })
+  },
+
+  /**
+   * 获取特定货币的所有历史汇率
+   * @param {String} currency - 货币代码
+   */
+  getRatesByCurrency(currency) {
+    return request.get(`/exchange-rates/currency/${currency}`)
+  },
+
+  /**
+   * 获取特定日期的所有汇率
+   * @param {String} date - 日期 (格式: YYYY-MM-DD)
+   */
+  getRatesByDate(date) {
+    return request.get(`/exchange-rates/date/${date}`)
   }
 }
 

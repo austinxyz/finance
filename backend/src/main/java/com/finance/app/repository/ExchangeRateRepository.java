@@ -34,4 +34,13 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
 
     // 查找特定货币和日期的汇率
     Optional<ExchangeRate> findByCurrencyAndEffectiveDate(String currency, LocalDate effectiveDate);
+
+    // 查找特定货币在日期范围内的所有汇率
+    @Query("SELECT e FROM ExchangeRate e WHERE e.currency = :currency " +
+           "AND e.effectiveDate BETWEEN :startDate AND :endDate " +
+           "AND e.isActive = true " +
+           "ORDER BY e.effectiveDate ASC")
+    List<ExchangeRate> findByCurrencyAndDateRange(@Param("currency") String currency,
+                                                   @Param("startDate") LocalDate startDate,
+                                                   @Param("endDate") LocalDate endDate);
 }

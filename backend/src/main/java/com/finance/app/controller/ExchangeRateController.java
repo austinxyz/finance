@@ -252,4 +252,54 @@ public class ExchangeRateController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * 从第三方API获取并保存汇率 - Admin only
+     */
+    @PostMapping("/fetch-from-api")
+    public ResponseEntity<Map<String, Object>> fetchRatesFromAPI(
+            @RequestParam(required = false) String date,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        authHelper.requireAdmin(authHeader);
+
+        try {
+            LocalDate effectiveDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+            List<ExchangeRate> savedRates = exchangeRateService.fetchAndSaveRatesFromAPI(effectiveDate);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "成功从API获取并保存 " + savedRates.size() + " 条汇率记录");
+            response.put("data", savedRates);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取特定货币在日期范围内的汇率 - Public endpoint
+     */
+    @GetMapping("/currency/{currency}/range")
+    public ResponseEntity<Map<String, Object>> getRatesByCurrencyAndDateRange(
+            @PathVariable String currency,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = LocalDate.parse(endDate);
+
+        List<ExchangeRate> rates = exchangeRateService.getRatesByCurrencyAndDateRange(currency, start, end);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", rates);
+
+        return ResponseEntity.ok(response);
+    }
 }

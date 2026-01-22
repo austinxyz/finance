@@ -8,7 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -16,6 +18,9 @@ public class ExchangeRateService {
 
     @Autowired
     private ExchangeRateRepository exchangeRateRepository;
+
+    @Autowired
+    private ExchangeRateAPIService exchangeRateAPIService;
 
     /**
      * 获取所有启用的汇率，按生效日期降序排列
@@ -180,5 +185,60 @@ public class ExchangeRateService {
         exchangeRate.setSource(source);
         exchangeRate.setIsActive(true);
         exchangeRateRepository.save(exchangeRate);
+    }
+
+    /**
+     * 从第三方API获取并批量保存汇率
+     */
+    @Transactional
+    public List<ExchangeRate> fetchAndSaveRatesFromAPI(LocalDate date) {
+        List<ExchangeRate> savedRates = new ArrayList<>();
+
+        try {
+            // 从API获取汇率
+            Map<String, BigDecimal> rates = exchangeRateAPIService.fetchRatesForDate(date);
+
+            // 批量保存
+            for (Map.Entry<String, BigDecimal> entry : rates.entrySet()) {
+                String currency = entry.getKey();
+                BigDecimal rate = entry.getValue();
+
+                // 检查是否已存在
+                Optional<ExchangeRate> existing = exchangeRateRepository.findByCurrencyAndEffectiveDate(
+                    currency, date
+                );
+
+                ExchangeRate exchangeRate;
+                if (existing.isPresent()) {
+                    // 更新现有记录
+                    exchangeRate = existing.get();
+                    exchangeRate.setRateToUsd(rate);
+                    exchangeRate.setSource("Frankfurter API");
+                    exchangeRate.setIsActive(true);
+                } else {
+                    // 创建新记录
+                    exchangeRate = new ExchangeRate();
+                    exchangeRate.setCurrency(currency);
+                    exchangeRate.setRateToUsd(rate);
+                    exchangeRate.setEffectiveDate(date);
+                    exchangeRate.setSource("Frankfurter API");
+                    exchangeRate.setIsActive(true);
+                }
+
+                savedRates.add(exchangeRateRepository.save(exchangeRate));
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("从API获取汇率失败: " + e.getMessage(), e);
+        }
+
+        return savedRates;
+    }
+
+    /**
+     * 获取特定货币在日期范围内的汇率
+     */
+    public List<ExchangeRate> getRatesByCurrencyAndDateRange(String currency, LocalDate startDate, LocalDate endDate) {
+        return exchangeRateRepository.findByCurrencyAndDateRange(currency, startDate, endDate);
     }
 }
