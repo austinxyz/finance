@@ -126,35 +126,6 @@ kubectl port-forward -n finance svc/finance-frontend 3000:80
 
 See [k8s/README.md](./k8s/README.md) for details.
 
-## 💱 Exchange Rate Management
-
-Advanced multi-currency exchange rate management with automated API integration and trend visualization.
-
-**Key Features:**
-
-### Tab 1: Daily Rate Manager
-- **Date Selection** - Select any date to view/edit exchange rates
-- **API Integration** - One-click fetch from Frankfurter API (European Central Bank data)
-- **Batch Operations** - Edit all 6 currencies (CNY/EUR/GBP/JPY/AUD/CAD) at once
-- **Change Tracking** - Visual indicators for modified rates
-- **Manual Override** - Support for manual rate input when needed
-
-### Tab 2: Rate History & Trends
-- **Currency Selector** - View historical data for any supported currency
-- **Date Range Picker** - Custom time period selection (default: last 7 days)
-- **Time-Series Chart** - Interactive Chart.js line chart with real-time scale
-- **Statistical Cards** - Latest/Maximum/Minimum/Average rate display
-- **Data Table** - Detailed historical records with source tracking
-
-**API Endpoints:**
-- `GET /api/exchange-rates/latest` - Get current rates for all currencies
-- `GET /api/exchange-rates/date/{date}` - Get rates for specific date
-- `GET /api/exchange-rates/currency/{currency}/range` - Date range query
-- `POST /api/exchange-rates/fetch-from-api` - Fetch rates from external API (admin)
-- `POST /api/exchange-rates` - Create/update rate records (admin)
-
-**Data Source:** Frankfurter API (https://www.frankfurter.app/) - Free, reliable European Central Bank data
-
 ## 🗄️ Database Backup System
 
 Automated backup system with scheduled backups, manual triggers, and safe restoration.
@@ -230,7 +201,7 @@ finance/
 - `/api/investments/analysis/*` - Investment analysis (annual, by account, monthly trends)
 
 ### Tools
-- `/api/exchange-rates/*` - Exchange rate management (CRUD, API fetch, date range queries)
+- `/api/exchange-rates/*` - Exchange rate management
 - `/api/google-sheets/*` - Google Sheets export
 
 ## 📅 Development Roadmap

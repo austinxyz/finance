@@ -153,4 +153,100 @@ public class GoogleOAuthService {
         }
         directory.delete();
     }
+
+    /**
+     * 获取Web端OAuth授权URL
+     * 用户需要访问此URL完成授权，然后重定向回callback端点
+     */
+    public String getAuthorizationUrl() throws IOException, GeneralSecurityException {
+        // 加载 OAuth 客户端凭证
+        ClassPathResource resource = new ClassPathResource(CREDENTIALS_FILE_PATH);
+        GoogleClientSecrets clientSecrets;
+        try (InputStream in = resource.getInputStream()) {
+            clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        }
+
+        // 构建认证流程
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+            GoogleNetHttpTransport.newTrustedTransport(), JSON_FACTORY, clientSecrets, SCOPES)
+            .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+            .setAccessType("offline")
+            .setApprovalPrompt("force") // 强制显示授权页面
+            .build();
+
+        // 生成授权URL（重定向到后端callback端点）
+        String redirectUri = "http://localhost:8080/api/google-sheets/oauth2callback";
+        String authUrl = flow.newAuthorizationUrl()
+            .setRedirectUri(redirectUri)
+            .setState("user") // 用于识别用户
+            .build();
+
+        log.info("生成OAuth授权URL: {}", authUrl);
+        return authUrl;
+    }
+
+    /**
+     * 获取已保存的用户凭证（不触发授权流程）
+     * 如果没有已保存的凭证，抛出异常
+     */
+    public Credential getSavedCredential() throws IOException, GeneralSecurityException {
+        NetHttpTransport httpTransport = createTrustAllTransport();
+
+        // 加载 OAuth 客户端凭证
+        ClassPathResource resource = new ClassPathResource(CREDENTIALS_FILE_PATH);
+        GoogleClientSecrets clientSecrets;
+        try (InputStream in = resource.getInputStream()) {
+            clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        }
+
+        // 构建认证流程
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+            httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
+            .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+            .setAccessType("offline")
+            .build();
+
+        // 尝试加载已保存的凭证
+        Credential credential = flow.loadCredential("user");
+
+        if (credential == null) {
+            throw new IllegalStateException("未找到已保存的OAuth凭证，请先完成授权");
+        }
+
+        log.info("成功加载已保存的OAuth凭证");
+        return credential;
+    }
+
+    /**
+     * 使用授权码换取访问令牌
+     */
+    public void exchangeCodeForToken(String code) throws IOException, GeneralSecurityException {
+        NetHttpTransport httpTransport = createTrustAllTransport();
+
+        // 加载 OAuth 客户端凭证
+        ClassPathResource resource = new ClassPathResource(CREDENTIALS_FILE_PATH);
+        GoogleClientSecrets clientSecrets;
+        try (InputStream in = resource.getInputStream()) {
+            clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        }
+
+        // 构建认证流程
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+            httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
+            .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+            .setAccessType("offline")
+            .build();
+
+        // 使用授权码换取令牌
+        String redirectUri = "http://localhost:8080/api/google-sheets/oauth2callback";
+        com.google.api.client.auth.oauth2.TokenResponse response = flow.newTokenRequest(code)
+            .setRedirectUri(redirectUri)
+            .execute();
+
+        // 保存凭证
+        Credential credential = flow.createAndStoreCredential(response, "user");
+
+        log.info("OAuth令牌获取成功，access_token前缀: {}...",
+            credential.getAccessToken().substring(0, Math.min(10, credential.getAccessToken().length())));
+    }
 }

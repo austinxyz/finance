@@ -73,11 +73,11 @@ public class GoogleSheetsService {
     }
 
     /**
-     * 获取Google Sheets服务实例（使用OAuth 2.0）
+     * 获取Google Sheets服务实例（使用已保存的OAuth 2.0凭证）
      */
     private Sheets getSheetsService() throws IOException, GeneralSecurityException {
         NetHttpTransport httpTransport = createTrustAllTransport();
-        Credential credential = googleOAuthService.getUserCredential();
+        Credential credential = googleOAuthService.getSavedCredential();
 
         return new Sheets.Builder(httpTransport, JSON_FACTORY, credential)
             .setApplicationName(APPLICATION_NAME)
@@ -89,7 +89,7 @@ public class GoogleSheetsService {
      */
     private Drive getDriveService() throws IOException, GeneralSecurityException {
         NetHttpTransport httpTransport = createTrustAllTransport();
-        Credential credential = googleOAuthService.getUserCredential();
+        Credential credential = googleOAuthService.getSavedCredential();
 
         return new Drive.Builder(httpTransport, JSON_FACTORY, credential)
             .setApplicationName(APPLICATION_NAME)

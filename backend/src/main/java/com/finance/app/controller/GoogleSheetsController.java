@@ -149,9 +149,17 @@ public class GoogleSheetsController {
     public SseEmitter subscribeProgress(
             @Parameter(description = "同步任务ID", required = true)
             @PathVariable Long syncId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @Parameter(description = "认证Token（URL参数，用于EventSource）", required = false)
+            @RequestParam(value = "token", required = false) String tokenParam) {
 
         log.info("客户端订阅SSE进度: syncId={}", syncId);
+
+        // 优先使用 URL 参数中的 token（EventSource 无法发送自定义 headers）
+        String effectiveAuthHeader = authHeader;
+        if (effectiveAuthHeader == null && tokenParam != null && !tokenParam.isEmpty()) {
+            effectiveAuthHeader = "Bearer " + tokenParam;
+        }
 
         // 检查任务是否存在
         Optional<GoogleSheetsSync> syncOpt = googleSheetsSyncRepository.findById(syncId);
@@ -172,7 +180,7 @@ public class GoogleSheetsController {
 
         // Verify family access
         try {
-            authHelper.requireFamilyAccess(authHeader, sync.getFamilyId());
+            authHelper.requireFamilyAccess(effectiveAuthHeader, sync.getFamilyId());
         } catch (Exception e) {
             SseEmitter emitter = new SseEmitter(0L);
             try {

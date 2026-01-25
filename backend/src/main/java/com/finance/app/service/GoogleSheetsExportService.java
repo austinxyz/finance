@@ -75,13 +75,28 @@ public class GoogleSheetsExportService {
 
             // 检查是否有正在进行的任务
             if ("IN_PROGRESS".equals(sync.getStatus()) || "PENDING".equals(sync.getStatus())) {
-                log.info("已有进行中的任务: syncId={}", sync.getId());
-                Map<String, Object> result = new HashMap<>();
-                result.put("syncId", sync.getId());
-                result.put("status", sync.getStatus());
-                result.put("progress", sync.getProgress());
-                result.put("message", "已有正在进行的同步任务");
-                return result;
+                // 检查任务是否超时（超过1小时视为超时）
+                long minutesSinceUpdate = java.time.Duration.between(
+                    sync.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant(),
+                    java.time.Instant.now()
+                ).toMinutes();
+
+                if (minutesSinceUpdate < 60) {
+                    // 任务未超时，返回现有任务
+                    log.info("已有进行中的任务: syncId={}, 已运行{}分钟", sync.getId(), minutesSinceUpdate);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("syncId", sync.getId());
+                    result.put("status", sync.getStatus());
+                    result.put("progress", sync.getProgress());
+                    result.put("message", "已有正在进行的同步任务");
+                    return result;
+                } else {
+                    // 任务超时，标记为失败并继续创建新任务
+                    log.warn("检测到超时任务: syncId={}, 已运行{}分钟，将重置并重新启动", sync.getId(), minutesSinceUpdate);
+                    sync.setStatus("FAILED");
+                    sync.setErrorMessage("任务超时（超过1小时未完成）");
+                    googleSheetsSyncRepository.save(sync);
+                }
             }
 
             // 检查是否需要重新创建电子表格（spreadsheetId为空或无效）

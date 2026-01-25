@@ -69,10 +69,46 @@
 
         <!-- 配置表单 -->
         <div v-else class="space-y-4">
+          <!-- 授权状态提示 -->
+          <div v-if="!checkingAuth">
+            <!-- 未授权提示 -->
+            <div v-if="!isAuthorized" class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+              <div class="flex items-start">
+                <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div class="ml-3 flex-1">
+                  <p class="text-sm font-medium text-yellow-800 mb-2">需要授权Google账号</p>
+                  <p class="text-xs text-yellow-700 mb-3">
+                    首次使用需要授权应用访问您的Google Sheets，以便创建和管理电子表格。
+                  </p>
+                  <button @click="authorizeGoogle"
+                          class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-yellow-600 rounded-md hover:bg-yellow-700">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    立即授权
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 已授权提示 -->
+            <div v-else class="bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="ml-2 text-sm text-green-800">已授权Google账号</p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">年份</label>
             <input type="number" v-model.number="year" :min="2000" :max="2100"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                   :disabled="!isAuthorized"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
           </div>
 
           <div>
@@ -80,15 +116,17 @@
             <div class="space-y-2">
               <label class="flex items-center">
                 <input type="radio" v-model="permission" value="reader"
-                       class="form-radio text-primary focus:ring-primary">
-                <span class="ml-2 text-sm text-gray-700">
+                       :disabled="!isAuthorized"
+                       class="form-radio text-primary focus:ring-primary disabled:cursor-not-allowed">
+                <span class="ml-2 text-sm text-gray-700" :class="{ 'text-gray-400': !isAuthorized }">
                   <span class="font-medium">只读</span> - 其他人只能查看，不能编辑
                 </span>
               </label>
               <label class="flex items-center">
                 <input type="radio" v-model="permission" value="writer"
-                       class="form-radio text-primary focus:ring-primary">
-                <span class="ml-2 text-sm text-gray-700">
+                       :disabled="!isAuthorized"
+                       class="form-radio text-primary focus:ring-primary disabled:cursor-not-allowed">
+                <span class="ml-2 text-sm text-gray-700" :class="{ 'text-gray-400': !isAuthorized }">
                   <span class="font-medium">可编辑</span> - 其他人可以查看和编辑
                 </span>
               </label>
@@ -119,7 +157,7 @@
         </button>
         <button v-if="syncStatus === 'idle'"
                 @click="syncToGoogleSheets"
-                :disabled="!year"
+                :disabled="!year || !isAuthorized"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
           开始同步
         </button>
@@ -134,8 +172,9 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, onBeforeUnmount, onMounted } from 'vue'
 import googleSheetsApi from '../api/googleSheets'
+import googleOAuthApi from '../api/googleOAuth'
 
 const props = defineProps({
   show: {
@@ -164,6 +203,8 @@ const shareUrl = ref('')
 const errorMessage = ref('')
 const statusMessage = ref('正在同步到Google Sheets...')
 const statusDetail = ref('正在启动任务，请稍候...')
+const isAuthorized = ref(false)
+const checkingAuth = ref(false)
 
 // SSE连接
 let eventSource = null
@@ -181,14 +222,65 @@ const progressColor = computed(() => {
   return '#10b981' // green
 })
 
-// 监听显示状态，重置表单
+// 监听显示状态，重置表单并检查授权
 watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
+    checkAuthorizationStatus()
   } else {
     closeEventSource()
   }
 })
+
+// 检查授权状态
+const checkAuthorizationStatus = async () => {
+  try {
+    checkingAuth.value = true
+    const response = await googleOAuthApi.checkAuthStatus()
+    const data = response.data || response
+    isAuthorized.value = data.authorized || false
+  } catch (error) {
+    console.error('检查授权状态失败:', error)
+    isAuthorized.value = false
+  } finally {
+    checkingAuth.value = false
+  }
+}
+
+// 授权Google账号
+const authorizeGoogle = async () => {
+  try {
+    const response = await googleOAuthApi.getAuthUrl()
+    const data = response.data || response
+    const authUrl = data.authUrl
+
+    // 在新窗口打开授权页面
+    const width = 600
+    const height = 700
+    const left = (window.screen.width - width) / 2
+    const top = (window.screen.height - height) / 2
+    const authWindow = window.open(
+      authUrl,
+      'Google授权',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+    )
+
+    // 监听授权窗口关闭
+    const checkWindowClosed = setInterval(() => {
+      if (authWindow && authWindow.closed) {
+        clearInterval(checkWindowClosed)
+        // 重新检查授权状态
+        setTimeout(() => {
+          checkAuthorizationStatus()
+        }, 1000)
+      }
+    }, 500)
+  } catch (error) {
+    console.error('获取授权URL失败:', error)
+    syncStatus.value = 'error'
+    errorMessage.value = error.response?.data?.error || error.message || '获取授权URL失败'
+  }
+}
 
 // 重置表单
 const resetForm = () => {
@@ -242,6 +334,13 @@ const updateStatusMessage = (progressValue) => {
 
 // 同步到Google Sheets
 const syncToGoogleSheets = async () => {
+  // 先检查是否已授权
+  if (!isAuthorized.value) {
+    syncStatus.value = 'error'
+    errorMessage.value = '请先授权Google账号'
+    return
+  }
+
   try {
     syncStatus.value = 'loading'
     progress.value = 0
@@ -280,7 +379,9 @@ const connectEventSource = (taskSyncId) => {
   closeEventSource() // 先关闭已有的连接
 
   const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const url = `${baseURL}/google-sheets/sync-progress/${taskSyncId}`
+  // 从 localStorage 获取 token 并添加到 URL（EventSource 不支持自定义 headers）
+  const token = localStorage.getItem('token')
+  const url = `${baseURL}/google-sheets/sync-progress/${taskSyncId}${token ? `?token=${encodeURIComponent(token)}` : ''}`
 
   eventSource = new EventSource(url)
 
@@ -330,7 +431,8 @@ const connectEventSource = (taskSyncId) => {
 
   // 通用错误处理
   eventSource.onerror = (error) => {
-    if (eventSource.readyState === EventSource.CLOSED) {
+    // 检查 eventSource 是否仍然存在（可能已被 closeEventSource() 设置为 null）
+    if (eventSource && eventSource.readyState === EventSource.CLOSED) {
       // 连接已关闭，静默处理
     }
   }
