@@ -120,6 +120,12 @@
                 <span class="text-gray-900 font-medium">${{ formatAmount(category.amount) }}</span>
               </div>
             </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="flex items-center justify-between text-sm font-semibold">
+                <span class="text-gray-700">职业收入总计</span>
+                <span class="text-lg text-green-600">${{ formatAmount(careerIncome) }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -802,9 +808,9 @@ const liabilityCategories = computed(() => {
 
 // 支出分类统计（本年度实际支出）
 const expenseCategories = computed(() => {
-  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为0）
+  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为null和0）
   const majorCategories = annualExpenseSummary.value.filter(
-    item => !item.minorCategoryName && item.majorCategoryId !== 0
+    item => !item.minorCategoryName && item.majorCategoryId != null && item.majorCategoryId !== 0
   )
 
   if (majorCategories.length === 0) return []
@@ -827,9 +833,9 @@ const totalExpense = computed(() => {
 
 // 总支出分类统计（本年度预算支出，不含实际调整）
 const baseExpenseCategories = computed(() => {
-  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为0）
+  // 过滤出大类汇总（minorCategoryName为null）且不是总计（majorCategoryId不为null和0）
   const majorCategories = annualExpenseSummary.value.filter(
-    item => !item.minorCategoryName && item.majorCategoryId !== 0
+    item => !item.minorCategoryName && item.majorCategoryId != null && item.majorCategoryId !== 0
   )
 
   if (majorCategories.length === 0) return []
@@ -861,14 +867,14 @@ const incomeCategories = computed(() => {
 
   if (majorCategories.length === 0) return []
 
-  const total = majorCategories.reduce((sum, cat) => sum + Number(cat.actualIncomeAmount || 0), 0)
+  const total = majorCategories.reduce((sum, cat) => sum + Number(cat.totalAmount || 0), 0)
 
   return majorCategories.map((cat, index) => ({
     id: cat.majorCategoryId,
     name: cat.majorCategoryChineseName || cat.majorCategoryName,
-    amount: Number(cat.actualIncomeAmount || 0),
+    amount: Number(cat.totalAmount || 0),
     color: CHART_COLORS[index % CHART_COLORS.length],
-    percentage: total > 0 ? ((Number(cat.actualIncomeAmount || 0) / total) * 100).toFixed(1) : '0.0'
+    percentage: total > 0 ? ((Number(cat.totalAmount || 0) / total) * 100).toFixed(1) : '0.0'
   })).filter(cat => cat.amount > 0).sort((a, b) => b.amount - a.amount)
 })
 
