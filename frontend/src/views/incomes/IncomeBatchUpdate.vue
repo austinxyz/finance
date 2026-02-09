@@ -1,5 +1,7 @@
 <template>
   <div class="p-3 md:p-4 space-y-3">
+    <!-- Calculator Component -->
+    <Calculator :show="showCalculator" @close="closeCalculator" @apply="applyCalculatorResult" />
     <!-- 选择器和保存按钮 - 紧凑单行布局 -->
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
@@ -107,17 +109,28 @@
 
                 <!-- 本月输入 -->
                 <td class="px-2 py-1.5">
-                  <div class="relative">
-                    <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
-                    <input
-                      v-model="categoryAmounts[category.id]"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
-                      @input="markAsChanged(category.id)"
-                    />
+                  <div class="flex items-center gap-1">
+                    <div class="relative flex-1">
+                      <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
+                      <input
+                        v-model="categoryAmounts[category.id]"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                        @input="markAsChanged(category.id)"
+                      />
+                    </div>
+                    <button
+                      @click="openCalculator(category.id)"
+                      class="p-1 text-gray-500 hover:text-primary transition"
+                      title="打开计算器"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -135,6 +148,7 @@ import { incomeCategoryAPI, incomeRecordAPI } from '@/api/income'
 import { useFamilyStore } from '@/stores/family'
 import { userAPI } from '@/api/user'
 import { exchangeRateAPI } from '@/api/exchangeRate'
+import Calculator from '@/components/Calculator.vue'
 
 // Family store
 const familyStore = useFamilyStore()
@@ -148,6 +162,10 @@ const majorCategories = ref([])
 const allMinorCategories = ref([])
 const categoryAmounts = ref({})
 const categoryRecordIds = ref({}) // 存储每个分类的记录ID，用于删除
+
+// Calculator state
+const showCalculator = ref(false)
+const currentCalculatorCategoryId = ref(null)
 const historyData = ref({}) // 前3个月历史数据
 const changedRecords = ref(new Set())
 
@@ -286,6 +304,24 @@ function markAsChanged(categoryId) {
   } else {
     // 无值且无原始记录（从未填写）
     changedRecords.value.delete(categoryId)
+  }
+}
+
+// Calculator functions
+const openCalculator = (categoryId) => {
+  currentCalculatorCategoryId.value = categoryId
+  showCalculator.value = true
+}
+
+const closeCalculator = () => {
+  showCalculator.value = false
+  currentCalculatorCategoryId.value = null
+}
+
+const applyCalculatorResult = (result) => {
+  if (currentCalculatorCategoryId.value !== null) {
+    categoryAmounts.value[currentCalculatorCategoryId.value] = result.toString()
+    markAsChanged(currentCalculatorCategoryId.value)
   }
 }
 

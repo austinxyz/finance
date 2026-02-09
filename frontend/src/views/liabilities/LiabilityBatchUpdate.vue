@@ -1,5 +1,7 @@
 <template>
   <div class="p-3 md:p-4 space-y-3">
+    <!-- Calculator Component -->
+    <Calculator :show="showCalculator" @close="closeCalculator" @apply="applyCalculatorResult" />
     <!-- 选择器和保存按钮 - 紧凑单行布局 -->
     <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between border-b border-gray-200 pb-2">
       <div class="flex flex-col sm:flex-row gap-2">
@@ -108,14 +110,25 @@
 
                 <!-- 新余额输入 -->
                 <td class="px-2 py-1.5">
-                  <input
-                    v-model="accountBalances[account.id]"
-                    type="number"
-                    step="0.01"
-                    placeholder="新余额"
-                    class="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500 text-right"
-                    @input="markAsChanged(account.id)"
-                  />
+                  <div class="flex items-center gap-1">
+                    <input
+                      v-model="accountBalances[account.id]"
+                      type="number"
+                      step="0.01"
+                      placeholder="新余额"
+                      class="w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500 text-right"
+                      @input="markAsChanged(account.id)"
+                    />
+                    <button
+                      @click="openCalculator(account.id)"
+                      class="p-1 text-gray-500 hover:text-red-600 transition"
+                      title="打开计算器"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
 
                 <!-- 差额 -->
@@ -139,6 +152,7 @@ import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { useFamilyStore } from '@/stores/family'
 import { getExchangeRate } from '@/utils/exchangeRate'
 import { getTodayDate } from '@/lib/utils'
+import Calculator from '@/components/Calculator.vue'
 
 const userId = ref(1) // TODO: 从用户登录状态获取
 const loading = ref(false)
@@ -148,6 +162,10 @@ const accountBalances = ref({})
 const accountPreviousValues = ref({}) // 存储每个账户在选择日期的之前值
 const changedAccounts = ref(new Set())
 const selectedCategoryType = ref(null)
+
+// Calculator state
+const showCalculator = ref(false)
+const currentCalculatorAccountId = ref(null)
 
 // 家庭相关
 // Family store
@@ -320,6 +338,24 @@ const markAsChanged = (accountId) => {
     changedAccounts.value.add(accountId)
   } else {
     changedAccounts.value.delete(accountId)
+  }
+}
+
+// Calculator functions
+const openCalculator = (accountId) => {
+  currentCalculatorAccountId.value = accountId
+  showCalculator.value = true
+}
+
+const closeCalculator = () => {
+  showCalculator.value = false
+  currentCalculatorAccountId.value = null
+}
+
+const applyCalculatorResult = (result) => {
+  if (currentCalculatorAccountId.value !== null) {
+    accountBalances.value[currentCalculatorAccountId.value] = result.toString()
+    markAsChanged(currentCalculatorAccountId.value)
   }
 }
 // 计算差额（负债减少是好的）

@@ -1,5 +1,7 @@
 <template>
   <div class="p-3 md:p-4 space-y-3">
+    <!-- Calculator Component -->
+    <Calculator :show="showCalculator" @close="closeCalculator" @apply="applyCalculatorResult" />
     <!-- Tab 切换 -->
     <div class="border-b border-gray-200 pb-2">
       <nav class="-mb-2 flex space-x-2" aria-label="Tabs">
@@ -142,33 +144,55 @@
 
                   <!-- 本月输入 - 投入 -->
                   <td class="px-2 py-1.5">
-                    <div class="relative">
-                      <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
-                      <input
-                        v-model="monthAmounts[account.accountId].deposits"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
-                        @input="markMonthChanged(account.accountId)"
-                      />
+                    <div class="flex items-center gap-1">
+                      <div class="relative flex-1">
+                        <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
+                        <input
+                          v-model="monthAmounts[account.accountId].deposits"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                          @input="markMonthChanged(account.accountId)"
+                        />
+                      </div>
+                      <button
+                        @click="openCalculator(account.accountId, 'deposits')"
+                        class="p-1 text-gray-500 hover:text-primary transition"
+                        title="打开计算器"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
 
                   <!-- 本月输入 - 取出 -->
                   <td class="px-2 py-1.5">
-                    <div class="relative">
-                      <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
-                      <input
-                        v-model="monthAmounts[account.accountId].withdrawals"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
-                        @input="markMonthChanged(account.accountId)"
-                      />
+                    <div class="flex items-center gap-1">
+                      <div class="relative flex-1">
+                        <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ getCurrencySymbol(account.currency) }}</span>
+                        <input
+                          v-model="monthAmounts[account.accountId].withdrawals"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          class="w-24 pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                          @input="markMonthChanged(account.accountId)"
+                        />
+                      </div>
+                      <button
+                        @click="openCalculator(account.accountId, 'withdrawals')"
+                        class="p-1 text-gray-500 hover:text-primary transition"
+                        title="打开计算器"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -288,31 +312,53 @@
                     {{ selectedYear }}年{{ month }}月
                   </td>
                   <td class="px-2 py-1.5 text-right">
-                    <div class="relative inline-block w-24">
-                      <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
-                      <input
-                        v-model="yearMonthAmounts[month].deposits"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
-                        @input="markYearChanged(month)"
-                      />
+                    <div class="flex items-center gap-1 justify-end">
+                      <div class="relative inline-block w-24">
+                        <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+                        <input
+                          v-model="yearMonthAmounts[month].deposits"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                          @input="markYearChanged(month)"
+                        />
+                      </div>
+                      <button
+                        @click="openCalculator(month, 'year-deposits')"
+                        class="p-1 text-gray-500 hover:text-primary transition"
+                        title="打开计算器"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                   <td class="px-2 py-1.5 text-right">
-                    <div class="relative inline-block w-24">
-                      <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
-                      <input
-                        v-model="yearMonthAmounts[month].withdrawals"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
-                        @input="markYearChanged(month)"
-                      />
+                    <div class="flex items-center gap-1 justify-end">
+                      <div class="relative inline-block w-24">
+                        <span class="absolute left-1.5 top-1 text-gray-500 text-xs">{{ getCurrencySymbol(selectedAccountCurrency) }}</span>
+                        <input
+                          v-model="yearMonthAmounts[month].withdrawals"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          class="w-full pl-5 pr-1.5 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                          @input="markYearChanged(month)"
+                        />
+                      </div>
+                      <button
+                        @click="openCalculator(month, 'year-withdrawals')"
+                        class="p-1 text-gray-500 hover:text-primary transition"
+                        title="打开计算器"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                   <td class="px-2 py-1.5 text-right text-xs">
@@ -348,6 +394,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { investmentAccountAPI, investmentTransactionAPI } from '@/api/investment'
 import { useFamilyStore } from '@/stores/family'
+import Calculator from '@/components/Calculator.vue'
 
 export default {
   name: 'InvestmentBatchEntry',
@@ -380,6 +427,10 @@ export default {
     const savingYear = ref(false)
     const quickFillDeposit = ref(null)
     const quickFillWithdrawal = ref(null)
+
+    // Calculator state
+    const showCalculator = ref(false)
+    const currentCalculatorTarget = ref(null) // { id, type } where type is 'deposits', 'withdrawals', 'year-deposits', 'year-withdrawals'
 
     // 初始化12个月的数据结构
     for (let i = 1; i <= 12; i++) {
@@ -546,6 +597,41 @@ export default {
 
     const markYearChanged = (month) => {
       changedYearMonths.value.add(month)
+    }
+
+    // Calculator functions
+    const openCalculator = (id, type) => {
+      currentCalculatorTarget.value = { id, type }
+      showCalculator.value = true
+    }
+
+    const closeCalculator = () => {
+      showCalculator.value = false
+      currentCalculatorTarget.value = null
+    }
+
+    const applyCalculatorResult = (result) => {
+      if (!currentCalculatorTarget.value) return
+
+      const { id, type } = currentCalculatorTarget.value
+
+      if (type === 'deposits') {
+        // 按月份模式 - 投入
+        monthAmounts.value[id].deposits = result.toString()
+        markMonthChanged(id)
+      } else if (type === 'withdrawals') {
+        // 按月份模式 - 取出
+        monthAmounts.value[id].withdrawals = result.toString()
+        markMonthChanged(id)
+      } else if (type === 'year-deposits') {
+        // 按账户模式 - 投入
+        yearMonthAmounts.value[id].deposits = result.toString()
+        markYearChanged(id)
+      } else if (type === 'year-withdrawals') {
+        // 按账户模式 - 取出
+        yearMonthAmounts.value[id].withdrawals = result.toString()
+        markYearChanged(id)
+      }
     }
 
     // 加载投资分类
@@ -927,8 +1013,17 @@ export default {
       quickFillDeposit,
       quickFillWithdrawal,
       fillAllDeposits,
-      fillAllWithdrawals
+      fillAllWithdrawals,
+
+      // Calculator
+      showCalculator,
+      openCalculator,
+      closeCalculator,
+      applyCalculatorResult
     }
+  },
+  components: {
+    Calculator
   }
 }
 </script>
