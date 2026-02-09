@@ -131,8 +131,8 @@
 
                 <!-- 本月输入 -->
                 <td class="px-2 py-1.5">
-                  <div class="flex items-center gap-1">
-                    <div class="relative flex-1">
+                  <div class="flex items-center gap-1 justify-center">
+                    <div class="relative">
                       <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">{{ selectedCurrency === 'CNY' ? '¥' : '$' }}</span>
                       <input
                         v-model="categoryAmounts[category.id]"
