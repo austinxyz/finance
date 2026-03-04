@@ -1,53 +1,52 @@
 #!/bin/bash
 
-# Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check if .env exists
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
-    echo "❌ Error: .env file not found in $SCRIPT_DIR"
+    echo "Error: .env file not found in $SCRIPT_DIR"
     exit 1
 fi
 
-echo "🔐 Loading environment variables from .env..."
+echo "Loading environment variables from .env..."
 
-# Use Python to load .env and start Maven
-# Python handles special characters in environment variables correctly
+# Parse .env manually — handles Windows CRLF, quoted values, export prefix, and = in values
+while IFS= read -r line || [[ -n "$line" ]]; do
+    # Remove carriage return (Windows CRLF)
+    line="${line//$'\r'/}"
+    # Skip comments and blank lines
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    # Remove optional 'export ' prefix
+    line="${line#export }"
+    # Split on FIRST '=' only — preserves '=' characters in values (e.g. base64 secrets)
+    key="${line%%=*}"
+    value="${line#*=}"
+    # Skip if key is empty
+    [[ -z "$key" ]] && continue
+    # Strip surrounding single/double quotes from value
+    value="${value%\"}" ; value="${value#\"}"
+    value="${value%\'}" ; value="${value#\'}"
+    export "$key=$value"
+done < "$SCRIPT_DIR/.env"
+
+echo "  DB: ${DB_USER:-<not set>}@${DB_HOST:-<not set>}:${DB_PORT:-<not set>}/${DB_NAME:-<not set>}"
+echo "  JWT_SECRET: ${JWT_SECRET:+[set, ${#JWT_SECRET} chars]}${JWT_SECRET:-<not set>}"
+
+export SPRING_PROFILES_ACTIVE=dev
+echo "Using profile: dev"
+echo "Starting Spring Boot..."
+
+# Find mvn
+MVN_CMD=""
+if command -v mvn &>/dev/null; then
+    MVN_CMD="mvn"
+elif [ -f "/c/Users/lorra/tools/apache-maven-3.9.6/bin/mvn" ]; then
+    MVN_CMD="/c/Users/lorra/tools/apache-maven-3.9.6/bin/mvn"
+elif [ -f "$HOME/tools/apache-maven-3.9.6/bin/mvn" ]; then
+    MVN_CMD="$HOME/tools/apache-maven-3.9.6/bin/mvn"
+else
+    echo "Error: mvn not found. Add Maven to PATH or install it."
+    exit 1
+fi
+
 cd "$SCRIPT_DIR"
-python3 <<'PYTHON_SCRIPT'
-import os
-import sys
-import subprocess
-
-# Load environment variables from .env file
-with open('.env', 'r') as f:
-    for line in f:
-        line = line.strip()
-        # Skip comments and empty lines
-        if not line or line.startswith('#'):
-            continue
-        # Parse key=value
-        if '=' in line:
-            key, value = line.split('=', 1)
-            os.environ[key] = value
-
-# Display loaded variables (truncated for security)
-db_host = os.environ.get('DB_HOST', '')
-db_port = os.environ.get('DB_PORT', '')
-db_name = os.environ.get('DB_NAME', '')
-db_user = os.environ.get('DB_USER', '')
-jwt_secret = os.environ.get('JWT_SECRET', '')
-
-print('✅ Environment variables loaded')
-print(f'   DB: {db_user}@{db_host}:{db_port}/{db_name}')
-print(f'   JWT_SECRET: {jwt_secret[:30]}...')
-
-# Set development profile for local development
-os.environ['SPRING_PROFILES_ACTIVE'] = 'dev'
-print('🔧 Using profile: dev (development environment)')
-print('🚀 Starting Spring Boot application...')
-
-# Run Maven with loaded environment
-result = subprocess.run(['mvn', 'spring-boot:run'])
-sys.exit(result.returncode)
-PYTHON_SCRIPT
+"$MVN_CMD" spring-boot:run

@@ -287,6 +287,19 @@
             <span>优化建议</span>
           </router-link>
         </div>
+
+        <!-- 财务规划 -->
+        <div class="space-y-1">
+          <div class="nav-section-title">财务规划</div>
+          <router-link
+            to="/analysis/runway"
+            class="nav-item"
+            :class="isActive('/analysis/runway')"
+          >
+            <Timer class="w-5 h-5" />
+            <span>资金跑道</span>
+          </router-link>
+        </div>
       </template>
 
       <!-- 设置类菜单 -->
@@ -396,7 +409,8 @@ import {
   FolderKanban,
   LineChart,
   Settings,
-  Database
+  Database,
+  Timer
 } from 'lucide-vue-next';
 
 // Emit navigate event for mobile sidebar close

@@ -48,4 +48,19 @@ public interface AssetAccountRepository extends JpaRepository<AssetAccount, Long
         @Param("familyId") Long familyId,
         @Param("taxStatus") com.finance.app.model.TaxStatus taxStatus
     );
+
+    /**
+     * 查询指定家庭、指定资产类型代码的账户（用于流动资产跑道计算）
+     * 使用 JOIN FETCH 提前加载 assetType，避免懒加载问题
+     */
+    @Query("SELECT a FROM AssetAccount a JOIN FETCH a.assetType t " +
+           "JOIN User u ON a.userId = u.id " +
+           "WHERE u.familyId = :familyId " +
+           "AND a.isActive = true " +
+           "AND t.type IN :types " +
+           "ORDER BY t.displayOrder, a.accountName")
+    List<AssetAccount> findByFamilyIdAndAssetTypeCodeIn(
+        @Param("familyId") Long familyId,
+        @Param("types") List<String> types
+    );
 }

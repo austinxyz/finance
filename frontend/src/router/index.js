@@ -264,6 +264,15 @@ const routes = [
           description: '获取个性化财务优化建议'
         }
       },
+      {
+        path: 'analysis/runway',
+        name: 'RunwayAnalysis',
+        component: () => import('../views/analysis/RunwayAnalysis.vue'),
+        meta: {
+          title: '资金跑道',
+          description: '测算流动资产能维持多久的生活'
+        }
+      },
       // 设置 - 普通用户
       {
         path: 'settings/my-family',
