@@ -30,5 +30,10 @@ export default defineConfig({
   // Build optimizations
   build: {
     sourcemap: true, // Enable source maps for debugging
+  },
+  // Vitest configuration
+  test: {
+    environment: 'jsdom',
+    globals: true,
   }
 })
