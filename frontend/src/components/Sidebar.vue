@@ -299,6 +299,14 @@
             <Timer class="w-5 h-5" />
             <span>资金跑道</span>
           </router-link>
+          <router-link
+            to="/analysis/runway-reports"
+            class="nav-item"
+            :class="isActive('/analysis/runway-reports')"
+          >
+            <FileText class="w-5 h-5" />
+            <span>历史跑道报告</span>
+          </router-link>
         </div>
       </template>
 
@@ -410,7 +418,8 @@ import {
   LineChart,
   Settings,
   Database,
-  Timer
+  Timer,
+  FileText
 } from 'lucide-vue-next';
 
 // Emit navigate event for mobile sidebar close

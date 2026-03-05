@@ -13,5 +13,21 @@ export const runwayAPI = {
       params.includedTypes = includedTypes
     }
     return request.get('/runway/analysis', { params })
+  },
+
+  saveRunwayReport(familyId, snapshotJson) {
+    return request.post('/runway/reports', { familyId, snapshotJson })
+  },
+
+  listRunwayReports(familyId) {
+    return request.get('/runway/reports', { params: { familyId } })
+  },
+
+  getRunwayReport(id, familyId) {
+    return request.get(`/runway/reports/${id}`, { params: { familyId } })
+  },
+
+  deleteRunwayReport(id) {
+    return request.delete(`/runway/reports/${id}`)
   }
 }

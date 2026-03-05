@@ -273,6 +273,24 @@ const routes = [
           description: '测算流动资产能维持多久的生活'
         }
       },
+      {
+        path: 'analysis/runway-reports',
+        name: 'RunwayReportList',
+        component: () => import('../views/analysis/RunwayReportList.vue'),
+        meta: {
+          title: '历史跑道报告',
+          description: '查看和管理已保存的资金跑道分析报告'
+        }
+      },
+      {
+        path: 'analysis/runway-reports/:id',
+        name: 'RunwayReportView',
+        component: () => import('../views/analysis/RunwayReportView.vue'),
+        meta: {
+          title: '跑道报告详情',
+          description: '查看历史跑道报告'
+        }
+      },
       // 设置 - 普通用户
       {
         path: 'settings/my-family',

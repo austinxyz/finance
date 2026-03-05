@@ -6,17 +6,39 @@
         <h1 class="text-xl md:text-2xl font-bold text-gray-900">资金跑道分析</h1>
         <p class="text-xs md:text-sm text-gray-600 mt-1">测算流动资产在不工作情况下能维持多久</p>
       </div>
-      <button
-        @click="fetchData"
-        :disabled="loading"
-        class="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-      >
-        <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-        </svg>
-        <span>{{ loading ? '计算中...' : '刷新' }}</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          @click="fetchData"
+          :disabled="loading"
+          class="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+          </svg>
+          <span>{{ loading ? '计算中...' : '刷新' }}</span>
+        </button>
+        <button
+          @click="saveReport"
+          :disabled="!data || saving"
+          class="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          <span>{{ saving ? '保存中...' : '保存报告' }}</span>
+        </button>
+        <button
+          @click="exportPDF"
+          :disabled="!data || pdfExporting"
+          class="px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2"
+        >
+          <span>{{ pdfExporting ? '生成中...' : '导出 PDF' }}</span>
+        </button>
+        <router-link
+          to="/analysis/runway-reports"
+          class="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 flex items-center gap-2"
+        >
+          <span>历史报告</span>
+        </router-link>
+      </div>
     </div>
 
     <!-- Controls -->
@@ -54,6 +76,15 @@
       </div>
     </div>
 
+    <!-- PDF capture area — everything below the header/controls -->
+    <div ref="pdfContent">
+
+    <!-- PDF header (family info + report date, only visible in PDF capture) -->
+    <div v-if="familyName" class="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700">{{ familyName }}</span>
+      <span class="text-xs text-gray-400">资金跑道分析 · {{ new Date().toLocaleDateString('zh-CN') }}</span>
+    </div>
+
     <!-- Warnings -->
     <div v-if="data && (data.assetDataMissing || data.expenseDataWarning)" class="space-y-2">
       <div
@@ -80,6 +111,11 @@
           支出数据仅覆盖 {{ data.expenseMonthsUsed }} 个月，估算基础较少，结果仅供参考。
         </span>
       </div>
+    </div>
+
+    <!-- Success toast -->
+    <div v-if="saveSuccess" class="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+      {{ saveSuccess }}
     </div>
 
     <!-- Error state -->
@@ -257,6 +293,8 @@
         </table>
       </div>
     </div>
+
+    </div><!-- end pdfContent -->
   </div>
 </template>
 
@@ -265,6 +303,9 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { useAuthStore } from '../../stores/auth'
 import { runwayAPI } from '../../api/runway'
+import { familyAPI } from '../../api/family'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 Chart.register(...registerables)
 
@@ -273,7 +314,12 @@ const familyId = computed(() => authStore.familyId)
 
 const data = ref(null)
 const loading = ref(false)
+const saving = ref(false)
+const pdfExporting = ref(false)
 const error = ref(null)
+const saveSuccess = ref(null)
+const pdfContent = ref(null)
+const familyName = ref(null)
 
 const selectedMonths = ref(6)
 const optimisticMultiplier = ref(0.8)
@@ -381,6 +427,79 @@ function setAdjustment(code, value) {
     adj[code] = num
   }
   expenseAdjustments.value = adj
+}
+
+// ── Save Report ────────────────────────────────────────────
+
+async function saveReport() {
+  if (!data.value || !familyId.value) return
+  saving.value = true
+  saveSuccess.value = null
+  try {
+    const snapshot = {
+      version: '1',
+      settings: {
+        lookbackMonths: selectedMonths.value,
+        optimisticMultiplier: optimisticMultiplier.value,
+        pessimisticMultiplier: pessimisticMultiplier.value,
+      },
+      excludedAccountIds: [...excludedAccounts.value],
+      expenseAdjustments: { ...expenseAdjustments.value },
+      snapshot: {
+        liquidTotal: effectiveLiquidTotal.value,
+        monthlyBurn: effectiveMonthlyBurn.value,
+        runwayMonths: effectiveRunwayMonths.value,
+        depletionDate: effectiveDepletionDate.value,
+        accountBreakdown: data.value.accountBreakdown,
+        expenseBreakdown: data.value.expenseBreakdown,
+      },
+    }
+    const response = await runwayAPI.saveRunwayReport(familyId.value, JSON.stringify(snapshot))
+    if (response.success) {
+      saveSuccess.value = `报告已保存：${response.data.reportName}`
+      setTimeout(() => { saveSuccess.value = null }, 4000)
+    } else {
+      error.value = response.error || '保存失败'
+    }
+  } catch (e) {
+    error.value = e.message || '保存失败'
+  } finally {
+    saving.value = false
+  }
+}
+
+// ── Export PDF ─────────────────────────────────────────────
+
+async function exportPDF() {
+  if (!data.value || !pdfContent.value || pdfExporting.value) return
+  pdfExporting.value = true
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const canvas = await html2canvas(pdfContent.value, {
+      scale: 2,
+      backgroundColor: '#f9fafb',
+      useCORS: true,
+      logging: false,
+    })
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
+    const imgW = pageW
+    const imgH = (canvas.height * imgW) / canvas.width
+    let remaining = imgH
+    let offsetY = 0
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, offsetY, imgW, imgH)
+    remaining -= pageH
+    while (remaining > 0) {
+      offsetY -= pageH
+      doc.addPage()
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, offsetY, imgW, imgH)
+      remaining -= pageH
+    }
+    doc.save(`runway-report-${today}.pdf`)
+  } finally {
+    pdfExporting.value = false
+  }
 }
 
 // ── Chart ──────────────────────────────────────────────────
@@ -514,5 +633,11 @@ function expenseCategoryLabel(code) {
   return expenseCategoryNames[code] || code
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  fetchData()
+  try {
+    const res = await familyAPI.getDefault()
+    if (res.success) familyName.value = res.data.familyName
+  } catch {}
+})
 </script>

@@ -1,20 +1,207 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  ## Domain
+  Family Finance Management System — a full-stack app for tracking assets, liabilities,
+  income, expenses, investments, and cash flow across a multi-member family unit.
+  Data is strictly isolated by family. Admin users have global access; regular users
+  are limited to their family's data.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  ## Tech Stack
+  - Backend: Java 17, Spring Boot 3.2, Spring Data JPA, MySQL 8.0, JWT authentication
+  - Frontend: Vue 3 (Composition API + <script setup>), Pinia, Vue Router, Axios
+  - Styling: Tailwind CSS utility classes only — no CSS variables, no scoped styles, no inline styles
+  - Charts: Chart.js
+  - Build: Maven (backend), Vite (frontend)
+  - Deployment: Docker Compose (prod), Kubernetes/Helm, multi-arch (amd64/arm64)
+
+  ## Architecture
+  - backend/src/main/java/com/finance/app/
+      controller/   — REST endpoints (@RestController, @RequestMapping)
+      service/      — Business logic (@Service, @RequiredArgsConstructor, @Slf4j)
+      repository/   — Spring Data JPA repositories
+      model/        — JPA entities
+      dto/          — Data transfer objects
+      config/       — Spring configuration
+  - frontend/src/
+      views/        — Page components (lazy-loaded via Vue Router)
+      components/   — Reusable UI components
+      api/          — Axios API clients (one file per domain)
+      stores/       — Pinia stores (auth, etc.)
+      router/       — Vue Router config
+
+  ## Data Model Conventions
+  - Time-series pattern: asset_records and liability_records are append-only.
+    NEVER update existing records — always INSERT new ones with new timestamps.
+  - Timestamps: always use TimeService.getCurrentTimestamp() for consistency.
+  - Account ownership: AssetAccount and LiabilityAccount link to User via userId,
+    NOT familyId. Use AuthHelper.requireAccountAccess(authHeader, account.getUserId()).
+
+  ## Multi-Currency Rules (CRITICAL — past bugs happened here)
+  Every record table (asset_records, liability_records, expense_records, income_records)
+  has BOTH an `amount` field AND a `currency` field. The currency is NOT always USD —
+  many records are CNY or other currencies.
+
+  Rule 1 — NEVER sum or average `amount` fields directly across records.
+  Always convert each record to USD first before any arithmetic:
+    BigDecimal usd = exchangeRateService.getExchangeRate(record.getCurrency(), date)
+                       .multiply(record.getAmount());  // wrong — see Rule 2
+  Correct pattern (ExchangeRateService returns the rate, multiply yourself):
+    BigDecimal rate = exchangeRateService.getExchangeRate(record.getCurrency(), date);
+    BigDecimal usd = record.getAmount().multiply(rate);
+
+  Rule 2 — ALWAYS use ExchangeRateService, NEVER ExchangeRateRepository.
+  ExchangeRateService.getExchangeRate(currency, date) has internal caching — it is safe
+  and efficient to call it once per record in a loop. Injecting ExchangeRateRepository
+  directly into a new service bypasses the cache and causes redundant DB queries.
+  Correct: private final ExchangeRateService exchangeRateService;
+  Wrong:   private final ExchangeRateRepository exchangeRateRepository;
+
+  Rule 3 — For expense records, derive the conversion date from expensePeriod.
+  ExpenseRecord has no recordDate field — only expensePeriod (String "yyyy-MM").
+  Parse it: YearMonth.parse(record.getExpensePeriod(), PERIOD_FMT).atEndOfMonth()
+
+  Rule 4 — USD is a pass-through (rate = 1.0). ExchangeRateService handles this,
+  but always guard: if ("USD".equals(currency)) return amount;
+
+  ## Backend Conventions
+  - Service naming: AssetService, LiabilityService, ExpenseService (NOT AssetAccountService)
+  - Never use SELECT * — always specify columns. DB has 50+ columns across tables.
+  - JPA ddl-auto=update — check existing data before modifying entities.
+    Write migration SQL first for breaking schema changes.
+  - API responses: wrap in Map with "success" boolean and "data"/"error" keys.
+  - Auth: JWT via Authorization header. Use AuthHelper for access checks.
+
+  ## Frontend Conventions
+  - Composition API only (<script setup>). No Options API.
+  - All styling via Tailwind utility classes. No inline styles, no scoped CSS.
+  - Currency display: always format with symbol using formatCurrency(value, currency).
+  - API response shape: Axios interceptor unwraps one level, so components receive
+    { success, data, error } directly — use response.success, NOT response.data.success.
+  - Family data: use familyAPI.getDefault() for regular users (not familyAPI.getAll()).
+  - Routes added to frontend/src/router/index.js under the appropriate parent route.
+  - New nav links added to frontend/src/components/Sidebar.vue.
+
+  ## Asset Types (actual DB codes)
+  CASH, STOCKS, RETIREMENT_FUND, INSURANCE, REAL_ESTATE, CRYPTOCURRENCY, PRECIOUS_METALS, OTHER
+  Default liquid types for runway/planning: CASH, STOCKS, CRYPTOCURRENCY, PRECIOUS_METALS
+
+  ## Supported Currencies
+  USD, CNY, EUR, GBP, JPY, AUD, CAD
+
+  ## Key Existing Features (do not re-implement)
+  - JWT auth + RBAC (admin/user roles)
+  - Asset management: 8 types, multi-currency, time-series records
+  - Liability management: 7 types, time-series records
+  - Expense management: 10 major categories, batch entry, budgets, 3-level drill-down
+  - Income management: 10 major categories, batch entry, annual budgets
+  - Investment management: transactions, P&L, annual analysis
+  - Exchange rate management: multi-currency, Frankfurter/ECB API integration
+  - Cash flow analysis: income/expense comparison, savings rate trends
+  - Google Sheets export (async with progress)
+  - Database backup/restore system
+
+  ## Testing Strategy
+
+  ### Backend — three test layers (JUnit 5 + Mockito + MockMvc)
+
+  Layer 1 — Service unit tests (Mockito, no Spring context)
+  - Location: src/test/java/com/finance/app/service/<domain>/
+  - Use @ExtendWith(MockitoExtension.class), @Mock all repositories and ExchangeRateService
+  - Test business logic in isolation: calculations, currency conversion, edge cases
+  - Must include a test where some records are CNY and assert the USD total is correct
+  - Must include a test for empty data (no records) returning zero/warning correctly
+  - Pattern:
+      @Mock ExchangeRateService exchangeRateService;
+      @InjectMocks MyService myService;
+      when(exchangeRateService.getExchangeRate("CNY", date)).thenReturn(new BigDecimal("0.14"));
+
+  Layer 2 — Controller tests (MockMvc, @WebMvcTest)
+  - Location: src/test/java/com/finance/app/controller/<domain>/
+  - Use @WebMvcTest(MyController.class), @MockBean the service
+  - Test: correct HTTP status codes, JSON response shape ({ success, data/error }),
+    auth header handling, invalid param rejection (400)
+  - Do NOT test business logic here — only HTTP contract
+  - Pattern:
+      mockMvc.perform(get("/my-endpoint").param("familyId", "1")
+               .header("Authorization", "Bearer token"))
+             .andExpect(status().isOk())
+             .andExpect(jsonPath("$.success").value(true));
+
+  Layer 3 — Entity/DTO tests (plain JUnit, no Spring)
+  - Location: src/test/java/com/finance/app/model/
+  - Test: field defaults, BigDecimal precision, period format validation
+  - Only needed for non-trivial entity logic
+
+  Naming convention:
+  - Method: shouldDoSomethingWhenCondition()  (camelCase, English)
+  - @DisplayName: "应该在...情况下..." (Chinese, user-friendly)
+  - Follow AAA: // Given / // When / // Then
+
+  Run commands:
+    mvn test                          # all tests
+    mvn test -Dtest=MyServiceTest     # single class
+    mvn clean test jacoco:report      # with coverage (target/site/jacoco/)
+
+  ### Frontend — Vitest + Vue Test Utils + Playwright
+
+  Note: frontend testing libraries are NOT yet installed. When adding frontend tests,
+  first install:
+    npm install -D vitest @vue/test-utils jsdom @vitest/coverage-v8
+    npm install -D @playwright/test   # for E2E only
+
+  Add to package.json scripts:
+    "test": "vitest run"
+    "test:watch": "vitest"
+    "test:e2e": "playwright test"
+
+  Add vitest config to vite.config.js:
+    test: { environment: 'jsdom', globals: true }
+
+  Component unit tests (Vitest + Vue Test Utils)
+  - Location: frontend/src/views/__tests__/ or alongside component as ComponentName.test.js
+  - Test: computed values, conditional rendering, user interactions (click, input)
+  - Mock API calls: vi.mock('../../api/runway')
+  - Focus on logic-heavy computed properties (e.g. effectiveMonthlyBurn, effectiveRunwayMonths)
+  - Pattern:
+      import { mount } from '@vue/test-utils'
+      import { createPinia } from 'pinia'
+      const wrapper = mount(MyComponent, { global: { plugins: [createPinia()] } })
+      expect(wrapper.find('[data-testid="runway-months"]').text()).toBe('24 个月')
+
+  E2E tests (Playwright) — for critical user flows only
+  - Location: frontend/e2e/
+  - Cover: login → navigate to page → assert data loads → interact → assert result
+  - Use data-testid attributes for selectors (add them when writing E2E tests)
+  - Run against local dev environment (backend + frontend both running)
+
+  ## Commit Convention
+  Conventional commits: feat:, fix:, docs:, refactor:, style:, test:, chore:
+
+rules:
+  proposal:
+    - State clearly what existing data/APIs will be reused (no redundant implementation)
+    - Include a Non-goals section to scope the change
+    - Keep under 400 words
+    - Note if any schema changes are required (most features should be schema-free)
+
+  design:
+    - Specify exact API endpoint paths following existing patterns (e.g. GET /api/runway/analysis)
+    - Identify which existing services/repositories will be reused vs new ones needed
+    - If the feature reads monetary amounts, state that currency conversion uses ExchangeRateService.getExchangeRate(currency, date) called per record — never ExchangeRateRepository directly
+    - Call out time-series vs snapshot data access patterns explicitly
+    - Services must accept injected dependencies (no static calls, no new inside business logic) so Mockito can stub them in tests
+
+  specs:
+    - Write scenarios in Given/When/Then or When/Then format
+    - Always include at least one multi-currency scenario for features that read asset/liability/expense/income amounts (e.g. WHEN some records are CNY)
+    - Cover happy path, empty/missing data, multi-currency edge cases, and auth/access errors
+    - Reference actual DB type codes and field names (not conceptual names)
+
+  tasks:
+    - Each task should be completable in under 1 hour
+    - Group by layer in order: Backend DTOs, Repository, Service, Controller, Frontend API, Vue component, Router/Sidebar, Tests, Smoke test
+    - When the service reads monetary amounts, include an explicit sub-task to convert each record to USD using ExchangeRateService before summing
+    - Always include a testing group with sub-tasks for service unit test (happy path with mixed USD/CNY), service unit test (empty data), controller test (HTTP 200 shape and auth rejection), and optional Vue component test for key computed properties
+    - Include a manual smoke-test task at the end (can be marked optional)
+    - Prefix task IDs with group number (e.g. 1.1, 1.2, 2.1)
