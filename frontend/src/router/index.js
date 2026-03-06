@@ -99,6 +99,16 @@ const routes = [
           description: '按月批量录入投资交易'
         }
       },
+      // 投资计算工具
+      {
+        path: 'investments/property-calculator',
+        name: 'PropertyInvestmentCalculator',
+        component: () => import('../views/investments/PropertyInvestmentCalculator.vue'),
+        meta: {
+          title: '房产投资计算器',
+          description: '分析租金回报、税务抵扣与综合财富回报率'
+        }
+      },
       // 收入管理
       {
         path: 'incomes/categories',

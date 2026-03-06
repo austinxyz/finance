@@ -310,6 +310,22 @@
         </div>
       </template>
 
+      <!-- 投资类菜单 -->
+      <template v-if="activeTopTab === 'investments'">
+        <!-- 投资工具 -->
+        <div class="space-y-1">
+          <div class="nav-section-title">投资工具</div>
+          <router-link
+            to="/investments/property-calculator"
+            class="nav-item"
+            :class="isActive('/investments/property-calculator')"
+          >
+            <Building2 class="w-5 h-5" />
+            <span>房产计算器</span>
+          </router-link>
+        </div>
+      </template>
+
       <!-- 设置类菜单 -->
       <template v-if="activeTopTab === 'settings'">
         <!-- 个人设置 (仅普通用户可见) -->
@@ -419,7 +435,8 @@ import {
   Settings,
   Database,
   Timer,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-vue-next';
 
 // Emit navigate event for mobile sidebar close
@@ -436,6 +453,7 @@ const isAdmin = computed(() => authStore.isAdmin);
 const topLevelTabs = [
   { key: 'manage', label: '管理', icon: FolderKanban },
   { key: 'analysis', label: '分析', icon: LineChart },
+  { key: 'investments', label: '投资', icon: Building2 },
   { key: 'settings', label: '设置', icon: Settings }
 ];
 
@@ -443,6 +461,8 @@ const topLevelTabs = [
 watch(() => route.path, (newPath) => {
   if (newPath.startsWith('/analysis')) {
     activeTopTab.value = 'analysis';
+  } else if (newPath.startsWith('/investments')) {
+    activeTopTab.value = 'investments';
   } else if (newPath.startsWith('/settings') || newPath.startsWith('/tools')) {
     activeTopTab.value = 'settings';
   } else {

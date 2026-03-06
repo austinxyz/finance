@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openspec new:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec instructions:*)",
+      "Bash(wc:*)",
+      "Bash(./backend/start.sh:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(npm config:*)",
+      "Bash(mvn:*)",
+      "Bash(bash:*)",
+      "Bash(xxd:*)",
+      "Bash(tasklist:*)",
+      "Bash(curl:*)",
+      "Bash(netstat -ano)",
+      "Bash(xargs -I{} taskkill //PID {} //F)",
+      "Bash(mkdir:*)",
+      "Bash(./mvnw test:*)",
+      "Bash(/c/Users/lorra/tools/apache-maven-3.9.6/bin/mvn test:*)",
+      "Bash(/c/Users/lorra/tools/apache-maven-3.9.6/bin/mvn dependency:tree:*)",
+      "Bash(/c/Users/lorra/tools/apache-maven-3.9.6/bin/mvn compile:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(taskkill:*)",
+      "Bash(openspec list:*)",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)"
+    ]
+  }
+}
