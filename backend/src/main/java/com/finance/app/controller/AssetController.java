@@ -219,6 +219,22 @@ public class AssetController {
         return ApiResponse.success("Batch records created successfully", result);
     }
 
+    // 批量获取多个账户在指定日期的之前值（性能优化接口）
+    @PostMapping("/records/values-at-date/batch")
+    public ApiResponse<Map<Long, Map<String, Object>>> batchGetAccountValuesAtDate(
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        String date = (String) body.get("date");
+        @SuppressWarnings("unchecked")
+        List<Integer> rawIds = (List<Integer>) body.get("accountIds");
+        List<Long> accountIds = rawIds.stream().map(Long::valueOf).collect(Collectors.toList());
+
+        LocalDate targetDate = LocalDate.parse(date);
+        Map<Long, Map<String, Object>> result = assetService.batchGetAccountValuesAtDate(accountIds, targetDate);
+        return ApiResponse.success(result);
+    }
+
     // 获取指定日期账户的之前值(离该日期最近但不晚于该日期的记录)
     @GetMapping("/accounts/{accountId}/value-at-date")
     public ApiResponse<Map<String, Object>> getAccountValueAtDate(

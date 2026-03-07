@@ -513,6 +513,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { liabilityTypeAPI, liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 import { assetAccountAPI } from '@/api/asset'
+import { userAPI } from '@/api/user'
 import { useFamilyStore } from '@/stores/family'
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
@@ -534,6 +535,7 @@ const CATEGORY_TYPE_NAMES = {
 // Family store
 const familyStore = useFamilyStore()
 const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+const families = computed(() => familyStore.families)
 
 const categories = ref([])
 const allCategories = ref([])  // 存储完整的分类信息（包含ID）

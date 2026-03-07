@@ -16,7 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,7 +53,87 @@ public class AssetService {
         } else {
             accounts = accountRepository.findByIsActiveTrue();
         }
-        return accounts.stream().map(this::convertAccountToDTO).collect(Collectors.toList());
+        if (accounts.isEmpty()) return List.of();
+
+        // 批量预加载所有依赖数据，避免 N+1 查询
+        List<Long> accountIds = accounts.stream().map(AssetAccount::getId).collect(Collectors.toList());
+        Set<Long> userIds = accounts.stream().map(AssetAccount::getUserId).collect(Collectors.toSet());
+
+        // 1. 批量加载用户
+        Map<Long, com.finance.app.model.User> userMap = userRepository.findAllById(userIds)
+                .stream().collect(Collectors.toMap(com.finance.app.model.User::getId, u -> u));
+
+        // 2. 批量加载每个账户的最新记录
+        Map<Long, AssetRecord> latestRecordMap = recordRepository.findLatestByAccountIds(accountIds)
+                .stream().collect(Collectors.toMap(AssetRecord::getAccountId, r -> r, (a, b) -> a));
+
+        // 3. 批量加载汇率 (按 currency+date 去重)
+        Map<String, BigDecimal> exchangeRateCache = new HashMap<>();
+        latestRecordMap.values().forEach(record -> {
+            String currency = record.getCurrency();
+            LocalDate date = record.getRecordDate();
+            if (currency != null && !currency.equalsIgnoreCase("USD") && date != null) {
+                String key = currency + ":" + date;
+                exchangeRateCache.computeIfAbsent(key, k -> exchangeRateService.getExchangeRate(currency, date));
+            }
+        });
+
+        // 4. 批量加载关联负债账户
+        Set<Long> linkedIds = accounts.stream()
+                .map(AssetAccount::getLinkedLiabilityAccountId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, String> linkedAccountNameMap = linkedIds.isEmpty() ? Map.of() :
+                liabilityAccountRepository.findAllById(linkedIds).stream()
+                        .collect(Collectors.toMap(
+                                com.finance.app.model.LiabilityAccount::getId,
+                                com.finance.app.model.LiabilityAccount::getAccountName));
+
+        // 用预加载数据构建 DTO（无额外 DB 查询）
+        return accounts.stream().map(account -> {
+            AssetAccountDTO dto = new AssetAccountDTO();
+            dto.setId(account.getId());
+            dto.setUserId(account.getUserId());
+            dto.setAssetTypeId(account.getAssetTypeId());
+            dto.setAccountName(account.getAccountName());
+            dto.setAccountNumber(account.getAccountNumber());
+            dto.setInstitution(account.getInstitution());
+            dto.setCurrency(account.getCurrency());
+            dto.setNotes(account.getNotes());
+            dto.setIsActive(account.getIsActive());
+            dto.setTaxStatus(account.getTaxStatus());
+            dto.setCreatedAt(account.getCreatedAt());
+            dto.setUpdatedAt(account.getUpdatedAt());
+
+            com.finance.app.model.User user = userMap.get(account.getUserId());
+            if (user != null) {
+                dto.setUserName(user.getFullName() != null ? user.getFullName() : user.getUsername());
+            }
+
+            if (account.getAssetType() != null) {
+                dto.setAssetTypeName(account.getAssetType().getChineseName());
+                dto.setAssetTypeCode(account.getAssetType().getType());
+                dto.setAssetTypeIcon(account.getAssetType().getIcon());
+            }
+
+            AssetRecord latest = latestRecordMap.get(account.getId());
+            if (latest != null) {
+                dto.setLatestAmount(latest.getAmount());
+                dto.setLatestRecordDate(latest.getRecordDate());
+                if (latest.getAmount() != null && latest.getCurrency() != null) {
+                    String key = latest.getCurrency() + ":" + latest.getRecordDate();
+                    BigDecimal rate = exchangeRateCache.getOrDefault(key, BigDecimal.ONE);
+                    dto.setLatestAmountInBaseCurrency(latest.getAmount().multiply(rate));
+                }
+            }
+
+            dto.setLinkedLiabilityAccountId(account.getLinkedLiabilityAccountId());
+            if (account.getLinkedLiabilityAccountId() != null) {
+                dto.setLinkedLiabilityAccountName(linkedAccountNameMap.get(account.getLinkedLiabilityAccountId()));
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     public AssetAccount getAccountById(Long accountId) {
@@ -189,6 +273,29 @@ public class AssetService {
             });
         }
 
+        return result;
+    }
+
+    // 批量获取多个账户在指定日期的之前值（性能优化：一次查询代替N次）
+    public Map<Long, Map<String, Object>> batchGetAccountValuesAtDate(List<Long> accountIds, LocalDate targetDate) {
+        List<AssetRecord> records = recordRepository.findLatestByAccountIdsBeforeOrEqualDate(accountIds, targetDate);
+
+        // Build a map of accountId -> record for fast lookup
+        Map<Long, AssetRecord> recordMap = records.stream()
+                .collect(Collectors.toMap(AssetRecord::getAccountId, r -> r, (a, b) -> a));
+
+        Map<Long, Map<String, Object>> result = new HashMap<>();
+        for (Long accountId : accountIds) {
+            Map<String, Object> entry = new HashMap<>();
+            AssetRecord record = recordMap.get(accountId);
+            if (record != null) {
+                entry.put("amount", record.getAmount());
+                entry.put("recordDate", record.getRecordDate());
+                entry.put("currency", record.getCurrency());
+                entry.put("hasExactRecord", record.getRecordDate().equals(targetDate));
+            }
+            result.put(accountId, entry);
+        }
         return result;
     }
 

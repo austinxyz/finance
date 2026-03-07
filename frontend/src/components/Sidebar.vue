@@ -461,7 +461,7 @@ const topLevelTabs = [
 watch(() => route.path, (newPath) => {
   if (newPath.startsWith('/analysis')) {
     activeTopTab.value = 'analysis';
-  } else if (newPath.startsWith('/investments')) {
+  } else if (newPath.startsWith('/investments/property-calculator')) {
     activeTopTab.value = 'investments';
   } else if (newPath.startsWith('/settings') || newPath.startsWith('/tools')) {
     activeTopTab.value = 'settings';

@@ -232,11 +232,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-vue-next'
-import Card from '@/components/ui/Card.vue'
-import CardHeader from '@/components/ui/CardHeader.vue'
-import CardTitle from '@/components/ui/CardTitle.vue'
-import CardContent from '@/components/ui/CardContent.vue'
-import Button from '@/components/ui/Button.vue'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { liabilityAccountAPI, liabilityRecordAPI } from '@/api/liability'
 
 const route = useRoute()

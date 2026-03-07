@@ -17,7 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,7 +55,91 @@ public class LiabilityService {
                     .filter(LiabilityAccount::getIsActive)
                     .collect(Collectors.toList());
         }
-        return accounts.stream().map(this::convertAccountToDTO).collect(Collectors.toList());
+        if (accounts.isEmpty()) return List.of();
+
+        // 批量预加载所有依赖数据，避免 N+1 查询
+        List<Long> accountIds = accounts.stream().map(LiabilityAccount::getId).collect(Collectors.toList());
+        Set<Long> userIds = accounts.stream().map(LiabilityAccount::getUserId).collect(Collectors.toSet());
+
+        // 1. 批量加载用户
+        Map<Long, com.finance.app.model.User> userMap = userRepository.findAllById(userIds)
+                .stream().collect(Collectors.toMap(com.finance.app.model.User::getId, u -> u));
+
+        // 2. 批量加载每个账户的最新记录
+        Map<Long, LiabilityRecord> latestRecordMap = recordRepository.findLatestByAccountIds(accountIds)
+                .stream().collect(Collectors.toMap(LiabilityRecord::getAccountId, r -> r, (a, b) -> a));
+
+        // 3. 批量加载汇率（按 currency+date 去重）
+        Map<String, BigDecimal> exchangeRateCache = new HashMap<>();
+        latestRecordMap.values().forEach(record -> {
+            String currency = record.getCurrency();
+            LocalDate date = record.getRecordDate();
+            if (currency != null && !currency.equalsIgnoreCase("USD") && date != null) {
+                String key = currency + ":" + date;
+                exchangeRateCache.computeIfAbsent(key, k -> exchangeRateService.getExchangeRate(currency, date));
+            }
+        });
+
+        // 4. 批量加载关联资产账户
+        Set<Long> linkedIds = accounts.stream()
+                .map(LiabilityAccount::getLinkedAssetAccountId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, String> linkedAccountNameMap = linkedIds.isEmpty() ? Map.of() :
+                assetAccountRepository.findAllById(linkedIds).stream()
+                        .collect(Collectors.toMap(
+                                com.finance.app.model.AssetAccount::getId,
+                                com.finance.app.model.AssetAccount::getAccountName));
+
+        // 用预加载数据构建 DTO（无额外 DB 查询）
+        return accounts.stream().map(account -> {
+            LiabilityAccountDTO dto = new LiabilityAccountDTO();
+            dto.setId(account.getId());
+            dto.setUserId(account.getUserId());
+            dto.setLiabilityTypeId(account.getLiabilityTypeId());
+            dto.setAccountName(account.getAccountName());
+            dto.setAccountNumber(account.getAccountNumber());
+            dto.setInstitution(account.getInstitution());
+            dto.setCurrency(account.getCurrency());
+            dto.setInterestRate(account.getInterestRate());
+            dto.setOriginalAmount(account.getOriginalAmount());
+            dto.setStartDate(account.getStartDate());
+            dto.setEndDate(account.getEndDate());
+            dto.setMonthlyPayment(account.getMonthlyPayment());
+            dto.setNotes(account.getNotes());
+            dto.setIsActive(account.getIsActive());
+            dto.setCreatedAt(account.getCreatedAt());
+            dto.setUpdatedAt(account.getUpdatedAt());
+
+            com.finance.app.model.User user = userMap.get(account.getUserId());
+            if (user != null) {
+                dto.setUserName(user.getFullName() != null ? user.getFullName() : user.getUsername());
+            }
+
+            if (account.getLiabilityType() != null) {
+                dto.setLiabilityTypeName(account.getLiabilityType().getChineseName());
+                dto.setLiabilityTypeCode(account.getLiabilityType().getType());
+                dto.setLiabilityTypeIcon(account.getLiabilityType().getIcon());
+            }
+
+            LiabilityRecord latest = latestRecordMap.get(account.getId());
+            if (latest != null) {
+                dto.setLatestBalance(latest.getOutstandingBalance());
+                dto.setLatestRecordDate(latest.getRecordDate());
+                if (latest.getOutstandingBalance() != null && latest.getCurrency() != null) {
+                    String key = latest.getCurrency() + ":" + latest.getRecordDate();
+                    BigDecimal rate = exchangeRateCache.getOrDefault(key, BigDecimal.ONE);
+                    dto.setLatestBalanceInBaseCurrency(latest.getOutstandingBalance().multiply(rate));
+                }
+            }
+
+            dto.setLinkedAssetAccountId(account.getLinkedAssetAccountId());
+            if (account.getLinkedAssetAccountId() != null) {
+                dto.setLinkedAssetAccountName(linkedAccountNameMap.get(account.getLinkedAssetAccountId()));
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     public LiabilityAccount getAccountById(Long accountId) {

@@ -449,35 +449,32 @@ const loadAccounts = async () => {
     loading.value = false
   }
 }
-// 加载所有账户在选择日期的之前值
+// 加载所有账户在选择日期的之前值（批量一次请求）
 const loadPreviousValues = async () => {
   if (!accounts.value || accounts.value.length === 0) return
   try {
-    // 为每个账户获取在选择日期的之前值
-    const promises = accounts.value.map(async (account) => {
-      try {
-        const response = await assetRecordAPI.getValueAtDate(account.id, recordDate.value)
-        if (response && response.success && response.data) {
+    const accountIds = accounts.value.map(a => a.id)
+    const response = await assetRecordAPI.batchGetValuesAtDate(accountIds, recordDate.value)
+    if (response && response.success && response.data) {
+      accounts.value.forEach(account => {
+        const data = response.data[account.id]
+        if (data && data.amount !== undefined) {
           accountPreviousValues.value[account.id] = {
-            amount: response.data.amount || 0,
-            recordDate: response.data.recordDate,
-            currency: response.data.currency,
-            exchangeRate: response.data.exchangeRate,
-            hasExactRecord: response.data.hasExactRecord || false
+            amount: data.amount || 0,
+            recordDate: data.recordDate,
+            currency: data.currency,
+            hasExactRecord: data.hasExactRecord || false
+          }
+        } else {
+          accountPreviousValues.value[account.id] = {
+            amount: account.latestAmount || 0,
+            recordDate: account.latestRecordDate,
+            currency: account.currency,
+            hasExactRecord: false
           }
         }
-      } catch (error) {
-        console.error(`获取账户 ${account.id} 的之前值失败:`, error)
-        // 如果获取失败，使用最近的记录作为fallback
-        accountPreviousValues.value[account.id] = {
-          amount: account.latestAmount || 0,
-          recordDate: account.latestRecordDate,
-          currency: account.currency,
-          hasExactRecord: false
-        }
-      }
-    })
-    await Promise.all(promises)
+      })
+    }
   } catch (error) {
     console.error('加载之前值失败:', error)
   }
