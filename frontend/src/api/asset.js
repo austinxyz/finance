@@ -85,5 +85,10 @@ export const assetRecordAPI = {
     return request.get(`/assets/accounts/${accountId}/value-at-date`, {
       params: { date }
     })
+  },
+
+  // 批量获取多个账户在指定日期的之前值（一次请求代替N次）
+  batchGetValuesAtDate(accountIds, date) {
+    return request.post('/assets/records/values-at-date/batch', { accountIds, date })
   }
 }

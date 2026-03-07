@@ -637,6 +637,7 @@ const CATEGORY_TYPE_NAMES = {
 // Family store
 const familyStore = useFamilyStore()
 const selectedFamilyId = computed(() => familyStore.currentFamilyId)
+const families = computed(() => familyStore.families)
 
 const categories = ref([])
 const allCategories = ref([])  // 存储完整的分类信息（包含ID）
