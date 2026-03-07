@@ -51,6 +51,15 @@
 - Current Limitations
 - Recommendations for Readers
 
+### [Chapter 7: From Vibe Coding to Spec-Driven Development — OpenSpec in Practice](./07-spec-driven-development.md)
+- What is Spec-Driven Development
+- The Three-Phase OpenSpec Workflow (Propose → Apply → Archive)
+- config.yaml: OpenSpec's "Project Memory"
+- Three Features in Practice (Runway Analysis, Report Persistence, Property Calculator)
+- SDD vs. Vibe Coding: When to Use Which
+- OpenSpec vs. Other SDD Tools
+- Key Takeaways
+
 ---
 
 ## Reading Recommendations
