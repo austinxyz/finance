@@ -32,7 +32,11 @@
       "Bash(grep:*)",
       "Bash(npx shadcn-vue@latest:*)",
       "Bash(printf \\\\n\\\\n\\\\n:*)",
-      "Bash(printf \\\\n\\\\n\\\\n\\\\ny\\\\n:*)"
+      "Bash(printf \\\\n\\\\n\\\\n\\\\ny\\\\n:*)",
+      "Bash(./build-multiarch.sh:*)",
+      "Bash(docker buildx:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ]
   }
 }
