@@ -44,7 +44,8 @@ class RunwayReportTrendControllerTest {
                 List.of(new RunwayTrendDTO.TrendPoint(
                         LocalDateTime.of(2026, 6, 20, 10, 0), "runway-report-2",
                         new BigDecimal("168500"), new BigDecimal("12600"), 13, "2027-08")),
-                List.of(new RunwayTrendDTO.CategoryItem("RENT", "房租", "hsl(142 76% 36%)", new BigDecimal("6800")))
+                List.of(new RunwayTrendDTO.CategoryItem("RENT", "房租", "hsl(142 76% 36%)", new BigDecimal("6800"))),
+                List.of()
         );
         doNothing().when(authHelper).requireFamilyAccess(anyString(), eq(1L));
         when(runwayReportService.getTrend(1L)).thenReturn(trend);

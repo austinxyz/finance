@@ -301,6 +301,15 @@ const routes = [
           description: '查看历史跑道报告'
         }
       },
+      {
+        path: 'analysis/runway-trend',
+        name: 'RunwayTrend',
+        component: () => import('../views/analysis/RunwayTrend.vue'),
+        meta: {
+          title: '资金跑道趋势',
+          description: '把已保存的跑道报告汇总成趋势线'
+        }
+      },
       // 设置 - 普通用户
       {
         path: 'settings/my-family',

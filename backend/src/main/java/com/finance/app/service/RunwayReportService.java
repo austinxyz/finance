@@ -91,8 +91,9 @@ public class RunwayReportService {
         List<RunwayReport> reports = runwayReportRepository.findByFamilyIdOrderBySavedAtDesc(familyId);
 
         List<RunwayTrendDTO.TrendPoint> points = new ArrayList<>();
-        RunwayReport latestParsable = null;
         JsonNode latestSnapshot = null;
+        JsonNode previousSnapshot = null;
+        int parsableCount = 0;
 
         for (RunwayReport report : reports) {
             JsonNode snapshot = parseSnapshot(report);
@@ -105,16 +106,23 @@ public class RunwayReportService {
                     snapshot.path("runwayMonths").isNumber() ? snapshot.path("runwayMonths").intValue() : null,
                     snapshot.path("depletionDate").isTextual() ? snapshot.path("depletionDate").asText() : null
             ));
-            if (latestParsable == null) {
-                latestParsable = report; // first parsable = newest (list is desc)
-                latestSnapshot = snapshot;
-            }
+            // list is newest-first: first parsable = latest, second = previous
+            if (parsableCount == 0) latestSnapshot = snapshot;
+            else if (parsableCount == 1) previousSnapshot = snapshot;
+            parsableCount++;
         }
 
         points.sort(Comparator.comparing(RunwayTrendDTO.TrendPoint::savedAt));
 
-        List<RunwayTrendDTO.CategoryItem> categories = buildCategories(latestSnapshot);
-        return new RunwayTrendDTO(points, categories);
+        // Load the category lookup once (shared by latest + previous enrichment).
+        Map<String, ExpenseCategoryMajor> byCode = (latestSnapshot == null && previousSnapshot == null)
+                ? Map.of()
+                : expenseCategoryMajorRepository.findAll().stream()
+                        .collect(Collectors.toMap(ExpenseCategoryMajor::getCode, c -> c, (a, b) -> a));
+
+        List<RunwayTrendDTO.CategoryItem> categories = buildCategories(latestSnapshot, byCode);
+        List<RunwayTrendDTO.CategoryItem> previousCategories = buildCategories(previousSnapshot, byCode);
+        return new RunwayTrendDTO(points, categories, previousCategories);
     }
 
     /** 解析一份报告的 snapshot 节点；坏 JSON 返回 null（跳过该报告）。 */
@@ -139,14 +147,12 @@ public class RunwayReportService {
         return null;
     }
 
-    /** 最新报告的 expenseBreakdown（code→amount）按 code join 大类，富化 name/color，按金额降序。 */
-    private List<RunwayTrendDTO.CategoryItem> buildCategories(JsonNode latestSnapshot) {
-        if (latestSnapshot == null) return List.of();
-        JsonNode breakdown = latestSnapshot.path("expenseBreakdown");
+    /** 某份报告的 expenseBreakdown（code→amount）按 code join 大类，富化 name/color，按金额降序。 */
+    private List<RunwayTrendDTO.CategoryItem> buildCategories(
+            JsonNode snapshot, Map<String, ExpenseCategoryMajor> byCode) {
+        if (snapshot == null) return List.of();
+        JsonNode breakdown = snapshot.path("expenseBreakdown");
         if (!breakdown.isObject() || breakdown.isEmpty()) return List.of();
-
-        Map<String, ExpenseCategoryMajor> byCode = expenseCategoryMajorRepository.findAll().stream()
-                .collect(Collectors.toMap(ExpenseCategoryMajor::getCode, c -> c, (a, b) -> a));
 
         List<RunwayTrendDTO.CategoryItem> items = new ArrayList<>();
         breakdown.fields().forEachRemaining(entry -> {

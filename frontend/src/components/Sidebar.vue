@@ -307,6 +307,14 @@
             <FileText class="w-5 h-5" />
             <span>历史跑道报告</span>
           </router-link>
+          <router-link
+            to="/analysis/runway-trend"
+            class="nav-item"
+            :class="isActive('/analysis/runway-trend')"
+          >
+            <TrendingUp class="w-5 h-5" />
+            <span>资金跑道趋势</span>
+          </router-link>
         </div>
       </template>
 

@@ -265,4 +265,43 @@ class RunwayReportServiceTest {
         assertEquals("MYSTERY", cats.get(2).name());
         assertNotNull(cats.get(2).color());
     }
+
+    @Test
+    @DisplayName("getTrend: previousCategories 取次新报告，用于环比；仅一份报告时为空")
+    void getTrend_previousCategories_fromSecondLatest() {
+        // Given two reports; previous should come from the OLDER one
+        Long familyId = 1L;
+        LocalDateTime t1 = LocalDateTime.of(2026, 1, 15, 10, 0);
+        LocalDateTime t2 = LocalDateTime.of(2026, 6, 20, 10, 0);
+        when(runwayReportRepository.findByFamilyIdOrderBySavedAtDesc(familyId)).thenReturn(List.of(
+                reportWith(2L, familyId, t2, 168500, 12600, 13, "2027-08", "{\"RENT\":6800,\"FOOD\":3200}"),
+                reportWith(1L, familyId, t1, 180000, 11000, 16, "2027-05", "{\"RENT\":6500}")
+        ));
+        ExpenseCategoryMajor rent = new ExpenseCategoryMajor();
+        rent.setCode("RENT"); rent.setName("房租"); rent.setColor("hsl(142 76% 36%)");
+        when(expenseCategoryMajorRepository.findAll()).thenReturn(List.of(rent));
+
+        // When
+        RunwayTrendDTO trend = runwayReportService.getTrend(familyId);
+
+        // Then — previous = older report's single RENT category
+        assertEquals(1, trend.previousCategories().size());
+        assertEquals("RENT", trend.previousCategories().get(0).code());
+        assertEquals(0, new BigDecimal("6500").compareTo(trend.previousCategories().get(0).amount()));
+    }
+
+    @Test
+    @DisplayName("getTrend: 仅一份报告时 previousCategories 为空")
+    void getTrend_singleReport_previousCategoriesEmpty() {
+        Long familyId = 1L;
+        when(runwayReportRepository.findByFamilyIdOrderBySavedAtDesc(familyId)).thenReturn(List.of(
+                reportWith(1L, familyId, LocalDateTime.of(2026, 6, 20, 10, 0),
+                        168500, 12600, 13, "2027-08", "{\"RENT\":6800}")
+        ));
+        when(expenseCategoryMajorRepository.findAll()).thenReturn(List.of());
+
+        RunwayTrendDTO trend = runwayReportService.getTrend(familyId);
+
+        assertTrue(trend.previousCategories().isEmpty());
+    }
 }

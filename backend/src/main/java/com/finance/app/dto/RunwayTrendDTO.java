@@ -10,7 +10,8 @@ import java.util.List;
  */
 public record RunwayTrendDTO(
         List<TrendPoint> points,
-        List<CategoryItem> categories
+        List<CategoryItem> categories,
+        List<CategoryItem> previousCategories
 ) {
     /** 单份报告抽取出的趋势点（金额单位 USD，保存时已折算）。 */
     public record TrendPoint(

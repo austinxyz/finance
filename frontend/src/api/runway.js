@@ -15,6 +15,14 @@ export const runwayAPI = {
     return request.get('/runway/analysis', { params })
   },
 
+  /**
+   * Get the runway trend for a family (aggregated from saved report snapshots).
+   * @param {number} familyId
+   */
+  getRunwayTrend(familyId) {
+    return request.get('/runway/reports/trend', { params: { familyId } })
+  },
+
   saveRunwayReport(familyId, snapshotJson) {
     return request.post('/runway/reports', { familyId, snapshotJson })
   },
