@@ -175,6 +175,8 @@ docker-compose logs -f backend
 
 **Tests failing** → Check if time-series logic creates records instead of updating. Common mistake.
 
+**New backend endpoint returns 400/404 after you added it** → The running backend is stale (still serving the old build). Restart with `./backend/start.sh`. Symptom for a new sub-path under a `@GetMapping("/{id}")` controller: request falls through to `/{id}` and 400s with `Failed to convert 'id' with value: '<subpath>'`. The mapping is fine — the JVM just hasn't reloaded it.
+
 ## External Documentation
 
 For detailed information not covered by these guardrails:

@@ -28,6 +28,7 @@ A full-stack financial management system built with Spring Boot + Vue.js, suppor
 - **Trend Analysis** - Net worth trends, individual asset P&L tracking
 - **Financial Metrics** - Total assets, net worth, debt-to-asset ratio, liquidity ratio
 - **Google Sheets Export** - Annual financial reports, async export with real-time progress
+- **Runway Trends** - Aggregate saved runway reports into a trend view: KPIs, switchable metric chart (runway months / net burn / cash), and latest-report category breakdown ⭐ New
 
 ### 🗄️ Database Backup & Restore
 - **Automated Backups** - Scheduled daily/weekly/monthly backups with configurable retention
@@ -196,6 +197,7 @@ finance/
 ### Data Analysis
 - `/api/analysis/*` - Comprehensive analysis (trends, allocation, financial metrics)
 - `/api/analysis/cashflow` - Cash flow analysis ⭐ New
+- `/api/runway/reports/trend` - Runway trend aggregated from saved report snapshots ⭐ New
 - `/api/incomes/analysis/*` - Income analysis (annual, by major/minor category)
 - `/api/expenses/analysis/*` - Expense analysis (annual, budget comparison)
 - `/api/investments/analysis/*` - Investment analysis (annual, by account, monthly trends)
