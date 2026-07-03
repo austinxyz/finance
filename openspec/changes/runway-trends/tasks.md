@@ -46,11 +46,11 @@
 - [x] 2.3 GREEN — add `runwayAPI.getRunwayTrend(familyId)` in api/runway.js; implement `views/analysis/RunwayTrend.vue` (KPI cards, Chart.js trend with metric tabs + range pills, category table, empty/single states) using Tailwind utilities; pass 2.2
 - [x] 2.4 GREEN — add route `analysis/runway-trend` (lazy) in router/index.js and nav item 资金跑道趋势 under 财务规划 in Sidebar.vue (after 跑道报告)
 - [x] 2.5 VISUAL DIFF — bring up dev stack (`./backend/start.sh`; `cd frontend && npm run dev`); navigate to /analysis/runway-trend; eyeball against the mock; fix token/color/text drift
-- [ ] 2.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-2.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 70 → PASS; < 70 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 2.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-2.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 70 → PASS; < 70 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 3. Verification + ship
 
-- [ ] 3.1 Run backend test suite — `cd backend && mvn test` — ensure no regressions
-- [ ] 3.2 Run frontend test suite — `cd frontend && npm run test` — ensure no regressions
-- [ ] 3.3 Manual smoke test (optional) — save ≥2 runway reports, open /analysis/runway-trend, verify KPI deltas, metric switch, range pills, category table, and empty state (fresh family)
-- [ ] 3.4 Run superpowers:verification-before-completion — run test suites; `grep -r console.log frontend/src` for the new view; confirm no inline styles / scoped CSS in RunwayTrend.vue
+- [x] 3.1 Run backend test suite — `cd backend && mvn test` — ensure no regressions
+- [x] 3.2 Run frontend test suite — `cd frontend && npm run test` — ensure no regressions
+- [~] 3.3 Manual smoke test (optional, deferred — needs live stack + DB with ≥2 saved reports) — save ≥2 runway reports, open /analysis/runway-trend, verify KPI deltas, metric switch, range pills, category table, and empty state (fresh family)
+- [x] 3.4 Run superpowers:verification-before-completion — run test suites; `grep -r console.log frontend/src` for the new view; confirm no inline styles / scoped CSS in RunwayTrend.vue
