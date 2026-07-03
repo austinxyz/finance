@@ -2,6 +2,7 @@ package com.finance.app.controller;
 
 import com.finance.app.dto.RunwayReportDetailDTO;
 import com.finance.app.dto.RunwayReportSummaryDTO;
+import com.finance.app.dto.RunwayTrendDTO;
 import com.finance.app.dto.SaveRunwayReportRequest;
 import com.finance.app.security.AuthHelper;
 import com.finance.app.service.RunwayReportService;
@@ -51,6 +52,21 @@ public class RunwayReportController {
             log.error("获取资金跑道报告列表失败: familyId={}", familyId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/trend")
+    public ResponseEntity<Map<String, Object>> getTrend(
+            @RequestParam Long familyId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            authHelper.requireFamilyAccess(authHeader, familyId);
+            RunwayTrendDTO result = runwayReportService.getTrend(familyId);
+            return ResponseEntity.ok(Map.of("success", true, "data", result));
+        } catch (Exception e) {
+            log.error("获取资金跑道趋势失败: familyId={}", familyId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "error", e.getMessage() != null ? e.getMessage() : "获取趋势失败"));
         }
     }
 

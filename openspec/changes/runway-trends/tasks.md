@@ -14,13 +14,13 @@
   - D8: constructor injection of `RunwayReportRepository`, `ExpenseCategoryMajorRepository`, `ObjectMapper`; no static calls, no `new` in business logic (Mockito-stubbable). New `RunwayTrendDTO` (record). Enforce `authHelper.requireFamilyAccess`. No `SELECT *`.
 - **Threshold**: 80
 
-- [ ] 1.0 CONTRACT — write openspec/changes/runway-trends/contracts/group-1.md with the ### Contract block above; confirm Spec, Runtime, Code all non-empty
-- [ ] 1.1 RED — Invoke superpowers:test-driven-development. Write failing `RunwayReportServiceTest.getTrend_*`: (a) 3 valid reports → 3 points ascending by savedAt with liquidTotal/monthlyBurn/runwayMonths/depletionDate; (b) zero reports → empty points; (c) one corrupt snapshotJson among valid → corrupt skipped, others returned
-- [ ] 1.2 GREEN — add `RunwayTrendDTO` (record: points[] + latest categories) and `RunwayReportService.getTrend(familyId)` parsing snapshots via ObjectMapper; minimal impl to pass 1.1
-- [ ] 1.3 RED — failing test: latest report's `expenseBreakdown` enriched from `ExpenseCategoryMajor` into `{code,name,color,amount}` sorted amount desc; unknown code → fallback name + default color
-- [ ] 1.4 GREEN — implement category enrichment in `getTrend` (join ExpenseCategoryMajorRepository); pass 1.3
-- [ ] 1.5 RED — failing `RunwayReportTrendControllerTest` (@WebMvcTest / MockMvc): `GET /runway/reports/trend?familyId=` returns 200 `{success:true,data:{points,categories}}` and does NOT contain `snapshotJson`; unauthorized family → rejected
-- [ ] 1.6 GREEN — add `@GetMapping("/trend")` to `RunwayReportController` calling service + `authHelper.requireFamilyAccess`; wrap in success/data Map; pass 1.5
+- [x] 1.0 CONTRACT — write openspec/changes/runway-trends/contracts/group-1.md with the ### Contract block above; confirm Spec, Runtime, Code all non-empty
+- [x] 1.1 RED — Invoke superpowers:test-driven-development. Write failing `RunwayReportServiceTest.getTrend_*`: (a) 3 valid reports → 3 points ascending by savedAt with liquidTotal/monthlyBurn/runwayMonths/depletionDate; (b) zero reports → empty points; (c) one corrupt snapshotJson among valid → corrupt skipped, others returned
+- [x] 1.2 GREEN — add `RunwayTrendDTO` (record: points[] + latest categories) and `RunwayReportService.getTrend(familyId)` parsing snapshots via ObjectMapper; minimal impl to pass 1.1
+- [x] 1.3 RED — failing test: latest report's `expenseBreakdown` enriched from `ExpenseCategoryMajor` into `{code,name,color,amount}` sorted amount desc; unknown code → fallback name + default color
+- [x] 1.4 GREEN — implement category enrichment in `getTrend` (join ExpenseCategoryMajorRepository); pass 1.3
+- [x] 1.5 RED — failing `RunwayReportTrendControllerTest` (@WebMvcTest / MockMvc): `GET /runway/reports/trend?familyId=` returns 200 `{success:true,data:{points,categories}}` and does NOT contain `snapshotJson`; unauthorized family → rejected
+- [x] 1.6 GREEN — add `@GetMapping("/trend")` to `RunwayReportController` calling service + `authHelper.requireFamilyAccess`; wrap in success/data Map; pass 1.5
 - [ ] 1.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-1.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 2. Frontend — 资金跑道趋势 page
