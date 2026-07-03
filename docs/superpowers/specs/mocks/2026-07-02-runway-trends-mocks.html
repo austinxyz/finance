@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资金跑道趋势 — Mocks (runway-trends)</title>
+<!--
+  Design source: claude.ai/design 8f1c7aeb · Runway Trends.dc.html
+  Tokens: finance-ui-tokens (shadcn) — primary green hsl(142 76% 36%), radius .5rem.
+  Lock-down: token colors + verbatim text strings (per-report relabeled per REVIEWED reqs).
+  Static self-contained mock. Chart is a representative static SVG.
+-->
+<style>
+  :root{
+    --primary:142 76% 36%;
+    --bg:210 40% 98%;
+    --card:0 0% 100%;
+    --fg:222.2 84% 4.9%;
+    --muted:215.4 16.3% 46.9%;
+    --border:214.3 31.8% 91.4%;
+    --up:142 60% 38%;
+    --down:0 72% 51%;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;
+       background:hsl(var(--bg));color:hsl(var(--fg));}
+  .frame{max-width:1240px;margin:0 auto;padding:28px 24px 56px;display:flex;flex-direction:column;gap:20px}
+  .mobile-note,.desktop-note{font-size:12px;font-weight:700;color:hsl(var(--muted));text-transform:uppercase;letter-spacing:.5px;margin:32px auto 0;max-width:1240px;padding:0 24px}
+  h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.5px}
+  h2{margin:0;font-size:17px;font-weight:700}
+  .sub{margin:0;font-size:14px;color:hsl(var(--muted))}
+  .logo{width:34px;height:34px;border-radius:9px;background:hsl(var(--primary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px}
+  .row{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px}
+  .pillbar{display:flex;gap:6px;padding:4px;background:#fff;border:1px solid hsl(var(--border));border-radius:11px}
+  .pill{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;background:transparent;color:hsl(var(--muted));white-space:nowrap}
+  .pill.active{background:hsl(var(--primary));border-color:hsl(var(--primary));color:#fff}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .card{background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:14px;padding:18px 20px}
+  .kpi{display:flex;flex-direction:column;gap:8px}
+  .kpi .lbl{font-size:13px;color:hsl(var(--muted));font-weight:500}
+  .kpi .val{font-size:28px;font-weight:800;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+  .kpi .delta{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+  .up{color:hsl(var(--up))}.down{color:hsl(var(--down))}.mut{color:hsl(var(--muted))}
+  .chartcard{padding:22px 24px 14px}
+  .chart-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:6px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{padding:8px 15px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid hsl(var(--border));background:#fff;color:hsl(var(--muted));white-space:nowrap}
+  .tab.active{background:hsl(var(--primary));border-color:hsl(var(--primary));color:#fff}
+  table{width:100%;border-collapse:collapse}
+  .thead{display:grid;grid-template-columns:1.4fr 1fr 2fr 0.9fr;gap:12px;padding:0 4px 10px;border-bottom:1px solid hsl(var(--border));font-size:12px;font-weight:600;color:hsl(var(--muted));text-transform:uppercase;letter-spacing:.4px}
+  .trow{display:grid;grid-template-columns:1.4fr 1fr 2fr 0.9fr;gap:12px;align-items:center;padding:13px 4px;border-bottom:1px solid hsl(214.3 31.8% 94%)}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .cname{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+  .amt{font-size:14px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .barwrap{display:flex;align-items:center;gap:10px}
+  .bar{flex:1;height:7px;background:hsl(210 40% 94%);border-radius:5px;overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:5px}
+  .share{font-size:12px;color:hsl(var(--muted));width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  .cdelta{font-size:13px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;padding:56px 20px;color:hsl(var(--muted))}
+  .empty a{color:hsl(var(--primary));font-weight:600;text-decoration:none}
+  /* mobile frame */
+  .device{max-width:390px;margin:12px auto 0;border:1px solid hsl(var(--border));border-radius:20px;overflow:hidden;background:hsl(var(--bg))}
+  .device .frame{padding:18px 14px 32px;gap:14px}
+  .device .kpis{grid-template-columns:1fr 1fr}
+  .device .val{font-size:22px}
+  .device .chartscroll{overflow-x:auto}
+  .device .catlist{display:flex;flex-direction:column;gap:10px}
+  .device .catrow{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid hsl(var(--border));border-radius:11px}
+  .device .catrow .top{display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+
+<!-- ============ DESKTOP ============ -->
+<div class="desktop-note">Desktop · /analysis/runway-trend</div>
+<div class="frame">
+
+  <!-- header + range (report-count semantics) -->
+  <div class="row">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="logo">₦</div>
+        <h1>财务规划 · 资金跑道趋势</h1>
+      </div>
+      <p class="sub" style="margin-left:44px">把已保存的跑道报告汇总成趋势线 · 追踪现金流健康度</p>
+    </div>
+    <div class="pillbar">
+      <button class="pill">近 6 份</button>
+      <button class="pill active">近 12 份</button>
+      <button class="pill">全部</button>
+    </div>
+  </div>
+
+  <!-- KPI cards (delta vs previous report) -->
+  <div class="kpis">
+    <div class="card kpi"><span class="lbl">当前现金余额</span><span class="val">$168,500</span><span class="delta up">▲ 3.2% 较上次报告</span></div>
+    <div class="card kpi"><span class="lbl">剩余跑道</span><span class="val">13.4 个月</span><span class="delta down">▼ 0.8 个月 较上次报告</span></div>
+    <div class="card kpi"><span class="lbl">月度净烧钱率（报告值）</span><span class="val">$12,600</span><span class="delta down">▲ 4.1% 较上次报告</span></div>
+    <div class="card kpi"><span class="lbl">预计现金耗尽</span><span class="val">2027年8月</span><span class="delta mut">按报告口径 约 13 个月后</span></div>
+  </div>
+
+  <!-- trend chart + metric tabs -->
+  <div class="card chartcard">
+    <div class="chart-head">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <h2>剩余跑道月数趋势</h2>
+        <span class="sub">当前现金 ÷ 报告口径净烧钱率 · 近 12 份报告</span>
+      </div>
+      <div class="tabs">
+        <button class="tab active">剩余跑道月数</button>
+        <button class="tab">月度净烧钱</button>
+        <button class="tab">现金余额</button>
+      </div>
+    </div>
+    <svg viewBox="0 0 920 340" width="100%" style="display:block" preserveAspectRatio="xMidYMid meet">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="hsl(142 76% 36%)" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="hsl(142 76% 36%)" stop-opacity="0"/>
+      </linearGradient></defs>
+      <!-- gridlines -->
+      <g stroke="hsl(214.3 31.8% 91.4%)" stroke-width="1">
+        <line x1="62" x2="894" y1="40" y2="40"/><line x1="62" x2="894" y1="115" y2="115"/>
+        <line x1="62" x2="894" y1="190" y2="190"/><line x1="62" x2="894" y1="265" y2="265"/>
+        <line x1="62" x2="894" y1="298" y2="298"/>
+      </g>
+      <g fill="hsl(215.4 16.3% 46.9%)" font-size="11" text-anchor="end">
+        <text x="52" y="44">18</text><text x="52" y="119">15</text>
+        <text x="52" y="194">12</text><text x="52" y="269">9</text>
+      </g>
+      <!-- area + line (representative) -->
+      <path d="M62 150 L138 120 L214 160 L290 110 L366 175 L442 95 L518 205 L594 130 L670 220 L746 145 L822 175 L894 132 L894 298 L62 298 Z" fill="url(#g)"/>
+      <path d="M62 150 L138 120 L214 160 L290 110 L366 175 L442 95 L518 205 L594 130 L670 220 L746 145 L822 175 L894 132"
+            fill="none" stroke="hsl(142 76% 36%)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <g fill="#fff" stroke="hsl(142 76% 36%)" stroke-width="2">
+        <circle cx="62" cy="150" r="3"/><circle cx="214" cy="160" r="3"/><circle cx="366" cy="175" r="3"/>
+        <circle cx="518" cy="205" r="3"/><circle cx="670" cy="220" r="3"/><circle cx="822" cy="175" r="3"/>
+      </g>
+      <!-- hover tooltip (static example) -->
+      <line x1="442" x2="442" y1="20" y2="298" stroke="hsl(142 76% 36%)" stroke-width="1" stroke-dasharray="4 4" opacity="0.55"/>
+      <circle cx="442" cy="95" r="5" fill="hsl(142 76% 36%)" stroke="#fff" stroke-width="2"/>
+      <g><rect x="378" y="41" width="128" height="46" rx="8" fill="#0f172a" opacity="0.92"/>
+        <text x="390" y="59" font-size="11" fill="#cbd5e1">2026年3月报告</text>
+        <text x="390" y="77" font-size="14" font-weight="700" fill="#fff">15.2 个月</text></g>
+      <g fill="hsl(215.4 16.3% 46.9%)" font-size="11" text-anchor="middle">
+        <text x="62" y="324">01/15</text><text x="290" y="324">02/28</text><text x="518" y="324">04/10</text>
+        <text x="746" y="324">05/22</text><text x="894" y="324">06/20</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- category table -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h2>分类支出明细</h2>
+      <span class="sub">最新报告 2026年6月 · 合计 $18,600</span>
+    </div>
+    <div class="thead"><span>类别</span><span style="text-align:right">金额</span><span>占比</span><span style="text-align:right">较上次报告</span></div>
+    <div class="trow">
+      <span class="cname"><span class="dot" style="background:hsl(142 76% 36%)"></span>房租</span>
+      <span class="amt">$6,800</span>
+      <span class="barwrap"><span class="bar"><i style="width:100%;background:hsl(142 76% 36%)"></i></span><span class="share">37%</span></span>
+      <span class="cdelta mut">持平</span>
+    </div>
+    <div class="trow">
+      <span class="cname"><span class="dot" style="background:hsl(217 91% 60%)"></span>餐饮</span>
+      <span class="amt">$3,200</span>
+      <span class="barwrap"><span class="bar"><i style="width:47%;background:hsl(217 91% 60%)"></i></span><span class="share">17%</span></span>
+      <span class="cdelta down">▲ 6%</span>
+    </div>
+    <div class="trow">
+      <span class="cname"><span class="dot" style="background:hsl(38 92% 50%)"></span>购物</span>
+      <span class="amt">$2,450</span>
+      <span class="barwrap"><span class="bar"><i style="width:36%;background:hsl(38 92% 50%)"></i></span><span class="share">13%</span></span>
+      <span class="cdelta down">▲ 22%</span>
+    </div>
+    <div class="trow">
+      <span class="cname"><span class="dot" style="background:hsl(190 80% 42%)"></span>教育学习</span>
+      <span class="amt">$1,200</span>
+      <span class="barwrap"><span class="bar"><i style="width:18%;background:hsl(190 80% 42%)"></i></span><span class="share">6%</span></span>
+      <span class="cdelta up">新增</span>
+    </div>
+    <div class="trow">
+      <span class="cname"><span class="dot" style="background:hsl(160 60% 45%)"></span>交通</span>
+      <span class="amt">$980</span>
+      <span class="barwrap"><span class="bar"><i style="width:14%;background:hsl(160 60% 45%)"></i></span><span class="share">5%</span></span>
+      <span class="cdelta up">▼ 12%</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ EMPTY STATE ============ -->
+<div class="desktop-note">Empty state · 0 saved reports</div>
+<div class="frame">
+  <div class="card empty">
+    <h2 style="margin-bottom:8px">还没有已保存的跑道报告</h2>
+    <p class="sub">趋势需要至少一份已保存的报告。<a href="#">前往 资金跑道分析 →</a> 保存一份后再回来查看趋势。</p>
+  </div>
+</div>
+
+<!-- ============ MOBILE ============ -->
+<div class="mobile-note">Mobile · same page, stacked</div>
+<div class="device">
+  <div class="frame">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="logo" style="width:28px;height:28px;font-size:15px">₦</div>
+      <h1 style="font-size:18px">资金跑道趋势</h1>
+    </div>
+    <p class="sub">已保存报告汇总趋势</p>
+    <div class="pillbar" style="justify-content:center">
+      <button class="pill">近6份</button><button class="pill active">近12份</button><button class="pill">全部</button>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><span class="lbl">现金余额</span><span class="val">$168,500</span><span class="delta up">▲ 3.2%</span></div>
+      <div class="card kpi"><span class="lbl">剩余跑道</span><span class="val">13.4</span><span class="delta down">▼ 0.8 月</span></div>
+      <div class="card kpi"><span class="lbl">净烧钱率</span><span class="val">$12,600</span><span class="delta down">▲ 4.1%</span></div>
+      <div class="card kpi"><span class="lbl">预计耗尽</span><span class="val" style="font-size:18px">2027年8月</span><span class="delta mut">约13个月后</span></div>
+    </div>
+    <div class="card chartcard">
+      <div class="tabs" style="margin-bottom:10px"><button class="tab active">跑道</button><button class="tab">烧钱</button><button class="tab">现金</button></div>
+      <div class="chartscroll">
+        <svg viewBox="0 0 620 260" width="620" style="display:block">
+          <defs><linearGradient id="gm" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="hsl(142 76% 36%)" stop-opacity="0.22"/><stop offset="100%" stop-color="hsl(142 76% 36%)" stop-opacity="0"/>
+          </linearGradient></defs>
+          <path d="M20 120 L120 90 L220 140 L320 80 L420 160 L520 100 L600 130 L600 240 L20 240 Z" fill="url(#gm)"/>
+          <path d="M20 120 L120 90 L220 140 L320 80 L420 160 L520 100 L600 130" fill="none" stroke="hsl(142 76% 36%)" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:12px">分类支出明细</h2>
+      <span class="sub">2026年6月 · 合计 $18,600</span>
+      <div class="catlist" style="margin-top:12px">
+        <div class="catrow"><div class="top"><span class="cname"><span class="dot" style="background:hsl(142 76% 36%)"></span>房租</span><span class="amt">$6,800</span></div>
+          <div class="barwrap"><span class="bar"><i style="width:100%;background:hsl(142 76% 36%)"></i></span><span class="share">37%</span></div>
+          <span class="cdelta mut" style="text-align:left">持平 · 较上次报告</span></div>
+        <div class="catrow"><div class="top"><span class="cname"><span class="dot" style="background:hsl(217 91% 60%)"></span>餐饮</span><span class="amt">$3,200</span></div>
+          <div class="barwrap"><span class="bar"><i style="width:47%;background:hsl(217 91% 60%)"></i></span><span class="share">17%</span></div>
+          <span class="cdelta down" style="text-align:left">▲ 6% · 较上次报告</span></div>
+        <div class="catrow"><div class="top"><span class="cname"><span class="dot" style="background:hsl(190 80% 42%)"></span>教育学习</span><span class="amt">$1,200</span></div>
+          <div class="barwrap"><span class="bar"><i style="width:18%;background:hsl(190 80% 42%)"></i></span><span class="share">6%</span></div>
+          <span class="cdelta up" style="text-align:left">新增 · 较上次报告</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
