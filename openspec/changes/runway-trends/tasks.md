@@ -52,5 +52,5 @@
 
 - [x] 3.1 Run backend test suite — `cd backend && mvn test` — ensure no regressions
 - [x] 3.2 Run frontend test suite — `cd frontend && npm run test` — ensure no regressions
-- [~] 3.3 Manual smoke test (optional, deferred — needs live stack + DB with ≥2 saved reports) — save ≥2 runway reports, open /analysis/runway-trend, verify KPI deltas, metric switch, range pills, category table, and empty state (fresh family)
+- [x] 3.3 Manual smoke test — user verified live, no issues — save ≥2 runway reports, open /analysis/runway-trend, verify KPI deltas, metric switch, range pills, category table, and empty state (fresh family)
 - [x] 3.4 Run superpowers:verification-before-completion — run test suites; `grep -r console.log frontend/src` for the new view; confirm no inline styles / scoped CSS in RunwayTrend.vue
