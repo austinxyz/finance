@@ -206,7 +206,12 @@ MUST NOT 被本工具删除或修改 —— `expense_records` 按
 
 系统 SHALL 从环境变量 `FINANCE_API_BASE`、`FINANCE_USERNAME`、`FINANCE_PASSWORD`
 读取连接信息，登录换取 JWT 后调用 API。凭据 MUST NOT 出现在仓库中。
-`family_id` 由后端从 JWT 推导（`AuthHelper.getFamilyIdFromAuth`），客户端不指定。
+
+`family_id` MUST 在批量写入请求中携带。虽然 controller 会用
+`AuthHelper.getFamilyIdFromAuth` 覆盖它，但 `@Valid` 在方法体之前执行，
+而该字段带 `@NotNull` —— 省略它会在校验阶段被拒（HTTP 400），覆盖逻辑根本没机会运行。
+客户端 SHALL 通过 `GET /api/families/default` 取得该值，
+该端点使用同一个 `getFamilyIdFromAuth`，因此发送值与服务端替换值必然一致。
 
 #### Scenario: 凭据缺失
 
@@ -219,6 +224,12 @@ MUST NOT 被本工具删除或修改 —— `expense_records` 按
 - **WHEN** 凭据错误导致登录返回非成功响应
 - **THEN** 系统报告认证失败并退出，退出码非 0
 - **AND** 不进行任何写入或删除
+
+#### Scenario: 携带 family id
+
+- **WHEN** 客户端发起批量写入
+- **THEN** 请求体含 `familyId`，取自 `GET /api/families/default`
+- **AND** 未取得该值时拒绝发起写入，而非发送空值触发 400
 
 #### Scenario: 默认不写库
 

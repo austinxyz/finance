@@ -118,9 +118,12 @@ def _reason(payload: dict) -> str:
 class FinanceApiClient:
     """Thin client over the endpoints the reconciling write needs.
 
-    ``family_id`` is deliberately never sent: the backend derives it from the JWT
-    and overwrites whatever the body carries, so including it would only create
-    the illusion that the client chooses.
+    ``familyId`` has to be sent even though the controller immediately overwrites
+    it from the JWT: ``@Valid`` runs before the method body, and the field is
+    ``@NotNull``, so omitting it fails validation before the overwrite can happen.
+    It is fetched from ``/families/default``, which derives it through the same
+    ``getFamilyIdFromAuth`` call the batch endpoint uses — so the value sent and
+    the value the server substitutes are the same by construction.
     """
 
     def __init__(
@@ -135,6 +138,7 @@ class FinanceApiClient:
         self._password = password
         self._transport = transport
         self._token: str | None = None
+        self._family_id: int | None = None
 
     @classmethod
     def from_env(cls, transport: Transport | None = None) -> FinanceApiClient:
@@ -175,6 +179,15 @@ class FinanceApiClient:
             raise ApiError("登录响应中没有 token")
         self._token = token
 
+    def load_family_id(self) -> int:
+        """Fetch the authenticated user's family id, caching it for later writes."""
+        payload = self._request("GET", "/families/default", None, self._headers())
+        family_id = (payload.get("data") or {}).get("id")
+        if family_id is None:
+            raise ApiError("/families/default 响应中没有 family id")
+        self._family_id = int(family_id)
+        return self._family_id
+
     def get_records(self, period: str) -> list[RemoteRecord]:
         payload = self._request(
             "GET", f"/expenses/records?period={period}", None, self._headers()
@@ -190,10 +203,16 @@ class FinanceApiClient:
         ]
 
     def batch_save(self, period: str, records: list[dict]) -> dict:
+        if self._family_id is None:
+            raise ApiError("尚未取得 family id —— 调用 batch_save 前必须先 load_family_id()")
         return self._request(
             "POST",
             "/expenses/records/batch",
-            {"expensePeriod": period, "records": records},
+            {
+                "familyId": self._family_id,
+                "expensePeriod": period,
+                "records": records,
+            },
             self._headers(),
         )
 

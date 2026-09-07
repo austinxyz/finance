@@ -247,20 +247,49 @@ class TestApiClient(unittest.TestCase):
         _, _, _, headers = transport.calls[1]
         self.assertEqual(headers["Authorization"], "Bearer jwt-abc")
 
-    def test_batch_save_omits_family_id(self) -> None:
-        """The backend derives it from the JWT; sending one would be ignored."""
+    def test_batch_save_sends_family_id(self) -> None:
+        """@Valid runs before the controller body, so @NotNull rejects a missing
+        familyId even though the controller then overwrites it from the JWT.
+
+        Omitting it produced a 400 that no fake-client test could catch, because
+        the fake accepted any payload.
+        """
         transport = FakeTransport([
             (200, {"success": True, "data": {"token": "t"}}),
+            (200, {"success": True, "data": {"id": 7}}),
             (200, {"success": True, "data": []}),
         ])
         client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
         client.login()
+        client.load_family_id()
 
         client.batch_save("2026-08", [{"minorCategoryId": 68, "amount": 259.24}])
 
-        _, _, body, _ = transport.calls[1]
-        self.assertNotIn("familyId", body)
+        _, _, body, _ = transport.calls[2]
+        self.assertEqual(body["familyId"], 7)
         self.assertEqual(body["expensePeriod"], "2026-08")
+
+    def test_family_id_comes_from_the_same_source_the_backend_uses(self) -> None:
+        """/families/default derives it from the JWT via getFamilyIdFromAuth —
+        the very call the batch endpoint uses to overwrite the field."""
+        transport = FakeTransport([
+            (200, {"success": True, "data": {"token": "t"}}),
+            (200, {"success": True, "data": {"id": 7}}),
+        ])
+        client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
+        client.login()
+
+        self.assertEqual(client.load_family_id(), 7)
+        _, url, _, _ = transport.calls[1]
+        self.assertTrue(url.endswith("/families/default"))
+
+    def test_batch_save_before_family_id_is_loaded_is_refused(self) -> None:
+        transport = FakeTransport([(200, {"success": True, "data": {"token": "t"}})])
+        client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
+        client.login()
+
+        with self.assertRaises(ApiError):
+            client.batch_save("2026-08", [{"minorCategoryId": 68, "amount": 1.00}])
 
     def test_failed_login_raises_and_makes_no_further_calls(self) -> None:
         transport = FakeTransport([(401, {"success": False, "error": "bad credentials"})])
@@ -353,11 +382,16 @@ class RecordingClient:
     def __init__(self, existing: list[RemoteRecord] | None = None) -> None:
         self.existing = list(existing or [])
         self.logged_in = False
+        self.family_id_loaded = False
         self.posted: list[tuple[str, list[dict]]] = []
         self.deleted: list[int] = []
 
     def login(self) -> None:
         self.logged_in = True
+
+    def load_family_id(self) -> int:
+        self.family_id_loaded = True
+        return 1
 
     def get_records(self, period: str) -> list[RemoteRecord]:
         return list(self.existing)

@@ -134,6 +134,7 @@ def apply_plan(
     injected rather than guessed here.
     """
     client.login()
+    client.load_family_id()
 
     for record in plan.to_delete:
         client.delete_record(record.id)
