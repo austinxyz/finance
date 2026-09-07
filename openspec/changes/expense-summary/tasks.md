@@ -65,7 +65,7 @@
 - [x] 2.10 GREEN — 实现来源缺失闸门与 `manual` 分支
 - [x] 2.11 RED — 回归测试：`rules.toml` 中不存在兜底规则（任意描述的随机交易仍判为 `UNKNOWN`）
 - [x] 2.12 GREEN — 若测试暴露兜底规则则移除；确认注释说明保留
-- [ ] 2.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-2.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 2.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-2.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 3. 对账式写库
 
@@ -86,23 +86,23 @@
   - 非 2xx 响应一律报错退出，不吞异常；写入后打印实际写入/删除的小类清单。
 - **Threshold**: 80
 
-- [ ] 3.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-3.md with the ### Contract block above
-- [ ] 3.1 RED — 写 `test_reconcile.py`：给定本地聚合 `{68: 259.24}` 与远端 USD 记录 `[{id:5, minorCategoryId:68, amount:100, currency:"USD"}]` → `reconcile()` 返回 to_post 含 68、to_delete 为空
-- [ ] 3.2 GREEN — 实现 `importer/reconcile.py` 的纯函数 diff
-- [ ] 3.3 RED — 测试清除路径：远端有 `{id:9, minorCategoryId:72, currency:"USD"}` 但本地聚合无 72 → to_delete 含 id 9
-- [ ] 3.4 GREEN — 实现「远端有、本地无」的删除判定
-- [ ] 3.5 RED — 测试净额非正：本地某小类净额为 0 或负 → 不出现在 to_post；若远端存在其 USD 记录则出现在 to_delete
-- [ ] 3.6 GREEN — 实现净额非正的删除转向（衔接聚合阶段的退款冲抵）
-- [ ] 3.7 RED — **币种隔离测试（最高风险，三个场景）**：(a) 远端同一小类同时有 USD 与 CNY 记录 → 只更新 USD，CNY 既不更新也不删除；(b) 本地聚合为空且远端只有 CNY 记录 → to_delete 为空；(c) 远端全为 CNY 记录 → 工具不产生任何删除操作
-- [ ] 3.8 GREEN — 在 diff 入口硬性过滤 `currency == "USD"`；对该过滤条件加断言与注释说明后果
-- [ ] 3.9 RED — 写 `apiclient` 的 fake 与契约测试：登录返回 JWT 后，后续请求携带 `Authorization` 头；请求体不含 `familyId`（由后端从 JWT 推导）
-- [ ] 3.10 GREEN — 实现 `importer/apiclient.py`（login / get_records / batch_save / delete_record），依赖注入形式暴露给写入流程
-- [ ] 3.11 RED — 测试凭据缺失：未设 `FINANCE_PASSWORD` → 报错指明缺少哪个环境变量，且不发起任何请求；登录返回非成功 → 报告认证失败并以非 0 退出，不执行任何写入或删除
-- [ ] 3.12 GREEN — 实现凭据校验与登录失败处理
-- [ ] 3.13 RED — 测试默认不写库：未加写入开关时不发起任何 API 调用，仅产出 `review.csv` 与聚合预览，且无需凭据即可完成
-- [ ] 3.14 GREEN — 在 `run.py` 中实现写入开关与默认只读路径
-- [ ] 3.15 RED — 幂等测试：对同一输入连续执行两次写入流程（fake client 记录调用），第二次结束后的目标状态与第一次相同，且每个 `(period, minorCategoryId, currency)` 组合只有一行
-- [ ] 3.16 GREEN — 补齐幂等所需逻辑；写入后打印实际写入/删除的小类清单
+- [x] 3.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-3.md with the ### Contract block above
+- [x] 3.1 RED — 写 `test_reconcile.py`：给定本地聚合 `{68: 259.24}` 与远端 USD 记录 `[{id:5, minorCategoryId:68, amount:100, currency:"USD"}]` → `reconcile()` 返回 to_post 含 68、to_delete 为空
+- [x] 3.2 GREEN — 实现 `importer/reconcile.py` 的纯函数 diff
+- [x] 3.3 RED — 测试清除路径：远端有 `{id:9, minorCategoryId:72, currency:"USD"}` 但本地聚合无 72 → to_delete 含 id 9
+- [x] 3.4 GREEN — 实现「远端有、本地无」的删除判定
+- [x] 3.5 RED — 测试净额非正：本地某小类净额为 0 或负 → 不出现在 to_post；若远端存在其 USD 记录则出现在 to_delete
+- [x] 3.6 GREEN — 实现净额非正的删除转向（衔接聚合阶段的退款冲抵）
+- [x] 3.7 RED — **币种隔离测试（最高风险，三个场景）**：(a) 远端同一小类同时有 USD 与 CNY 记录 → 只更新 USD，CNY 既不更新也不删除；(b) 本地聚合为空且远端只有 CNY 记录 → to_delete 为空；(c) 远端全为 CNY 记录 → 工具不产生任何删除操作
+- [x] 3.8 GREEN — 在 diff 入口硬性过滤 `currency == "USD"`；对该过滤条件加断言与注释说明后果
+- [x] 3.9 RED — 写 `apiclient` 的 fake 与契约测试：登录返回 JWT 后，后续请求携带 `Authorization` 头；请求体不含 `familyId`（由后端从 JWT 推导）
+- [x] 3.10 GREEN — 实现 `importer/apiclient.py`（login / get_records / batch_save / delete_record），依赖注入形式暴露给写入流程
+- [x] 3.11 RED — 测试凭据缺失：未设 `FINANCE_PASSWORD` → 报错指明缺少哪个环境变量，且不发起任何请求；登录返回非成功 → 报告认证失败并以非 0 退出，不执行任何写入或删除
+- [x] 3.12 GREEN — 实现凭据校验与登录失败处理
+- [x] 3.13 RED — 测试默认不写库：未加写入开关时不发起任何 API 调用，仅产出 `review.csv` 与聚合预览，且无需凭据即可完成
+- [x] 3.14 GREEN — 在 `run.py` 中实现写入开关与默认只读路径
+- [x] 3.15 RED — 幂等测试：对同一输入连续执行两次写入流程（fake client 记录调用），第二次结束后的目标状态与第一次相同，且每个 `(period, minorCategoryId, currency)` 组合只有一行
+- [x] 3.16 GREEN — 补齐幂等所需逻辑；写入后打印实际写入/删除的小类清单
 - [ ] 3.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-3.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 4. 解析器：Chase 信用卡与 BOA checking
