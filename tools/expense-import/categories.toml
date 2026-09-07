@@ -1,0 +1,227 @@
+# 支出分类参考表 — 从 expense_categories_major/minor 导出
+# 重新生成方式见 README.md
+
+[[category]]
+id = 83
+major_code = "CHILDREN"
+major = "子女"
+minor = "礼金"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 82
+major_code = "CHILDREN"
+major = "子女"
+minor = "学费"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 65
+major_code = "CHILDREN"
+major = "子女"
+minor = "育儿费用"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 66
+major_code = "CLOTHING"
+major = "衣"
+minor = "服装化妆品"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 67
+major_code = "FOOD"
+major = "食"
+minor = "饮食"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 99
+major_code = "HOUSING"
+major = "住"
+minor = "买房"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 86
+major_code = "HOUSING"
+major = "住"
+minor = "保姆"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 101
+major_code = "HOUSING"
+major = "住"
+minor = "契税中介费"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 85
+major_code = "HOUSING"
+major = "住"
+minor = "房产税"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 68
+major_code = "HOUSING"
+major = "住"
+minor = "水电煤物业"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 81
+major_code = "HOUSING"
+major = "住"
+minor = "生活用品"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 84
+major_code = "HOUSING"
+major = "住"
+minor = "租房还贷"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 98
+major_code = "HOUSING"
+major = "住"
+minor = "装修"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 100
+major_code = "HOUSING"
+major = "住"
+minor = "首付"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 87
+major_code = "TRANSPORTATION"
+major = "行"
+minor = "车保养保险"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 69
+major_code = "TRANSPORTATION"
+major = "行"
+minor = "日常交通"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 88
+major_code = "TRANSPORTATION"
+major = "行"
+minor = "旅游"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 102
+major_code = "TRANSPORTATION"
+major = "行"
+minor = "买车"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 92
+major_code = "TRANSPORTATION"
+major = "行"
+minor = "中美往来机票"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 89
+major_code = "INSURANCE"
+major = "保险"
+minor = "人寿保险"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 90
+major_code = "INSURANCE"
+major = "保险"
+minor = "养老保险"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 96
+major_code = "INSURANCE"
+major = "保险"
+minor = "房屋保险"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 97
+major_code = "MEDICAL"
+major = "医疗"
+minor = "门诊"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 91
+major_code = "SOCIAL"
+major = "人情"
+minor = "亲戚往来"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 71
+major_code = "SOCIAL"
+major = "人情"
+minor = "朋友人情"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 93
+major_code = "ENTERTAINMENT"
+major = "娱乐"
+minor = "健身美容"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 72
+major_code = "ENTERTAINMENT"
+major = "娱乐"
+minor = "娱乐健身"
+expense_type = "FIXED_DAILY"
+
+[[category]]
+id = 94
+major_code = "ENTERTAINMENT"
+major = "娱乐"
+minor = "数码产品"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 95
+major_code = "BUSINESS"
+major = "经营"
+minor = "经营开支"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 103
+major_code = "OTHER"
+major = "其他"
+minor = "教育培训"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 80
+major_code = "OTHER"
+major = "其他"
+minor = "未分类"
+expense_type = "LARGE_IRREGULAR"
+
+[[category]]
+id = 104
+major_code = "OTHER"
+major = "其他"
+minor = "补税"
+expense_type = "LARGE_IRREGULAR"
+

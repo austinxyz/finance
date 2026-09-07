@@ -1,0 +1,190 @@
+#
+# 商户分类规则 — 按文件顺序匹配，第一条命中即生效。
+# 具体规则放上面，通用规则放下面。
+#
+# 字段:
+#   name      必填，规则名，会写进 review.csv 便于核对
+#   action    必填 EXPENSE / INCOME / TRANSFER / FUNDING / IGNORE
+#   category  仅 EXPENSE 需要，填 categories.toml 里的小类 id
+#   desc      正则，匹配交易描述
+#   type_is   精确匹配机构自己的类型码（如 Chase 的 LOAN_PMT）
+#   source_is 只对某个 parser 生效（如 chase_checking）
+#   amount_min / amount_max  按金额绝对值过滤
+#   note      备注，会写进 review.csv
+#
+# 新增规则后重跑 run.py 即可，无需改代码。
+#
+
+# ============================================================
+# 一、结构性规则 — 排除转账/充值，防止重复计账
+#    这些优先级最高，必须在商户规则之前
+# ============================================================
+
+[[rule]]
+name = "chase-card-payment"
+type_is = "LOAN_PMT"
+action = "TRANSFER"
+note = "信用卡还款，真实开支在信用卡账单里，此处不能计"
+
+[[rule]]
+name = "card-payment-generic"
+desc = '(?i)(payment to .*card ending|^(online |automatic )?payment.*thank ?you)'
+action = "TRANSFER"
+note = "信用卡还款"
+
+[[rule]]
+name = "zelle-self-transfer"
+desc = '(?i)zelle payment (from|to) YANZHAO XU'
+action = "TRANSFER"
+note = "本人账户间 Zelle 转账"
+
+[[rule]]
+name = "chase-partner-transfer"
+type_is = "PARTNERFI_TO_CHASE"
+action = "TRANSFER"
+note = "外部银行转入 Chase"
+
+[[rule]]
+name = "paypal-funding"
+desc = '(?i)PAYPAL\s+(INST XFER|TRANSFER|ECHECK)'
+action = "FUNDING"
+note = "PayPal 充值，真实开支在 PayPal 账单里；若未导入 PayPal CSV 这部分会漏计"
+
+[[rule]]
+name = "venmo-funding"
+desc = '(?i)^VENMO\s+(CASHOUT|PAYMENT|TRANSFER)'
+action = "FUNDING"
+note = "Venmo 充值/提现，真实开支在 Venmo 账单里"
+
+[[rule]]
+name = "internal-transfer-generic"
+desc = '(?i)(transfer (to|from) (savings|checking)|online transfer)'
+action = "TRANSFER"
+note = "账户间转账"
+
+[[rule]]
+name = "bank-interest"
+desc = '(?i)(^interest payment|interest earned)'
+action = "INCOME"
+note = "存款利息"
+
+[[rule]]
+name = "payroll"
+desc = '(?i)(direct dep|payroll|dir dep)'
+action = "INCOME"
+note = "工资"
+
+# ============================================================
+# 二、水电煤 / 通讯  → 68 住/水电煤物业
+# ============================================================
+
+[[rule]]
+name = "utility-pge"
+desc = '(?i)(^PGANDE|PG&E|PACIFIC GAS)'
+action = "EXPENSE"
+category = 68
+note = "PG&E 电气"
+
+[[rule]]
+name = "utility-water-garbage"
+desc = '(?i)(water dist|water util|EBMUD|recology|waste manage|garbage)'
+action = "EXPENSE"
+category = 68
+
+[[rule]]
+name = "utility-internet-phone"
+desc = '(?i)(comcast|xfinity|at&?t|verizon|t-?mobile|sprint|astound|sonic\.net)'
+action = "EXPENSE"
+category = 68
+note = "宽带/手机"
+
+# ============================================================
+# 三、饮食  → 67 食/饮食
+# ============================================================
+
+[[rule]]
+name = "grocery"
+desc = '(?i)(safeway|trader joe|whole ?foods|sprouts|99 ?ranch|h ?mart|marina food|lucky sup|food ?maxx|grocery outlet|smart ?& ?final)'
+action = "EXPENSE"
+category = 67
+note = "超市"
+
+[[rule]]
+name = "restaurant-delivery"
+desc = '(?i)(doordash|uber ?eats|grubhub|postmates|caviar|seamless|instacart)'
+action = "EXPENSE"
+category = 67
+note = "外卖"
+
+[[rule]]
+name = "coffee-fastfood"
+desc = '(?i)(starbucks|peets|philz|chipotle|panera|subway|mcdonald|in-?n-?out|five guys|shake shack|boiling point|kura|panda express)'
+action = "EXPENSE"
+category = 67
+
+# ============================================================
+# 四、日常交通  → 69 行/日常交通
+# ============================================================
+
+[[rule]]
+name = "gas-station"
+desc = '(?i)(chevron|shell oil|shell service|exxon|mobil|arco|valero|76 ?station|costco gas)'
+action = "EXPENSE"
+category = 69
+note = "加油"
+
+[[rule]]
+name = "rideshare-transit"
+desc = '(?i)(^uber(?! ?eats)|lyft|clipper|bart|caltrain|fastrak|parking|spothero)'
+action = "EXPENSE"
+category = 69
+note = "打车/公交/停车过路费"
+
+# ============================================================
+# 五、娱乐订阅  → 72 娱乐/娱乐健身
+# ============================================================
+
+[[rule]]
+name = "streaming-subscription"
+desc = '(?i)(netflix|spotify|hulu|disney ?plus|hbo|max\.com|youtube ?premium|apple\.com/bill|audible)'
+action = "EXPENSE"
+category = 72
+note = "流媒体订阅"
+
+[[rule]]
+name = "gym"
+desc = '(?i)(planet fitness|24 ?hour fit|equinox|lifetime fit|ymca|crunch fitness)'
+action = "EXPENSE"
+category = 72
+note = "健身房"
+
+# ============================================================
+# 六、模糊商户 — 下面这些经常分错，review.csv 里重点核对
+# ============================================================
+
+[[rule]]
+name = "amazon-assumed-household"
+desc = '(?i)(amazon|amzn)(?!.*prime video)'
+action = "EXPENSE"
+category = 81
+note = "假设为生活用品；数码产品应改 94，食品应改 67 — 需逐笔核对"
+
+[[rule]]
+name = "bigbox-assumed-household"
+desc = '(?i)(costco whse|target\b|walmart|wal-?mart|bj.s wholesale)'
+action = "EXPENSE"
+category = 81
+note = "假设为生活用品；若主要买食品应改 67 — 需核对"
+
+[[rule]]
+name = "pharmacy-assumed-household"
+desc = '(?i)(cvs|walgreens|rite ?aid)'
+action = "EXPENSE"
+category = 81
+note = "假设为生活用品；处方药应改 97 门诊"
+
+# ============================================================
+# 未匹配的交易会标成 UNKNOWN，出现在 review.csv 顶部。
+# 逐条给它们加规则，命中率会逐月提高。
+# 故意不设兜底规则 —— 静默归类比漏归类更危险。
+# ============================================================
