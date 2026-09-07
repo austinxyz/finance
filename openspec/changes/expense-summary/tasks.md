@@ -128,7 +128,7 @@
 - [x] 4.5 GREEN — 实现 `importer/parsers/boa_checking.py` 并注册
 - [x] 4.6 RED — 跨账户去重测试：同时给入 checking 的信用卡还款行与信用卡账单的消费行 → 还款判为 `TRANSFER`，月度聚合只反映卡账单消费
 - [x] 4.7 GREEN — 补齐/调整结构性规则使其覆盖两家的还款描述格式，确保排在商户规则之前
-- [ ] 4.8 用真实样本跑一次完整流程（不写库），核对 `review.csv` 的分类结果与 `UNKNOWN` 比例，按需补商户规则
+- [x] 4.8 用真实样本跑一次完整流程（不写库），核对 `review.csv` 的分类结果与 `UNKNOWN` 比例，按需补商户规则
 - [ ] 4.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-4.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 5. 解析器：PayPal、Venmo 与 Robinhood

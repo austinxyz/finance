@@ -71,6 +71,24 @@ action = "INCOME"
 note = "存款利息"
 
 [[rule]]
+name = "investment-transfer"
+desc = '(?i)(betterment|stash capital|wealthfront|vanguard|fidelity|schwab).*(des:|transfer|ach)'
+action = "TRANSFER"
+note = "转入投资账户，钱没花掉；净值变化由资产模块反映"
+
+[[rule]]
+name = "unemployment-benefit"
+desc = '(?i)california edd'
+action = "INCOME"
+note = "加州失业金"
+
+[[rule]]
+name = "coaching-income"
+desc = '(?i)elitecoach'
+action = "INCOME"
+note = "教练收入"
+
+[[rule]]
 name = "payroll"
 desc = '(?i)(direct dep|payroll|dir dep)'
 action = "INCOME"
@@ -81,6 +99,13 @@ note = "工资"
 # ============================================================
 
 [[rule]]
+name = "home-mortgage"
+desc = '(?i)(wf home mtg|home mtg|mortgage.*auto pay)'
+action = "EXPENSE"
+category = 84
+note = "房贷自动扣款"
+
+[[rule]]
 name = "utility-pge"
 desc = '(?i)(^PGANDE|PG&E|PACIFIC GAS)'
 action = "EXPENSE"
@@ -89,7 +114,7 @@ note = "PG&E 电气"
 
 [[rule]]
 name = "utility-water-garbage"
-desc = '(?i)(water dist|water util|EBMUD|recology|waste manage|garbage)'
+desc = '(?i)(water dist|water util|EBMUD|recology|waste manage|garbage|san jose utilities|csj smart meters)'
 action = "EXPENSE"
 category = 68
 
@@ -124,6 +149,50 @@ desc = '(?i)(starbucks|peets|philz|chipotle|panera|subway|mcdonald|in-?n-?out|fi
 action = "EXPENSE"
 category = 67
 
+[[rule]]
+name = "local-restaurants"
+desc = '(?i)(feng hotpot|noodle talk|cheung hing|chuan hai|mala mala|taiwan porridge|paris baguette|evergreen)'
+action = "EXPENSE"
+category = 67
+note = "本地餐馆"
+
+[[rule]]
+name = "asian-grocery"
+desc = '(?i)(t&amp;t supermarket|t&t supermarket|99 ranch|h mart|marina food|ranch 99)'
+action = "EXPENSE"
+category = 67
+note = "亚洲超市"
+
+[[rule]]
+name = "costco-grocery-run"
+desc = '(?i)(www ?costco ?com|costco whse|costco wholesale)'
+amount_max = 300
+action = "EXPENSE"
+category = 67
+note = "Costco 小额按食品算；大额刻意不设规则，由闸门 1 拦下逐笔判断（家电应归 94，轮胎归 87）"
+
+[[rule]]
+name = "zelle-meal-share"
+desc = '(?i)zelle payment to .*(austin|dinner|lunch|food)'
+action = "EXPENSE"
+category = 67
+note = "聚餐分摊付出"
+
+[[rule]]
+name = "zelle-meal-reimbursement"
+desc = '(?i)zelle payment from .*(food|dinner|lunch|meal)'
+action = "EXPENSE"
+category = 67
+note = "他人还聚餐钱，作负向金额冲抵当月餐饮"
+
+[[rule]]
+name = "zelle-small-inbound-assumed-meal"
+desc = '(?i)zelle payment from '
+amount_max = 100
+action = "EXPENSE"
+category = 67
+note = "小额个人还款默认按 AA 饭钱冲抵饮食。同额同日常成对出现（一人写备注一人不写）。非饭钱的小额还款会归错，在 review.csv 核对"
+
 # ============================================================
 # 四、日常交通  → 69 行/日常交通
 # ============================================================
@@ -142,6 +211,34 @@ action = "EXPENSE"
 category = 69
 note = "打车/公交/停车过路费"
 
+[[rule]]
+name = "vehicle-registration"
+desc = '(?i)(st of ca dmv|\bdmv\b)'
+action = "EXPENSE"
+category = 87
+note = "车辆登记/牌照"
+
+[[rule]]
+name = "auto-insurance"
+desc = '(?i)(mercury ins|geico|state farm|progressive ins|allstate)'
+action = "EXPENSE"
+category = 87
+note = "车险"
+
+[[rule]]
+name = "life-insurance"
+desc = '(?i)nationwide'
+action = "EXPENSE"
+category = 89
+note = "人寿保险"
+
+[[rule]]
+name = "intl-flights"
+desc = '(?i)(booking\.com|expedia|united airlines|delta air|american airlines|air china|cathay)'
+action = "EXPENSE"
+category = 92
+note = "机票；若是国内旅游应改 88 旅游"
+
 # ============================================================
 # 五、娱乐订阅  → 72 娱乐/娱乐健身
 # ============================================================
@@ -154,6 +251,13 @@ category = 72
 note = "流媒体订阅"
 
 [[rule]]
+name = "tennis"
+desc = '(?i)(utr power|\butr\b|tennis|usta|racquet)'
+action = "EXPENSE"
+category = 72
+note = "网球场地/评级"
+
+[[rule]]
 name = "gym"
 desc = '(?i)(planet fitness|24 ?hour fit|equinox|lifetime fit|ymca|crunch fitness)'
 action = "EXPENSE"
@@ -161,7 +265,39 @@ category = 72
 note = "健身房"
 
 # ============================================================
-# 六、模糊商户 — 下面这些经常分错，review.csv 里重点核对
+# 六、医疗 / 美容 / 经营
+# ============================================================
+
+[[rule]]
+name = "medical"
+desc = '(?i)(mental health|medical|clinic|dental|kaiser|sutter health|urgent care)'
+action = "EXPENSE"
+category = 97
+note = "门诊"
+
+[[rule]]
+name = "salon"
+desc = '(?i)(h-k hair|\bhair\b|salon|nail|\bspa\b)'
+action = "EXPENSE"
+category = 93
+note = "美发美容"
+
+[[rule]]
+name = "ai-subscription"
+desc = '(?i)(anthropic|openai|claude sub)'
+action = "EXPENSE"
+category = 95
+note = "假设为经营开支（AI 课程相关）；若属个人使用应改 72"
+
+[[rule]]
+name = "atm-withdrawal"
+desc = '(?i)atm.*(withdrwl|withdrawal)'
+action = "EXPENSE"
+category = 80
+note = "取现后花在哪无法从账单得知"
+
+# ============================================================
+# 七、模糊商户 — 下面这些经常分错，review.csv 里重点核对
 # ============================================================
 
 [[rule]]
@@ -173,7 +309,7 @@ note = "假设为生活用品；数码产品应改 94，食品应改 67 — 需�
 
 [[rule]]
 name = "bigbox-assumed-household"
-desc = '(?i)(costco whse|target\b|walmart|wal-?mart|bj.s wholesale)'
+desc = '(?i)(target\b|walmart|wal-?mart|wm supercenter|bj.s wholesale)'
 action = "EXPENSE"
 category = 81
 note = "假设为生活用品；若主要买食品应改 67 — 需核对"
