@@ -353,7 +353,7 @@ def expense_row(cid: int, amount: str):
     return Classified(
         txn=Txn(
             source="chase_checking",
-            account="Chase8798",
+            account="ChaseXXXX",
             txn_date=date(2026, 8, 15),
             description="X",
             amount=Decimal(amount),
@@ -372,7 +372,7 @@ def unknown_row(amount: str = "-45.20"):
     return Classified(
         txn=Txn(
             source="chase_checking",
-            account="Chase8798",
+            account="ChaseXXXX",
             txn_date=date(2026, 8, 15),
             description="MYSTERY",
             amount=Decimal(amount),
@@ -389,7 +389,7 @@ def funding_row(target: str, amount: str = "-161.59"):
     return Classified(
         txn=Txn(
             source="chase_checking",
-            account="Chase8798",
+            account="ChaseXXXX",
             txn_date=date(2026, 8, 15),
             description="PAYPAL INST XFER",
             amount=Decimal(amount),

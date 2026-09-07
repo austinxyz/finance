@@ -59,7 +59,7 @@ class TestDiscover(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "2026-08"
             root.mkdir()
-            write(root, "Chase8798_Activity.csv", CHASE_CHECKING_CSV)
+            write(root, "ChaseXXXX_Activity.csv", CHASE_CHECKING_CSV)
 
             result = discover(root)
 
@@ -72,7 +72,7 @@ class TestDiscover(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "2026-08"
             root.mkdir()
-            write(root, "Chase8798_Activity.csv", CHASE_CHECKING_CSV)
+            write(root, "ChaseXXXX_Activity.csv", CHASE_CHECKING_CSV)
             write(root, "notes.txt", "not a statement")
 
             result = discover(root)
@@ -124,7 +124,7 @@ DEBIT,07/31/2026,"PRIOR MONTH ONE",-40.00,ACH_DEBIT,0,,
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "2026-08"
             root.mkdir()
-            write(root, "Chase8798.csv", self.CROSS_PERIOD_CSV)
+            write(root, "ChaseXXXX.csv", self.CROSS_PERIOD_CSV)
 
             result = discover(root)
 
@@ -135,7 +135,7 @@ DEBIT,07/31/2026,"PRIOR MONTH ONE",-40.00,ACH_DEBIT,0,,
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "2026-08"
             root.mkdir()
-            write(root, "Chase8798.csv", self.CROSS_PERIOD_CSV)
+            write(root, "ChaseXXXX.csv", self.CROSS_PERIOD_CSV)
 
             result = discover(root)
 
@@ -145,7 +145,7 @@ DEBIT,07/31/2026,"PRIOR MONTH ONE",-40.00,ACH_DEBIT,0,,
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "2026-08"
             root.mkdir()
-            write(root, "Chase8798.csv", self.CROSS_PERIOD_CSV)
+            write(root, "ChaseXXXX.csv", self.CROSS_PERIOD_CSV)
 
             result = discover(root)
 

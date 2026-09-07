@@ -59,7 +59,7 @@
 #### Scenario: 规则顺序决定优先级
 
 - **WHEN** `rules.toml` 中「信用卡还款」规则排在商户规则之前
-- **AND** 一笔描述为 `Payment to Chase card ending in 5198` 的交易被处理
+- **AND** 一笔描述为 `Payment to Chase card ending in NNNN` 的交易被处理
 - **THEN** 它被判为 `TRANSFER`，不被任何商户规则抢走
 
 #### Scenario: 规则文件非法时加载期失败

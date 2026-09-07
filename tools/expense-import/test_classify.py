@@ -24,7 +24,7 @@ CATEGORIES = {67, 68, 81}
 def txn(desc: str, amount: str, raw_type: str = "", day: int = 15) -> Txn:
     return Txn(
         source="chase_checking",
-        account="Chase8798",
+        account="ChaseXXXX",
         txn_date=date(2026, 8, day),
         description=desc,
         amount=Decimal(amount),
@@ -66,7 +66,7 @@ category = 68
 """)
 
     def test_card_payment_is_transfer_not_expense(self) -> None:
-        [result] = classify([txn("Payment to Chase card ending in 5198", "-4028.11", "LOAN_PMT")], self.rules)
+        [result] = classify([txn("Payment to Chase card ending in NNNN", "-4028.11", "LOAN_PMT")], self.rules)
         self.assertIs(result.action, Action.TRANSFER)
         self.assertIsNone(result.minor_category_id)
         self.assertEqual(result.counted_amount, Decimal("0"))
@@ -90,7 +90,7 @@ category = 68
     def test_excluded_rows_never_reach_the_totals(self) -> None:
         rows = classify(
             [
-                txn("Payment to Chase card ending in 5198", "-4028.11", "LOAN_PMT"),
+                txn("Payment to Chase card ending in NNNN", "-4028.11", "LOAN_PMT"),
                 txn("PAYPAL INST XFER CROCOXU", "-43.00"),
                 txn("PGANDE WEB ONLINE", "-259.24"),
                 txn("SOME NEW MERCHANT", "-12.34"),
@@ -199,7 +199,7 @@ class TestShippedRules(unittest.TestCase):
         here = Path(__file__).parent
         cats = Categories.load(here / "categories.toml")
         rules = load_rules(here / "rules.toml", valid_categories=cats.ids)
-        [result] = classify([txn("Payment to Chase card ending in 5198", "-3180.90", "LOAN_PMT")], rules)
+        [result] = classify([txn("Payment to Chase card ending in NNNN", "-3180.90", "LOAN_PMT")], rules)
         self.assertIs(result.action, Action.TRANSFER)
 
 

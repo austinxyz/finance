@@ -156,17 +156,17 @@
 - [x] 5.7 RED — 写 `test_parsers_venmo.py`：覆盖商户消费、个人转出、个人转入三类样本行
 - [x] 5.8 GREEN — 实现 `importer/parsers/venmo.py` 并注册；按 5.6 的方案实现分类策略
 - [x] 5.9 GREEN — Robinhood 分支：有 CSV 则实现解析器（RED 先行，比照 4.2/4.3 的符号断言）；无 CSV 则在 `sources.toml` 标记 `manual` 并补一条断言该来源被提示而非静默忽略的测试
-- [ ] 5.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-5.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 5.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-5.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 6. 验证与收尾
 
-- [ ] 6.1 跑完整 Python 测试套件确认无回归：`python -m unittest discover -s tools/expense-import -t tools/expense-import`
-- [ ] 6.2 跑后端测试套件确认未受影响：`cd backend && mvn test`（本 change 不改后端，此步用于确认确实未改动）
-- [ ] 6.3 跑前端测试套件确认未受影响：`cd frontend && npm test`（本 change 不改前端，同上）
+- [x] 6.1 跑完整 Python 测试套件确认无回归：`python -m unittest discover -s tools/expense-import -t tools/expense-import`
+- [x] 6.2 跑后端测试套件确认未受影响：`cd backend && mvn test`（本 change 不改后端，此步用于确认确实未改动）
+- [x] 6.3 跑前端测试套件确认未受影响：`cd frontend && npm test`（本 change 不改前端，同上）
 - [ ] 6.4 端到端冒烟：把 2026-08 各家真实 CSV 放入 `~/finance-data/2026-08/`，先只读跑一次补规则至无 `UNKNOWN`，再写库；打开分析页确认 2026-08 分类开支与 `review.csv` 聚合逐项一致
 - [ ] 6.5 幂等冒烟：对同一目录再跑一次写入，确认 `expense_records` 的 2026-08 记录无变化、无重复行
 - [ ] 6.6 对账冒烟：故意改一条规则制造错误分类并写入，再改回并重跑，确认错误小类被清除而非残留
 - [ ] 6.7 币种安全冒烟：在 `ExpenseBatchUpdate.vue` 手工录一条 2026-08 的 CNY 记录，重跑写入，确认该 CNY 记录未被删除或修改
-- [ ] 6.8 确认仓库中无金融数据：`git status` 干净，`git ls-files` 中无 CSV 与产出物，凭据不在仓库内
+- [x] 6.8 确认仓库中无金融数据：`git status` 干净，`git ls-files` 中无 CSV 与产出物，凭据不在仓库内
 - [ ] 6.9 更新 `tools/expense-import/README.md`：目录约定、三道闸门与逃生舱、各家 CSV 导出路径、每月操作流程
 - [ ] 6.10 Run superpowers:verification-before-completion（跑上述测试命令；确认无调试残留；确认 `.gitignore` 覆盖产出物）

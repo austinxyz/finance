@@ -46,3 +46,15 @@
     - "runtime: All 14/14 tests pass (test_parsers.py). Sign assertions verified: chase card -130.88 (purchase), +4028.11 (payment), +25.00 (refund); BOA -259.24 (debit), +1105.22 (credit). Header detection confirmed: preamble skipped, summary rows not parsed, thousands separators handled."
     - "code: No CRITICAL or HIGH issues—APPROVE. Sign conventions correct and consistent with chase_checking (negative=outflow); locate_header() scans header_search_rows, parse() skips correctly before DictReader; both parsers imported in __init__.py and @register decorators applied; sources.toml updated to remove pending=true flags; dedup rules (chase-card-payment, card-payment-generic) positioned at top of rules.toml before all merchant rules. Only LOW note: header_search_rows=12 is conservative vs 7 needed, but intentional safety margin per module docstring."
   fix_tasks: []
+
+- group: 5
+  attempt: 1
+  scores: {spec: 95, runtime: 100, code: 85}
+  total: 95
+  status: PASS
+  findings:
+    - "spec: All 7 SHALL statements implemented. PayPal/Venmo from platform statements only (parsers.py), checking deposits FUNDING/TRANSFER (rules.toml 48-50, 341-344), Robinhood CSV path documented (sources.toml 58), all sources explicit (6 parsers, 0 manual, 0 pending flags). 1 design violation: paypal-bank-deposit rule at line 341 should be in structural section 1 per documented principle (line 20), not after merchant rules in section 8. No functional bug (description unique) but creates maintenance risk."
+    - "runtime: All 32 tests pass. 18 tests for 3 new parsers: 6 for Robinhood (header detection, sign flip, Declined filter, ISO date, cardholders), 5 for PayPal (header, outbound/inbound, Bank Deposit preservation, pending filter), 6 for Venmo (preamble, signed amounts, note as description, balance rows). All critical scenarios covered: Robinhood purchases flipped positive→negative, Declined rows excluded (doubling prevention), PayPal Bank Deposit raw_type preserved for TRANSFER rule, Venmo inbound kept positive for netting."
+    - "code: No CRITICAL or HIGH issues. 1 MEDIUM: paypal-bank-deposit rule positioned after merchant rules (line 341) violates structural-before-merchant principle (line 20) but works in practice since no merchant pattern matches 'bank deposit to pp account'. All parsers well-implemented: PayPal handles completed status + amounts already signed; Robinhood flips positive purchases, filters Status=Posted; Venmo parses signed text amounts, skips balance-only rows, handles 2-line preamble. Parsers registered in __init__.py. sources.toml all parsers active (Robinhood CSV path correct). No secrets in code."
+  fix_tasks:
+    - "5.F1 FIX — Move paypal-bank-deposit rule from line 341 to end of section 1 (after venmo-funding ~line 50) to comply with structural-rules-before-merchant principle documented at line 20. No functional change, only ordering."

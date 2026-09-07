@@ -28,7 +28,7 @@ from importer.sources import Source
 def txn(desc: str, amount: str, day: int = 15) -> Txn:
     return Txn(
         source="chase_checking",
-        account="Chase8798",
+        account="ChaseXXXX",
         txn_date=date(2026, 8, day),
         description=desc,
         amount=Decimal(amount),
@@ -294,7 +294,7 @@ class TestStructuralRulesRunBeforeMerchantRules(unittest.TestCase):
         self.assertIs(result.action, Action.TRANSFER)
 
     def test_checking_side_of_the_card_payment_is_a_transfer(self) -> None:
-        result = self._classify("Payment to Chase card ending in 5198", "-4028.11")
+        result = self._classify("Payment to Chase card ending in NNNN", "-4028.11")
         self.assertIs(result.action, Action.TRANSFER)
 
     def test_paypal_topup_is_funding_with_a_target(self) -> None:
