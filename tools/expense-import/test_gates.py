@@ -147,6 +147,32 @@ class TestFundingGapGate(unittest.TestCase):
 
         self.assertEqual(set(verdict.missing_targets), {"venmo"})
 
+    def test_refund_inflow_is_not_counted_as_a_gap(self) -> None:
+        """A platform refund matches the same rule as a top-up.
+
+        Counting it as a gap inflates the missing amount for money that came
+        back rather than going out.
+        """
+        verdict = check_funding_gaps(
+            [
+                funding("PAYPAL INST XFER", "-100.00", "paypal"),
+                funding("PAYPAL INST XFER REVERSAL", "40.00", "paypal"),
+            ],
+            present_source_ids={"chase_checking"},
+        )
+
+        self.assertEqual(verdict.missing_totals["paypal"], Decimal("100.00"))
+
+    def test_inflow_only_funding_does_not_block(self) -> None:
+        """Money came back and nothing went out — there is no missing spend."""
+        verdict = check_funding_gaps(
+            [funding("PAYPAL REFUND", "75.00", "paypal")],
+            present_source_ids={"chase_checking"},
+        )
+
+        self.assertFalse(verdict.blocked)
+        self.assertEqual(verdict.missing_targets, [])
+
     def test_passes_when_there_is_no_funding_at_all(self) -> None:
         self.assertFalse(
             check_funding_gaps([expense("PGANDE", "-259.24")], present_source_ids=set()).blocked

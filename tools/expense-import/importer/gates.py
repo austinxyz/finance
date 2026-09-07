@@ -114,10 +114,17 @@ def check_funding_gaps(
     The money left the checking account and was spent; without that platform's
     CSV the spending has no categories and the month is short by exactly this
     amount.
+
+    Only outflows count. A refund arriving back from the platform matches the
+    same rule as a top-up, and counting it here would inflate the gap for money
+    that came back rather than going out — an inflow-only month has no missing
+    spend to report.
     """
     totals: dict[str, Decimal] = {}
     for row in rows:
         if row.action is not Action.FUNDING or not row.funding_target:
+            continue
+        if not row.txn.is_outflow:
             continue
         if row.funding_target in present_source_ids:
             continue
