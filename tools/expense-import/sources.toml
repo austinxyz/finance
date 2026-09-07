@@ -23,11 +23,10 @@ id = "chase_checking"
 parser = "chase_checking"
 label = "Chase 支票"
 
-# ---- 以下来源的解析器待实现（组 4 / 组 5）----
-# pending = true 表示"已声明、解析器还没写"，与"拼错了"区分开。
-# 清单描述的是"完整的一个月长什么样"，不是"当前实现覆盖了什么" ——
-# 否则闸门 3 在最需要它的过渡期反而失效。
-# 每个解析器落地后，删掉对应的 pending 行（加载器会强制要求，防止标记过期）。
+# 六家来源的解析器均已实现。
+#
+# 新增账户时：先加一项并标 pending = true（解析器还没写），
+# 解析器落地后删掉该行 —— 加载器会强制要求，防止标记过期把可用来源挡在闸门外。
 
 [[source]]
 id = "chase_card"
@@ -43,20 +42,17 @@ label = "BOA 支票"
 [[source]]
 id = "paypal"
 parser = "paypal"
-pending = true
 label = "PayPal"
-note = "checking 里的 PAYPAL INST XFER 是充值，明细在这份账单里"
+note = "Activity → Statements → Custom → Download → CSV（月度对账单 PDF 不行）"
 
 [[source]]
 id = "venmo"
 parser = "venmo"
-pending = true
 label = "Venmo"
 note = "个人转账与商户消费需区分，策略见 design.md Open Questions"
 
 [[source]]
 id = "robinhood_card"
 parser = "robinhood_card"
-pending = true
 label = "Robinhood 信用卡"
-note = "若确认只有 PDF 账单，改为 manual = true 并删除 parser 行"
+note = "Settings → Documents → Export CSV to Email（不是券商账户那个导出入口）"

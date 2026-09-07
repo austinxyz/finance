@@ -146,16 +146,16 @@
   - Robinhood 若确认无 CSV 导出，在 `sources.toml` 标记 `manual` 并跳过解析器 —— 关键是每一家都被明确覆盖或明确标记，不能有沉默的空白。
 - **Threshold**: 80
 
-- [ ] 5.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-5.md with the ### Contract block above
-- [ ] 5.1 取得 PayPal、Venmo 样本 CSV；确认 Robinhood 信用卡是否支持 CSV 导出，结论记入 README
-- [ ] 5.2 RED — 写 `test_parsers_paypal.py`：真实样本行断言字段与符号
-- [ ] 5.3 GREEN — 实现 `importer/parsers/paypal.py` 并注册
-- [ ] 5.4 RED — PayPal 去重测试：checking 的充值行判为 `FUNDING`，PayPal 账单的消费行计入分类，同一笔钱不重复计
-- [ ] 5.5 GREEN — 调整规则使 PayPal 充值与账单消费正确配对
-- [ ] 5.6 分析 Venmo 样本，判定个人转账与商户消费的区分策略，把结论与选定方案写入 design.md 的 Open Questions 对应条目
-- [ ] 5.7 RED — 写 `test_parsers_venmo.py`：覆盖商户消费、个人转出、个人转入三类样本行
-- [ ] 5.8 GREEN — 实现 `importer/parsers/venmo.py` 并注册；按 5.6 的方案实现分类策略
-- [ ] 5.9 GREEN — Robinhood 分支：有 CSV 则实现解析器（RED 先行，比照 4.2/4.3 的符号断言）；无 CSV 则在 `sources.toml` 标记 `manual` 并补一条断言该来源被提示而非静默忽略的测试
+- [x] 5.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-5.md with the ### Contract block above
+- [x] 5.1 取得 PayPal、Venmo 样本 CSV；确认 Robinhood 信用卡是否支持 CSV 导出，结论记入 README
+- [x] 5.2 RED — 写 `test_parsers_paypal.py`：真实样本行断言字段与符号
+- [x] 5.3 GREEN — 实现 `importer/parsers/paypal.py` 并注册
+- [x] 5.4 RED — PayPal 去重测试：checking 的充值行判为 `FUNDING`，PayPal 账单的消费行计入分类，同一笔钱不重复计
+- [x] 5.5 GREEN — 调整规则使 PayPal 充值与账单消费正确配对
+- [x] 5.6 分析 Venmo 样本，判定个人转账与商户消费的区分策略，把结论与选定方案写入 design.md 的 Open Questions 对应条目
+- [x] 5.7 RED — 写 `test_parsers_venmo.py`：覆盖商户消费、个人转出、个人转入三类样本行
+- [x] 5.8 GREEN — 实现 `importer/parsers/venmo.py` 并注册；按 5.6 的方案实现分类策略
+- [x] 5.9 GREEN — Robinhood 分支：有 CSV 则实现解析器（RED 先行，比照 4.2/4.3 的符号断言）；无 CSV 则在 `sources.toml` 标记 `manual` 并补一条断言该来源被提示而非静默忽略的测试
 - [ ] 5.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-5.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 6. 验证与收尾

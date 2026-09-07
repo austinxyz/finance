@@ -164,12 +164,17 @@ category = 67
 note = "亚洲超市"
 
 [[rule]]
-name = "costco-grocery-run"
-desc = '(?i)(www ?costco ?com|costco whse|costco wholesale)'
-amount_max = 300
+name = "costco-warehouse-run"
+desc = '(?i)(costco whse|costco wholesale)'
+amount_max = 600
 action = "EXPENSE"
 category = 67
-note = "Costco 小额按食品算；大额刻意不设规则，由闸门 1 拦下逐笔判断（家电应归 94，轮胎归 87）"
+note = "Costco 门店采购按食品算（一次几百很正常）"
+
+# Costco 线上（WWW COSTCO COM）刻意不设规则。
+# 门店基本是食品采购，线上则是冰箱、轮胎、电子产品这类大件 ——
+# 金额相近但归类完全不同，且描述里没有任何商品信息可供判断。
+# 让闸门 1 每次拦下来问你一句，好过静默把一台冰箱记成买菜。
 
 [[rule]]
 name = "zelle-meal-share"
@@ -326,3 +331,69 @@ note = "假设为生活用品；处方药应改 97 门诊"
 # 逐条给它们加规则，命中率会逐月提高。
 # 故意不设兜底规则 —— 静默归类比漏归类更危险。
 # ============================================================
+
+# ============================================================
+# 八、PayPal / Venmo 平台内规则
+#     这两家的描述来自备注或对方姓名，与银行的商户名不同
+# ============================================================
+
+[[rule]]
+name = "paypal-bank-deposit"
+desc = '(?i)bank deposit to pp account'
+action = "TRANSFER"
+note = "checking 里 PAYPAL INST XFER 的对侧，同一笔钱，两边都不能计"
+
+[[rule]]
+name = "venmo-tennis"
+desc = '(?i)(tennis|球|比赛|华运|队长|court)'
+source_is = "venmo"
+action = "EXPENSE"
+category = 72
+note = "网球代付/还款，冲抵娱乐健身"
+
+[[rule]]
+name = "venmo-meal"
+desc = '(?i)(hotpot|火锅|dinner|lunch|晚餐|午餐|饭|🍕|🍲|pizza|bbq|校长)'
+source_is = "venmo"
+action = "EXPENSE"
+category = 67
+note = "聚餐代付/还款，冲抵饮食"
+
+[[rule]]
+name = "venmo-small-assumed-meal"
+source_is = "venmo"
+amount_max = 100
+action = "EXPENSE"
+category = 67
+note = "Venmo 小额默认按 AA 饭钱冲抵饮食；备注是自由文本，新写法会落这条，在 review.csv 核对"
+
+[[rule]]
+name = "paypal-small-assumed-meal"
+source_is = "paypal"
+amount_max = 100
+action = "EXPENSE"
+category = 67
+note = "PayPal 小额个人往来默认按 AA 饭钱处理，同 Venmo"
+
+[[rule]]
+name = "square-small-merchant"
+desc = '(?i)^(sq \*|uep\*|tst\*)'
+amount_max = 60
+action = "EXPENSE"
+category = 67
+note = "Square/UEP 小额收款，多为咖啡小吃；大额需核对"
+
+[[rule]]
+name = "apple-store"
+desc = '(?i)apple\.com/us'
+action = "EXPENSE"
+category = 95
+note = "工作设备，同 Anthropic 订阅口径；若买给家人应改 94 数码产品"
+
+[[rule]]
+name = "costco-online-large-assumed-appliance"
+desc = '(?i)www ?costco ?com'
+amount_min = 600
+action = "EXPENSE"
+category = 81
+note = "线上大额假设为家电/家居耐用品（2026-08 是冰箱）。若某月是电子产品应改 94、轮胎改 87 —— 描述里没有商品信息，必须在 review.csv 逐笔核对"

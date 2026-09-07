@@ -35,3 +35,14 @@
     - "code: No CRITICAL or HIGH issues—APPROVE. D4 currency isolation correctly enforced: remote partitioned by currency at reconcile.py:64-65, only managed records used for delete/post decisions (lines 67-75), untouched records explicitly preserved and never fed to apply_plan. Proper error handling (ApiError on non-2xx and success=false), pure functions (reconcile.py, gates.py have no I/O imports), credential safety (password repr=False, never sent except to login). 1 MEDIUM: missing network timeout on urllib (apiclient.py:87, recommend 30s timeout). 2 LOW: partial-failure in apply_plan undocumented but harmless (idempotent), raw response payload in ApiError message (cosmetic, localhost-only)."
   fix_tasks:
     - "3.F1 FIX — Add `timeout=30` argument to `urllib.request.urlopen()` call in apiclient.py:87 and add explicit catch for socket.timeout to route through ApiError"
+
+- group: 4
+  attempt: 1
+  scores: {spec: 100, runtime: 100, code: 95}
+  total: 99
+  status: PASS
+  findings:
+    - "spec: Both SHALL statements fully met. Cross-account dedup correctly implements sign convention corrections (Chase card & BOA both report purchases/debits as negative; card payments in checking marked as TRANSFER by rules before merchant rules). Directory-driven auto-identification via header_signature and locate_header() working for both normal (chase_card line 1) and offset headers (boa_checking line 7 within 12-row search)."
+    - "runtime: All 14/14 tests pass (test_parsers.py). Sign assertions verified: chase card -130.88 (purchase), +4028.11 (payment), +25.00 (refund); BOA -259.24 (debit), +1105.22 (credit). Header detection confirmed: preamble skipped, summary rows not parsed, thousands separators handled."
+    - "code: No CRITICAL or HIGH issues—APPROVE. Sign conventions correct and consistent with chase_checking (negative=outflow); locate_header() scans header_search_rows, parse() skips correctly before DictReader; both parsers imported in __init__.py and @register decorators applied; sources.toml updated to remove pending=true flags; dedup rules (chase-card-payment, card-payment-generic) positioned at top of rules.toml before all merchant rules. Only LOW note: header_search_rows=12 is conservative vs 7 needed, but intentional safety margin per module docstring."
+  fix_tasks: []
