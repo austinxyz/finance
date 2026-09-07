@@ -34,7 +34,7 @@
 - [x] 1.9 RED — 写 `sources.toml` 的加载与校验测试：每项含 `id` / `parser` / 可选 `manual`；缺字段或 `parser` 未注册 → 加载期报错
 - [x] 1.10 GREEN — 实现 `sources.toml` schema 与加载器；新建 `sources.toml` 声明 6 家来源
 - [x] 1.11 确认 `.gitignore` 覆盖工具产出目录，且默认 CSV 根路径指向仓库外（`~/finance-data/`），可经环境变量或命令行覆盖
-- [ ] 1.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-1.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 1.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-1.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 2. 三道写入闸门
 
