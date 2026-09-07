@@ -120,14 +120,14 @@
   - 跨账户去重靠规则而非解析器：checking 里的信用卡还款由结构性规则判为 `TRANSFER`，且该规则必须排在所有商户规则之前。
 - **Threshold**: 80
 
-- [ ] 4.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-4.md with the ### Contract block above
-- [ ] 4.1 取得 Chase 信用卡与 BOA checking 的样本 CSV，记录各自表头、日期格式、金额符号约定到 `tools/expense-import/README.md`
-- [ ] 4.2 RED — 写 `test_parsers_chase_card.py`：用真实样本行断言解析出的日期、描述、金额，**并断言一笔消费的 `amount` 为负**
-- [ ] 4.3 GREEN — 实现 `importer/parsers/chase_card.py` 并注册；在 `parse_row` 内完成符号归一
-- [ ] 4.4 RED — 写 `test_parsers_boa_checking.py`：真实样本行断言字段与符号
-- [ ] 4.5 GREEN — 实现 `importer/parsers/boa_checking.py` 并注册
-- [ ] 4.6 RED — 跨账户去重测试：同时给入 checking 的信用卡还款行与信用卡账单的消费行 → 还款判为 `TRANSFER`，月度聚合只反映卡账单消费
-- [ ] 4.7 GREEN — 补齐/调整结构性规则使其覆盖两家的还款描述格式，确保排在商户规则之前
+- [x] 4.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-4.md with the ### Contract block above
+- [x] 4.1 取得 Chase 信用卡与 BOA checking 的样本 CSV，记录各自表头、日期格式、金额符号约定到 `tools/expense-import/README.md`
+- [x] 4.2 RED — 写 `test_parsers_chase_card.py`：用真实样本行断言解析出的日期、描述、金额，**并断言一笔消费的 `amount` 为负**
+- [x] 4.3 GREEN — 实现 `importer/parsers/chase_card.py` 并注册；在 `parse_row` 内完成符号归一
+- [x] 4.4 RED — 写 `test_parsers_boa_checking.py`：真实样本行断言字段与符号
+- [x] 4.5 GREEN — 实现 `importer/parsers/boa_checking.py` 并注册
+- [x] 4.6 RED — 跨账户去重测试：同时给入 checking 的信用卡还款行与信用卡账单的消费行 → 还款判为 `TRANSFER`，月度聚合只反映卡账单消费
+- [x] 4.7 GREEN — 补齐/调整结构性规则使其覆盖两家的还款描述格式，确保排在商户规则之前
 - [ ] 4.8 用真实样本跑一次完整流程（不写库），核对 `review.csv` 的分类结果与 `UNKNOWN` 比例，按需补商户规则
 - [ ] 4.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-4.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 

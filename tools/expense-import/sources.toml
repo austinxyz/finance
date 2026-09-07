@@ -32,14 +32,12 @@ label = "Chase 支票"
 [[source]]
 id = "chase_card"
 parser = "chase_card"
-pending = true
 label = "Chase 信用卡"
 note = "真实消费主要在这里；checking 里的还款是 TRANSFER"
 
 [[source]]
 id = "boa_checking"
 parser = "boa_checking"
-pending = true
 label = "BOA 支票"
 
 [[source]]

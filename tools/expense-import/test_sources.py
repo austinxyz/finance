@@ -72,8 +72,8 @@ manual = true
         """
         sources = sources_from("""
 [[source]]
-id = "chase_card"
-parser = "chase_card"
+id = "paypal"
+parser = "paypal"
 pending = true
 """)
         self.assertTrue(sources[0].pending)
