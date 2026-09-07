@@ -29,6 +29,10 @@ from .reconcile import RemoteRecord
 
 DEFAULT_BASE_URL = "http://localhost:8080/api"
 
+#: Seconds before a request is abandoned. Without it a stalled connection hangs
+#: the CLI indefinitely with no output and no way to tell what it is waiting on.
+REQUEST_TIMEOUT = 30
+
 ENV_BASE_URL = "FINANCE_API_BASE"
 ENV_USERNAME = "FINANCE_USERNAME"
 ENV_PASSWORD = "FINANCE_PASSWORD"
@@ -84,7 +88,7 @@ def _urllib_transport(
     for key, value in headers.items():
         request.add_header(key, value)
     try:
-        with urllib.request.urlopen(request) as response:  # noqa: S310 - fixed scheme, own server
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:  # noqa: S310 - fixed scheme, own server
             raw = response.read().decode("utf-8")
             return response.status, (json.loads(raw) if raw else {})
     except urllib.error.HTTPError as exc:

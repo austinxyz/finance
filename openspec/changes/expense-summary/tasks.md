@@ -103,7 +103,7 @@
 - [x] 3.14 GREEN — 在 `run.py` 中实现写入开关与默认只读路径
 - [x] 3.15 RED — 幂等测试：对同一输入连续执行两次写入流程（fake client 记录调用），第二次结束后的目标状态与第一次相同，且每个 `(period, minorCategoryId, currency)` 组合只有一行
 - [x] 3.16 GREEN — 补齐幂等所需逻辑；写入后打印实际写入/删除的小类清单
-- [ ] 3.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-3.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 3.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-3.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 4. 解析器：Chase 信用卡与 BOA checking
 
