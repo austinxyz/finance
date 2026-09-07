@@ -256,5 +256,57 @@ class TestNoCatchAllRule(unittest.TestCase):
         self.assertEqual(result.rule, "")
 
 
+class TestStructuralRulesRunBeforeMerchantRules(unittest.TestCase):
+    """Transfer detection must win against every merchant pattern.
+
+    Asserting a parser exposes the right field is not enough: what matters is
+    that the shipped rules, in their shipped order, actually classify the row as
+    a transfer. A merchant rule that drifted above one of these would turn a
+    transfer into spending and double-count it, with nothing failing loudly.
+    """
+
+    def _classify(self, description: str, amount: str, source: str = "chase_checking"):
+        from pathlib import Path
+
+        from importer.classify import classify, load_rules
+        from importer.report import Categories
+
+        here = Path(__file__).parent
+        cats = Categories.load(here / "categories.toml")
+        rules = load_rules(here / "rules.toml", valid_categories=cats.ids)
+        row = Txn(
+            source=source,
+            account="acct",
+            txn_date=date(2026, 8, 15),
+            description=description,
+            amount=Decimal(amount),
+        )
+        [result] = classify([row], rules)
+        return result
+
+    def test_paypal_bank_deposit_is_a_transfer(self) -> None:
+        """The mirror of the checking top-up — counting it doubles the money."""
+        result = self._classify("Bank Deposit to PP Account", "24.00", source="paypal")
+        self.assertIs(result.action, Action.TRANSFER)
+
+    def test_chase_card_payment_is_a_transfer(self) -> None:
+        result = self._classify("Payment Thank You-Mobile", "4028.11", source="chase_card")
+        self.assertIs(result.action, Action.TRANSFER)
+
+    def test_checking_side_of_the_card_payment_is_a_transfer(self) -> None:
+        result = self._classify("Payment to Chase card ending in 5198", "-4028.11")
+        self.assertIs(result.action, Action.TRANSFER)
+
+    def test_paypal_topup_is_funding_with_a_target(self) -> None:
+        result = self._classify("PAYPAL INST XFER SAMPLE", "-43.00")
+        self.assertIs(result.action, Action.FUNDING)
+        self.assertEqual(result.funding_target, "paypal")
+
+    def test_self_zelle_is_a_transfer_not_a_meal_reimbursement(self) -> None:
+        """The small-inbound meal rule must not swallow a self transfer."""
+        result = self._classify("Zelle payment from YANZHAO XU BACabc", "50.00")
+        self.assertIs(result.action, Action.TRANSFER)
+
+
 if __name__ == "__main__":
     unittest.main()

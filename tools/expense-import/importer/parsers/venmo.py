@@ -48,15 +48,20 @@ class VenmoParser(Parser):
         if not raw_amount or not raw_datetime:
             return None
 
+        amount = _signed_amount(raw_amount)
         note = " ".join((row.get("Note") or "").split())
-        counterparty = " ".join((row.get("From") or row.get("To") or "").split())
+        # On an inbound row the user is the To; on an outbound row they are the
+        # From. Picking by direction keeps the fallback describing the other
+        # party rather than the account holder.
+        other_side = row.get("From") if amount > 0 else row.get("To")
+        counterparty = " ".join((other_side or "").split())
 
         return Txn(
             source=self.source,
             account=account,
             txn_date=datetime.fromisoformat(raw_datetime).date(),
             description=note or counterparty,
-            amount=_signed_amount(raw_amount),
+            amount=amount,
             raw_type=row.get("Type") or "",
         )
 

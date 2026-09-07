@@ -59,6 +59,12 @@ funding_target = "venmo"
 note = "Venmo 充值/提现，真实开支在 Venmo 账单里"
 
 [[rule]]
+name = "paypal-bank-deposit"
+desc = '(?i)bank deposit to pp account'
+action = "TRANSFER"
+note = "checking 里 PAYPAL INST XFER 的对侧，同一笔钱，两边都不能计"
+
+[[rule]]
 name = "internal-transfer-generic"
 desc = '(?i)(transfer (to|from) (savings|checking)|online transfer)'
 action = "TRANSFER"
@@ -336,12 +342,6 @@ note = "假设为生活用品；处方药应改 97 门诊"
 # 八、PayPal / Venmo 平台内规则
 #     这两家的描述来自备注或对方姓名，与银行的商户名不同
 # ============================================================
-
-[[rule]]
-name = "paypal-bank-deposit"
-desc = '(?i)bank deposit to pp account'
-action = "TRANSFER"
-note = "checking 里 PAYPAL INST XFER 的对侧，同一笔钱，两边都不能计"
 
 [[rule]]
 name = "venmo-tennis"

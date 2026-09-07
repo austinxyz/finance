@@ -19,13 +19,14 @@ class ChaseCheckingParser(Parser):
 
     def parse_row(self, row: dict[str, str], account: str) -> Txn | None:
         raw_date = row.get("Posting Date")
-        if not raw_date:
+        raw_amount = row.get("Amount")
+        if not raw_date or not raw_amount:
             return None
         return Txn(
             source=self.source,
             account=account,
             txn_date=datetime.strptime(raw_date, "%m/%d/%Y").date(),
             description=" ".join((row.get("Description") or "").split()),
-            amount=to_decimal(row["Amount"]),
+            amount=to_decimal(raw_amount),
             raw_type=row.get("Type") or "",
         )

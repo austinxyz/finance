@@ -29,14 +29,15 @@ class ChaseCardParser(Parser):
         # Transaction Date, not Post Date: a purchase late in the month can post
         # in the next one, and posting date would misattribute the period.
         raw_date = row.get("Transaction Date")
-        if not raw_date:
+        raw_amount = row.get("Amount")
+        if not raw_date or not raw_amount:
             return None
         return Txn(
             source=self.source,
             account=account,
             txn_date=datetime.strptime(raw_date, "%m/%d/%Y").date(),
             description=" ".join((row.get("Description") or "").split()),
-            amount=to_decimal(row["Amount"]),
+            amount=to_decimal(raw_amount),
             # Chase's own category ("Gas", "Food & Drink") is a useful rule signal.
             raw_type=row.get("Category") or "",
         )

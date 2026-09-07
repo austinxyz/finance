@@ -33,11 +33,14 @@ class RobinhoodCardParser(Parser):
         if (row.get("Status") or "").strip().lower() != _SETTLED:
             return None
         raw_date = row.get("Date")
-        if not raw_date:
+        raw_amount = row.get("Amount")
+        # A row with no amount is statement scaffolding, not a transaction.
+        # Skipping it beats aborting the whole run over one blank cell.
+        if not raw_date or not raw_amount:
             return None
 
         # Positive means money out here, so flip to the shared convention.
-        amount = -to_decimal(row["Amount"])
+        amount = -to_decimal(raw_amount)
 
         # Description carries the full merchant string; Merchant alone is a
         # normalised brand name and loses the detail rules key off.
