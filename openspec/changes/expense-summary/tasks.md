@@ -22,18 +22,18 @@
   - 金融数据不进仓库：默认路径在 `~/finance-data/`，产出物写入被 gitignore 的目录。
 - **Threshold**: 80
 
-- [ ] 1.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-1.md with the ### Contract block above; confirm all three fields (Spec, Runtime, Code) are non-empty before proceeding
-- [ ] 1.1 RED — 写 `test_discover.py`：给定含三份不同表头 CSV 的临时目录，`discover()` 返回三个来源及各自解析器名与交易笔数
-- [ ] 1.2 GREEN — 实现 `importer/discover.py` 的目录扫描与表头识别派发（复用 `parsers.parser_for`）
-- [ ] 1.3 RED — 测试期间推导：目录名 `2026-08` → 期间 `2026-08`；目录名非法（如 `august`）→ 报错并指明期望格式
-- [ ] 1.4 GREEN — 实现期间推导与目录名校验
-- [ ] 1.5 RED — 测试跨期过滤：目录 `2026-08` 下的文件含 3 笔 2026-09 交易 → 这 3 笔被排除，且返回值中带「已过滤 3 笔」的计数
-- [ ] 1.6 GREEN — 实现按交易日期归属期间 + 过滤计数上报
-- [ ] 1.7 RED — 测试失败路径：目录不存在 → 报错并指出期望路径，不创建空目录；某 CSV 表头不匹配任何解析器 → 报错并打印表头与已注册解析器清单
-- [ ] 1.8 GREEN — 实现两条失败路径，均以非 0 退出码终止
-- [ ] 1.9 RED — 写 `sources.toml` 的加载与校验测试：每项含 `id` / `parser` / 可选 `manual`；缺字段或 `parser` 未注册 → 加载期报错
-- [ ] 1.10 GREEN — 实现 `sources.toml` schema 与加载器；新建 `sources.toml` 声明 6 家来源
-- [ ] 1.11 确认 `.gitignore` 覆盖工具产出目录，且默认 CSV 根路径指向仓库外（`~/finance-data/`），可经环境变量或命令行覆盖
+- [x] 1.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-1.md with the ### Contract block above; confirm all three fields (Spec, Runtime, Code) are non-empty before proceeding
+- [x] 1.1 RED — 写 `test_discover.py`：给定含三份不同表头 CSV 的临时目录，`discover()` 返回三个来源及各自解析器名与交易笔数
+- [x] 1.2 GREEN — 实现 `importer/discover.py` 的目录扫描与表头识别派发（复用 `parsers.parser_for`）
+- [x] 1.3 RED — 测试期间推导：目录名 `2026-08` → 期间 `2026-08`；目录名非法（如 `august`）→ 报错并指明期望格式
+- [x] 1.4 GREEN — 实现期间推导与目录名校验
+- [x] 1.5 RED — 测试跨期过滤：目录 `2026-08` 下的文件含 3 笔 2026-09 交易 → 这 3 笔被排除，且返回值中带「已过滤 3 笔」的计数
+- [x] 1.6 GREEN — 实现按交易日期归属期间 + 过滤计数上报
+- [x] 1.7 RED — 测试失败路径：目录不存在 → 报错并指出期望路径，不创建空目录；某 CSV 表头不匹配任何解析器 → 报错并打印表头与已注册解析器清单
+- [x] 1.8 GREEN — 实现两条失败路径，均以非 0 退出码终止
+- [x] 1.9 RED — 写 `sources.toml` 的加载与校验测试：每项含 `id` / `parser` / 可选 `manual`；缺字段或 `parser` 未注册 → 加载期报错
+- [x] 1.10 GREEN — 实现 `sources.toml` schema 与加载器；新建 `sources.toml` 声明 6 家来源
+- [x] 1.11 确认 `.gitignore` 覆盖工具产出目录，且默认 CSV 根路径指向仓库外（`~/finance-data/`），可经环境变量或命令行覆盖
 - [ ] 1.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-1.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 2. 三道写入闸门

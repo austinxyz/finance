@@ -61,6 +61,11 @@ def register(cls: type[Parser]) -> type[Parser]:
     return cls
 
 
+def registered_sources() -> set[str]:
+    """Parser ids currently registered — used to validate sources.toml."""
+    return {cls.source for cls in _REGISTRY}
+
+
 def parser_for(path: Path) -> Parser:
     """Return the parser that claims this file, or raise with a clear message."""
     with path.open(newline="", encoding="utf-8-sig") as fh:
