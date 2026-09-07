@@ -121,7 +121,8 @@ class FinanceApiClient:
     ``familyId`` has to be sent even though the controller immediately overwrites
     it from the JWT: ``@Valid`` runs before the method body, and the field is
     ``@NotNull``, so omitting it fails validation before the overwrite can happen.
-    It is fetched from ``/families/default``, which derives it through the same
+    It is fetched from ``/family/default`` (singular — ``/families`` 404s), which
+    derives it through the same
     ``getFamilyIdFromAuth`` call the batch endpoint uses — so the value sent and
     the value the server substitutes are the same by construction.
     """
@@ -181,10 +182,10 @@ class FinanceApiClient:
 
     def load_family_id(self) -> int:
         """Fetch the authenticated user's family id, caching it for later writes."""
-        payload = self._request("GET", "/families/default", None, self._headers())
+        payload = self._request("GET", "/family/default", None, self._headers())
         family_id = (payload.get("data") or {}).get("id")
         if family_id is None:
-            raise ApiError("/families/default 响应中没有 family id")
+            raise ApiError("/family/default 响应中没有 family id")
         self._family_id = int(family_id)
         return self._family_id
 

@@ -270,8 +270,10 @@ class TestApiClient(unittest.TestCase):
         self.assertEqual(body["expensePeriod"], "2026-08")
 
     def test_family_id_comes_from_the_same_source_the_backend_uses(self) -> None:
-        """/families/default derives it from the JWT via getFamilyIdFromAuth —
-        the very call the batch endpoint uses to overwrite the field."""
+        """/family/default derives it from the JWT via getFamilyIdFromAuth —
+        the very call the batch endpoint uses to overwrite the field.
+
+        The path is singular; /families 404s."""
         transport = FakeTransport([
             (200, {"success": True, "data": {"token": "t"}}),
             (200, {"success": True, "data": {"id": 7}}),
@@ -281,7 +283,7 @@ class TestApiClient(unittest.TestCase):
 
         self.assertEqual(client.load_family_id(), 7)
         _, url, _, _ = transport.calls[1]
-        self.assertTrue(url.endswith("/families/default"))
+        self.assertTrue(url.endswith("/family/default"), f"path was {url}")
 
     def test_batch_save_before_family_id_is_loaded_is_refused(self) -> None:
         transport = FakeTransport([(200, {"success": True, "data": {"token": "t"}})])
