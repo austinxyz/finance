@@ -102,6 +102,19 @@ def _urllib_transport(
         raise ApiError(f"无法连接 {url}: {exc.reason}") from exc
 
 
+def _reason(payload: dict) -> str:
+    """Pull the human-readable reason out of an error body.
+
+    The backend reports failures under "message"; reading only "error" printed
+    the raw dict and buried the one line that says what went wrong.
+    """
+    for key in ("message", "error"):
+        value = payload.get(key)
+        if value:
+            return str(value)
+    return str(payload)
+
+
 class FinanceApiClient:
     """Thin client over the endpoints the reconciling write needs.
 
@@ -143,11 +156,9 @@ class FinanceApiClient:
     def _request(self, method: str, path: str, body: dict | None, headers: dict) -> dict:
         status, payload = self._transport(method, f"{self._base}{path}", body, headers)
         if not 200 <= status < 300:
-            raise ApiError(
-                f"{method} {path} 返回 HTTP {status}: {payload.get('error') or payload}"
-            )
+            raise ApiError(f"{method} {path} 返回 HTTP {status}: {_reason(payload)}")
         if payload.get("success") is False:
-            raise ApiError(f"{method} {path} 失败: {payload.get('error') or payload}")
+            raise ApiError(f"{method} {path} 失败: {_reason(payload)}")
         return payload
 
     # ---- operations -----------------------------------------------------

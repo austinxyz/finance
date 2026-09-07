@@ -271,6 +271,32 @@ class TestApiClient(unittest.TestCase):
 
         self.assertEqual(len(transport.calls), 1)
 
+    def test_error_message_names_the_reason(self) -> None:
+        """The backend reports failures under "message", not "error".
+
+        Reading only "error" printed the raw response dict and buried the one
+        line that says what actually went wrong.
+        """
+        transport = FakeTransport([
+            (401, {"success": False, "message": "用户名或密码错误", "data": None})
+        ])
+        client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
+
+        with self.assertRaises(ApiError) as ctx:
+            client.login()
+
+        self.assertIn("用户名或密码错误", str(ctx.exception))
+        self.assertNotIn("'success'", str(ctx.exception))
+
+    def test_error_key_is_still_honoured(self) -> None:
+        transport = FakeTransport([(500, {"success": False, "error": "boom"})])
+        client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
+
+        with self.assertRaises(ApiError) as ctx:
+            client.login()
+
+        self.assertIn("boom", str(ctx.exception))
+
     def test_calls_before_login_are_refused(self) -> None:
         transport = FakeTransport([])
         client = FinanceApiClient("http://x/api", "u", "p", transport=transport)
