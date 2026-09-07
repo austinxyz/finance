@@ -52,19 +52,19 @@
   - `FUNDING` 规则必须带 `funding_target`，否则闸门 2 无从判断指向哪家 —— 加载期校验，不是运行期。
 - **Threshold**: 80
 
-- [ ] 2.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-2.md with the ### Contract block above
-- [ ] 2.1 RED — 测试 `rules.toml` 加载期校验新增项：`FUNDING` 规则缺 `funding_target` → `RuleError` 并指明第几条规则与规则名
-- [ ] 2.2 GREEN — 在 `classify.py` 的 `Rule` 与 `load_rules` 中加入 `funding_target` 字段与校验；更新现有 `rules.toml` 中的 paypal/venmo 规则
-- [ ] 2.3 RED — 写 `test_gates.py`：存在 `UNKNOWN` 时闸门 1 判定为拒写，返回值含每笔的日期/金额/描述
-- [ ] 2.4 GREEN — 实现 `importer/gates.py` 的 UNKNOWN 闸门（纯函数）
-- [ ] 2.5 RED — 测试 `--allow-unknown` 逃生舱：`UNKNOWN` 被归入 `minor_category_id = 80`，且返回值带被兜底的笔数与总金额供控制台打印
-- [ ] 2.6 GREEN — 实现逃生舱路径
-- [ ] 2.7 RED — 测试闸门 2：存在 `funding_target = "paypal"` 的 `FUNDING` 交易共 $161.59、但来源集合中无 paypal → 拒写并指名 paypal 与缺口金额；有 paypal 来源时放行
-- [ ] 2.8 GREEN — 实现 FUNDING 缺口闸门
-- [ ] 2.9 RED — 测试闸门 3：`sources.toml` 声明的来源缺失 → 拒写并指名；标记 `manual` 的来源缺失 → 不拒写但返回提示信息
-- [ ] 2.10 GREEN — 实现来源缺失闸门与 `manual` 分支
-- [ ] 2.11 RED — 回归测试：`rules.toml` 中不存在兜底规则（任意描述的随机交易仍判为 `UNKNOWN`）
-- [ ] 2.12 GREEN — 若测试暴露兜底规则则移除；确认注释说明保留
+- [x] 2.0 CONTRACT — write openspec/changes/expense-summary/contracts/group-2.md with the ### Contract block above
+- [x] 2.1 RED — 测试 `rules.toml` 加载期校验新增项：`FUNDING` 规则缺 `funding_target` → `RuleError` 并指明第几条规则与规则名
+- [x] 2.2 GREEN — 在 `classify.py` 的 `Rule` 与 `load_rules` 中加入 `funding_target` 字段与校验；更新现有 `rules.toml` 中的 paypal/venmo 规则
+- [x] 2.3 RED — 写 `test_gates.py`：存在 `UNKNOWN` 时闸门 1 判定为拒写，返回值含每笔的日期/金额/描述
+- [x] 2.4 GREEN — 实现 `importer/gates.py` 的 UNKNOWN 闸门（纯函数）
+- [x] 2.5 RED — 测试 `--allow-unknown` 逃生舱：`UNKNOWN` 被归入 `minor_category_id = 80`，且返回值带被兜底的笔数与总金额供控制台打印
+- [x] 2.6 GREEN — 实现逃生舱路径
+- [x] 2.7 RED — 测试闸门 2：存在 `funding_target = "paypal"` 的 `FUNDING` 交易共 $161.59、但来源集合中无 paypal → 拒写并指名 paypal 与缺口金额；有 paypal 来源时放行
+- [x] 2.8 GREEN — 实现 FUNDING 缺口闸门
+- [x] 2.9 RED — 测试闸门 3：`sources.toml` 声明的来源缺失 → 拒写并指名；标记 `manual` 的来源缺失 → 不拒写但返回提示信息
+- [x] 2.10 GREEN — 实现来源缺失闸门与 `manual` 分支
+- [x] 2.11 RED — 回归测试：`rules.toml` 中不存在兜底规则（任意描述的随机交易仍判为 `UNKNOWN`）
+- [x] 2.12 GREEN — 若测试暴露兜底规则则移除；确认注释说明保留
 - [ ] 2.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-2.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 3. 对账式写库

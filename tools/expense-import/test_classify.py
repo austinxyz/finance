@@ -56,6 +56,7 @@ action = "TRANSFER"
 name = "paypal-funding"
 desc = '(?i)PAYPAL\\s+INST XFER'
 action = "FUNDING"
+funding_target = "paypal"
 
 [[rule]]
 name = "utility"
@@ -151,6 +152,33 @@ class TestRuleValidation(unittest.TestCase):
     def test_bad_regex_is_rejected(self) -> None:
         with self.assertRaises(RuleError):
             rules_from('[[rule]]\nname = "x"\ndesc = "(unclosed"\naction = "TRANSFER"\n')
+
+    def test_funding_rule_without_target_is_rejected(self) -> None:
+        """Gate 2 pairs a top-up against its platform's statement.
+
+        Without a target the gate cannot tell which source is missing, so the
+        omission must fail at load time rather than silently disarm the gate.
+        """
+        with self.assertRaises(RuleError) as ctx:
+            rules_from('[[rule]]\nname = "paypal-topup"\ndesc = "PAYPAL"\naction = "FUNDING"\n')
+        message = str(ctx.exception)
+        self.assertIn("paypal-topup", message)
+        self.assertIn("funding_target", message)
+
+    def test_funding_target_on_non_funding_rule_is_rejected(self) -> None:
+        with self.assertRaises(RuleError):
+            rules_from(
+                '[[rule]]\nname = "x"\ndesc = "a"\naction = "TRANSFER"\nfunding_target = "paypal"\n'
+            )
+
+    def test_funding_target_is_carried_onto_the_verdict(self) -> None:
+        rules = rules_from(
+            '[[rule]]\nname = "paypal-topup"\ndesc = "(?i)PAYPAL"\n'
+            'action = "FUNDING"\nfunding_target = "paypal"\n'
+        )
+        [result] = classify([txn("PAYPAL INST XFER CROCOXU", "-43.00")], rules)
+        self.assertIs(result.action, Action.FUNDING)
+        self.assertEqual(result.funding_target, "paypal")
 
 
 class TestShippedRules(unittest.TestCase):

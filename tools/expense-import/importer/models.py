@@ -57,6 +57,9 @@ class Classified:
     minor_category_id: int | None = None
     rule: str = ""
     note: str = ""
+    #: For FUNDING only: which platform the money moved to ("paypal", "venmo").
+    #: Gate 2 uses it to pair a top-up against that platform's statement.
+    funding_target: str | None = None
 
     @property
     def counted_amount(self) -> Decimal:

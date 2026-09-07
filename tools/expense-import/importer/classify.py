@@ -26,6 +26,7 @@ class Rule:
     amount_min: Decimal | None = None   # inclusive, compares on magnitude
     amount_max: Decimal | None = None   # inclusive, compares on magnitude
     minor_category_id: int | None = None
+    funding_target: str | None = None
     note: str = ""
 
     def matches(self, txn: Txn) -> bool:
@@ -73,6 +74,15 @@ def load_rules(path: Path, valid_categories: set[int] | None = None) -> list[Rul
         if category is not None and valid_categories is not None and category not in valid_categories:
             raise RuleError(f"{where}: category {category} is not an active minor category")
 
+        funding_target = entry.get("funding_target")
+        if action is Action.FUNDING and not funding_target:
+            raise RuleError(
+                f"{where}: FUNDING 规则必须声明 'funding_target'（如 \"paypal\"）—— "
+                f"缺了它，充值缺口闸门无从判断缺的是哪家来源，等于被静默关闭"
+            )
+        if funding_target is not None and action is not Action.FUNDING:
+            raise RuleError(f"{where}: 只有 FUNDING 规则可以设置 'funding_target'")
+
         pattern = entry.get("desc")
         try:
             compiled = re.compile(pattern) if pattern else None
@@ -89,6 +99,7 @@ def load_rules(path: Path, valid_categories: set[int] | None = None) -> list[Rul
                 amount_min=_opt_decimal(entry.get("amount_min"), where, "amount_min"),
                 amount_max=_opt_decimal(entry.get("amount_max"), where, "amount_max"),
                 minor_category_id=category,
+                funding_target=funding_target,
                 note=entry.get("note", ""),
             )
         )
@@ -120,6 +131,7 @@ def classify(txns: list[Txn], rules: list[Rule]) -> list[Classified]:
                     txn=txn,
                     action=verdict.action,
                     minor_category_id=verdict.minor_category_id,
+                    funding_target=verdict.funding_target,
                     rule=verdict.name,
                     note=verdict.note,
                 )

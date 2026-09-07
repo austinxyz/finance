@@ -48,12 +48,14 @@ note = "外部银行转入 Chase"
 name = "paypal-funding"
 desc = '(?i)PAYPAL\s+(INST XFER|TRANSFER|ECHECK)'
 action = "FUNDING"
+funding_target = "paypal"
 note = "PayPal 充值，真实开支在 PayPal 账单里；若未导入 PayPal CSV 这部分会漏计"
 
 [[rule]]
 name = "venmo-funding"
 desc = '(?i)^VENMO\s+(CASHOUT|PAYMENT|TRANSFER)'
 action = "FUNDING"
+funding_target = "venmo"
 note = "Venmo 充值/提现，真实开支在 Venmo 账单里"
 
 [[rule]]
