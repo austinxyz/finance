@@ -384,11 +384,10 @@ category = 67
 note = "Square/UEP 小额收款，多为咖啡小吃；大额需核对"
 
 [[rule]]
-name = "apple-store"
+name = "apple-store-reimbursed"
 desc = '(?i)apple\.com/us'
-action = "EXPENSE"
-category = 95
-note = "工作设备，同 Anthropic 订阅口径；若买给家人应改 94 数码产品"
+action = "IGNORE"
+note = "公司报销，钱会回来，不是自己的开支。若某笔是自费购买，改 action = \"EXPENSE\" 并给 category（数码产品 94 / 子女 65）"
 
 [[rule]]
 name = "costco-online-large-assumed-appliance"
