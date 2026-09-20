@@ -11,7 +11,7 @@ python tools/expense-import/run.py 2026-08
 
 # 3. 看控制台的 UNKNOWN 清单 → 在 rules.toml 补规则 → 重跑，直到干净
 # 4. 开 out/review-2026-08.csv 核对，重点看 note 里带"假设""需核对"的行
-# 5. 确认无误后写库
+# 5. 确认无误后写库（需要 backend 在跑）
 python tools/expense-import/run.py 2026-08 --post
 ```
 
@@ -43,14 +43,29 @@ CSV 含账号、余额、商户名。放仓库外意味着 `.gitignore` 写错�
 
 ## 对账式写入
 
-`--post` 不是简单地"提交聚合结果"，而是**让该期间的库中状态等于本地聚合结果**：
+`--post` 不是简单地"提交聚合结果"，而是先跟远端比对：
 
 1. `GET /records?period=` 取远端现状
 2. 本次有的小类 → `POST /records/batch`（后端幂等 upsert）
-3. 远端有、本次无或净额 ≤ 0 的小类 → `DELETE /records/{id}`
+3. 远端有、本次无或净额 ≤ 0 的小类 → **报告给你**，不删除
 
-没有第 3 步的话，第一次因规则错误写进去的数字会永久残留 —— 修正规则后重跑
-只是"不再提交它"，库里那个错值不会消失。规则会持续演进，这个问题只会越积越多。
+**为什么第 3 步只报告不删**：后端对开启 `is_protected` 的家庭拒绝一切删除
+（`DataProtectionService`，覆盖资产/负债/收入/支出），这是保护真实财务历史的防线，
+不该为了导入方便而关掉。
+
+没有第 3 步的话，第一次因规则错误写进去的数字会无声残留 —— 修正规则后重跑
+只是"不再提交它"，库里那个错值不会消失，而你根本不会注意到。
+报告保住了这个核心性质：每次运行都会点名，直到你处理掉。区别只在于由你在应用里清除。
+
+输出长这样：
+
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+以下 1 个小类已不在本月聚合中，但库里还有记录，共 $28.00
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  娱乐/健身美容  $28.00  (id=1842)
+本工具不执行删除 —— 后端对本家庭开启了 is_protected...
+```
 
 **币种隔离**：对账只作用于 `currency = "USD"` 的记录。
 
@@ -61,14 +76,30 @@ CSV 含账号、余额、商户名。放仓库外意味着 `.gitignore` 写错�
 
 ## 凭据
 
+PowerShell（Windows）：
+
+```powershell
+$env:FINANCE_USERNAME = "AustinXu"
+$env:FINANCE_PASSWORD = "..."
+$env:FINANCE_API_BASE = "http://localhost:8080/api"   # 可选
+```
+
+bash：
+
 ```bash
-export FINANCE_USERNAME=...
+export FINANCE_USERNAME=AustinXu
 export FINANCE_PASSWORD=...
 export FINANCE_API_BASE=http://localhost:8080/api   # 可选
 ```
 
-只在 `--post` 时需要。缺失会明确报错指名变量，不会静默跳过写入。
-`family_id` 由后端从 JWT 推导，客户端不指定。**凭据不要写进仓库。**
+**用户名是应用账号，不是数据库账号** —— 两者可能不同。
+环境变量只在当前终端窗口有效，换窗口要重设。
+
+只在 `--post` 时需要。缺失会明确报错指名变量，不会静默跳过写入。**凭据不要写进仓库。**
+
+`familyId` 由工具从 `GET /family/default` 取得后随请求发送。
+后端虽然会用 JWT 覆盖它，但 `@Valid` 在方法体之前执行、该字段又是 `@NotNull` ——
+不发会在校验阶段就被拒（400），覆盖逻辑根本没机会跑。
 
 ## 分类语义
 
@@ -140,12 +171,22 @@ class BoaCheckingParser(Parser):
 
 然后在 `importer/parsers/__init__.py` 里 import 它，并删掉 `sources.toml` 里的 `pending`。
 
-**符号约定是最容易犯且后果最大的解析错误**：信用卡账单中消费通常为正数，与 checking 相反。
-每个 parser 要在 `parse_row` 内归一为「负数 = 支出」，并用真实样本行断言符号。
+**符号约定是最容易犯且后果最大的解析错误。没有"信用卡一律为正"这条规律** ——
+实测六家各不相同：
+
+| 来源 | 消费的符号 | 其他陷阱 |
+|---|---|---|
+| Chase checking | 负 | — |
+| Chase 信用卡 | **负**（与直觉相反）| 用 Transaction Date 不用 Post Date |
+| BOA checking | 负 | 表头在第 7 行，前面是余额摘要 |
+| Robinhood 信用卡 | **正**，需翻转 | 含 `Declined` 行，不滤会翻倍 |
+| PayPal | 负 | `Bank Deposit to PP Account` 是充值对侧；`Pending` 要滤 |
+| Venmo | `+ $45.00` 文本带符号 | 表头在第 3 行且首列为空 |
+
+每个 parser 在 `parse_row` 内归一为「负数 = 支出」，并用格式一致的样本行断言符号。
 搞反会让整月开支变成负数。
 
-已支持：`chase_checking`。
-待实现：Chase 信用卡、BOA checking、PayPal、Venmo、Robinhood 信用卡。
+六家全部已实现。
 
 ## 测试
 
@@ -153,8 +194,9 @@ class BoaCheckingParser(Parser):
 python -m unittest discover -s tools/expense-import -t tools/expense-import
 ```
 
-测试覆盖的是会**静默污染数字**的失败模式：转账被当成开支、充值被重复计、
-退款没冲抵、规则顺序错位、对账误删他币种记录。
+159 个测试。覆盖的是会**静默污染数字**的失败模式：转账被当成开支、充值被重复计、
+退款没冲抵、规则顺序错位、对账误删他币种记录、Declined 交易被计入、
+以及 CLI 报告本身崩掉（那个只会在真写入落地之后才暴露）。
 
 ## 重新生成 categories.toml
 

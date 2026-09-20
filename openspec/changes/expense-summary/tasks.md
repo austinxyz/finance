@@ -129,7 +129,7 @@
 - [x] 4.6 RED — 跨账户去重测试：同时给入 checking 的信用卡还款行与信用卡账单的消费行 → 还款判为 `TRANSFER`，月度聚合只反映卡账单消费
 - [x] 4.7 GREEN — 补齐/调整结构性规则使其覆盖两家的还款描述格式，确保排在商户规则之前
 - [x] 4.8 用真实样本跑一次完整流程（不写库），核对 `review.csv` 的分类结果与 `UNKNOWN` 比例，按需补商户规则
-- [ ] 4.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-4.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
+- [x] 4.E EVAL — spawn evaluator subagent (haiku); reads contracts/group-4.md + spec + design + group diff; invokes superpowers:requesting-code-review (CRITICAL/HIGH = BLOCK); scores Spec/Runtime/Code; total ≥ 80 → PASS; < 80 → append FIX tasks + retry (max 3 attempts, plateau < 5pt = escalate)
 
 ## 5. 解析器：PayPal、Venmo 与 Robinhood
 
@@ -163,10 +163,10 @@
 - [x] 6.1 跑完整 Python 测试套件确认无回归：`python -m unittest discover -s tools/expense-import -t tools/expense-import`
 - [x] 6.2 跑后端测试套件确认未受影响：`cd backend && mvn test`（本 change 不改后端，此步用于确认确实未改动）
 - [x] 6.3 跑前端测试套件确认未受影响：`cd frontend && npm test`（本 change 不改前端，同上）
-- [ ] 6.4 端到端冒烟：把 2026-08 各家真实 CSV 放入 `~/finance-data/2026-08/`，先只读跑一次补规则至无 `UNKNOWN`，再写库；打开分析页确认 2026-08 分类开支与 `review.csv` 聚合逐项一致
-- [ ] 6.5 幂等冒烟：对同一目录再跑一次写入，确认 `expense_records` 的 2026-08 记录无变化、无重复行
-- [ ] 6.6 对账冒烟：故意改一条规则制造错误分类并写入，再改回并重跑，确认错误小类被清除而非残留
-- [ ] 6.7 币种安全冒烟：在 `ExpenseBatchUpdate.vue` 手工录一条 2026-08 的 CNY 记录，重跑写入，确认该 CNY 记录未被删除或修改
+- [x] 6.4 端到端冒烟：把 2026-08 各家真实 CSV 放入 `~/finance-data/2026-08/`，先只读跑一次补规则至无 `UNKNOWN`，再写库；打开分析页确认 2026-08 分类开支与 `review.csv` 聚合逐项一致
+- [x] 6.5 幂等冒烟：对同一目录再跑一次写入，确认 `expense_records` 的 2026-08 记录无变化、无重复行
+- [x] 6.6 对账冒烟：故意改一条规则制造错误分类并写入，再改回并重跑，确认错误小类被清除而非残留
+- [x] 6.7 币种安全冒烟：在 `ExpenseBatchUpdate.vue` 手工录一条 2026-08 的 CNY 记录，重跑写入，确认该 CNY 记录未被删除或修改
 - [x] 6.8 确认仓库中无金融数据：`git status` 干净，`git ls-files` 中无 CSV 与产出物，凭据不在仓库内
-- [ ] 6.9 更新 `tools/expense-import/README.md`：目录约定、三道闸门与逃生舱、各家 CSV 导出路径、每月操作流程
-- [ ] 6.10 Run superpowers:verification-before-completion（跑上述测试命令；确认无调试残留；确认 `.gitignore` 覆盖产出物）
+- [x] 6.9 更新 `tools/expense-import/README.md`：目录约定、三道闸门与逃生舱、各家 CSV 导出路径、每月操作流程
+- [x] 6.10 Run superpowers:verification-before-completion（跑上述测试命令；确认无调试残留；确认 `.gitignore` 覆盖产出物）
