@@ -144,19 +144,40 @@ def _post(args, period: str, prepared, cats: Categories) -> int:
         print(f"\n写入失败: {exc}", file=sys.stderr)
         return 1
 
+    _report_post(result, plan, period, cats)
+    return 0
+
+
+def _report_post(result, plan, period: str, cats: Categories) -> None:
+    """Say what the write did, and what it deliberately left alone.
+
+    Kept separate from the request handling so it can be exercised directly —
+    a reporting bug surfaces only after a real write has already landed, which
+    is the worst moment to discover one.
+    """
     print(f"\n已写入 {period}:")
-    if result.posted_categories:
-        for cid in result.posted_categories:
-            print(f"  写入  {cats.major(cid)}/{cats.minor(cid)}  ${plan.to_post[cid]:,.2f}")
-    if result.deleted_ids:
-        for record in plan.to_delete:
-            cid = record.minor_category_id
-            print(f"  清除  {cats.major(cid)}/{cats.minor(cid)}  (原 ${record.amount:,.2f})")
-    if not result.posted_categories and not result.deleted_ids:
+    for cid in result.posted_categories:
+        print(f"  写入  {cats.major(cid)}/{cats.minor(cid)}  ${plan.to_post[cid]:,.2f}")
+    if not result.posted_categories:
         print("  无变化（库中状态已与本地聚合一致）")
     if result.preserved:
         print(f"  保留  {len(result.preserved)} 条非 USD 记录未触碰")
-    return 0
+
+    if not result.stale:
+        return
+
+    total = sum(r.amount for r in result.stale)
+    print(f"\n{'!' * 62}")
+    print(f"以下 {len(result.stale)} 个小类已不在本月聚合中，但库里还有记录，共 ${total:,.2f}")
+    print(f"{'!' * 62}")
+    for record in result.stale:
+        cid = record.minor_category_id
+        print(f"  {cats.major(cid)}/{cats.minor(cid)}  ${record.amount:,.2f}  (id={record.id})")
+    print(
+        "本工具不执行删除 —— 后端对本家庭开启了 is_protected，"
+        "禁止删除资产/负债/收入/支出记录。\n"
+        "请到 ExpenseBatchUpdate 页把这些小类清零，或直接删除对应记录。"
+    )
 
 
 if __name__ == "__main__":
