@@ -177,6 +177,23 @@ docker-compose logs -f backend
 
 **New backend endpoint returns 400/404 after you added it** → The running backend is stale (still serving the old build). Restart with `./backend/start.sh`. Symptom for a new sub-path under a `@GetMapping("/{id}")` controller: request falls through to `/{id}` and 400s with `Failed to convert 'id' with value: '<subpath>'`. The mapping is fine — the JVM just hasn't reloaded it.
 
+**API 客户端收到 400 "Invalid request content"，但字段看着都对** → `@Valid` 在
+controller 方法体**之前**执行。`BatchExpenseRecordRequest.familyId` 带 `@NotNull`，
+即使 controller 第一行就 `request.setFamilyId(authHelper.getFamilyIdFromAuth(...))` 覆盖它，
+不传照样在校验阶段被拒。"服务端会覆盖" ≠ "客户端可以不传"。
+`familyId` 从 `GET /api/family/default` 取（注意是单数 `/family`）。
+
+**DELETE 返回 500「受保护的家庭数据不允许执行操作」** → `families.is_protected` 为 1 时，
+`DataProtectionService` 拒绝**一切**删除（资产/负债/收入/支出全覆盖）。
+family 1（Austin家）开着这个标志。**端点存在 ≠ 策略允许** —— 写依赖删除的功能前，
+除了确认端点在，还要确认它对目标 family 没被策略拒绝。
+
+**后端错误信息读不到** → 失败响应把原因放在 `message` 字段，不是 `error`。
+只读 `error` 会把整个响应 dict 打出来，真正那行原因反而被埋掉。
+
+**登录 401 但密码没错** → 应用账号（`users.username`，如 `AustinXu`）
+与数据库账号（`backend/.env` 的 `DB_USER`，如 `austinxu`）是两回事，大小写也可能不同。
+
 ## External Documentation
 
 For detailed information not covered by these guardrails:

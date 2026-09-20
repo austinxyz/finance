@@ -19,6 +19,7 @@ A full-stack financial management system built with Spring Boot + Vue.js, suppor
 - **Liability Management** - 7 liability types with complete tracking and time-series records
 - **Income Management** - 10 major income categories, monthly batch entry, annual budget planning ⭐
 - **Expense Management** - 10 major expense categories, batch entry, budget planning, 3-level drill-down
+- **Expense Import** - Directory-driven CSV import from six institutions, rule-based categorisation with cross-account dedup, three fail-closed write gates ⭐ New
 - **Investment Management** - Transaction records, cost/market value/P&L calculation, annual analysis
 - **Exchange Rate Management** - Multi-currency rate tracking, API integration, historical trends ⭐ New
 
