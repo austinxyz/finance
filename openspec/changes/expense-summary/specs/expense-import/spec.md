@@ -104,7 +104,7 @@
 
 - **WHEN** 某小类当月净额为 `0` 或负数
 - **THEN** 该小类不出现在提交内容中
-- **AND** 若远端已存在该小类的 USD 记录，走对账删除（见「对账式写入」）
+- **AND** 若远端已存在该小类的 USD 记录，由对账报告为残留（见「对账式写入」）
 
 ### Requirement: 写入闸门 — 未分类交易
 
@@ -162,8 +162,15 @@
 ### Requirement: 对账式写入
 
 系统 SHALL 在写入前调用 `GET /api/expenses/records?period=<期间>` 取得远端现状，
-与本次聚合结果比对后执行：本次有的小类走 `POST /api/expenses/records/batch`；
-远端有、本次无（或净额非正）的小类走 `DELETE /api/expenses/records/{id}`。
+与本次聚合结果比对：本次有的小类走 `POST /api/expenses/records/batch`。
+
+远端有、本次无（或净额非正）的小类 MUST 被**报告**给用户，
+且 MUST NOT 尝试删除。后端对开启 `is_protected` 的家庭拒绝一切删除操作
+（`DataProtectionService.validateDeleteOperation`，覆盖资产/负债/收入/支出），
+这是用户为保护真实财务历史而设的防线，不应为导入便利而关闭。
+
+报告同样堵住了对账要堵的漏洞 —— 被修正规则淘汰的小类不会在库中无声残留，
+因为每次运行都会点名。区别只在于由谁清除：用户在应用里操作，而非本工具代劳。
 
 对账 MUST 只作用于 `currency = "USD"` 的记录。
 其他币种的记录（用户经 `ExpenseBatchUpdate.vue` 的币种选择器手工录入）
@@ -171,12 +178,13 @@ MUST NOT 被本工具删除或修改 —— `expense_records` 按
 `(family_id, expense_period, minor_category_id, currency)` 去重，
 同一小类的不同币种是彼此独立的行。
 
-#### Scenario: 修正规则后清除旧值
+#### Scenario: 修正规则后报告残留
 
 - **WHEN** 首次运行因规则错误给「娱乐/娱乐健身」写入 `$500`
 - **AND** 用户修正 `rules.toml` 后重跑，该小类本次聚合结果为空
-- **THEN** 远端该小类的 USD 记录被 `DELETE` 清除
-- **AND** 库中不残留 `$500`
+- **THEN** 系统报告该小类仍在库中、金额 `$500`、记录 id，并提示到应用内清除
+- **AND** 系统不尝试删除该记录
+- **AND** 每次后续运行持续报告，直到用户处理
 
 #### Scenario: 不触碰其他币种记录
 

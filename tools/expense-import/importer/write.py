@@ -50,7 +50,9 @@ class PreparedWrite:
 @dataclass(frozen=True)
 class WriteResult:
     posted_categories: list[int] = field(default_factory=list)
-    deleted_ids: list[int] = field(default_factory=list)
+    #: Rows the local aggregate no longer produces. Reported, never deleted —
+    #: see apply_plan for why.
+    stale: list[RemoteRecord] = field(default_factory=list)
     preserved: list[RemoteRecord] = field(default_factory=list)
 
 
@@ -125,7 +127,19 @@ def apply_plan(
     plan: ReconcilePlan,
     expense_type_for: Callable[[int], str],
 ) -> WriteResult:
-    """Apply a reconcile plan. Deletions first, so a category can change identity.
+    """Write the categories this month produced, and report the ones it did not.
+
+    **Superseded rows are reported, not deleted.** The backend guards this
+    family with ``is_protected``, which refuses every delete across assets,
+    liabilities, income and expenses — a deliberate safeguard against losing
+    real financial history. Deleting is therefore not available to this tool,
+    and disabling the safeguard to make an import convenient would trade a
+    standing protection for a monthly convenience.
+
+    Reporting still closes the gap reconciling existed to close: a category left
+    behind by a corrected rule cannot sit in the database unnoticed, because
+    every run names it. What changes is who removes it — the user, in the app,
+    rather than this tool.
 
     ``expense_type_for`` maps a minor category id to FIXED_DAILY or
     LARGE_IRREGULAR. The backend requires the field and validates it against
@@ -135,9 +149,6 @@ def apply_plan(
     """
     client.login()
     client.load_family_id()
-
-    for record in plan.to_delete:
-        client.delete_record(record.id)
 
     if plan.to_post:
         client.batch_save(
@@ -156,6 +167,6 @@ def apply_plan(
 
     return WriteResult(
         posted_categories=sorted(plan.to_post),
-        deleted_ids=[r.id for r in plan.to_delete],
+        stale=list(plan.to_delete),
         preserved=plan.untouched,
     )

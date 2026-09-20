@@ -529,14 +529,13 @@ class TestGateWiring(unittest.TestCase):
 
 
 class TestApplyPlan(unittest.TestCase):
-    def test_posts_and_deletes_through_the_client(self) -> None:
+    def test_posts_through_the_client(self) -> None:
         client = RecordingClient(existing=[remote(9, 72, "500.00")])
         plan = reconcile(local={68: Decimal("259.24")}, remote=client.get_records("2026-08"))
 
-        result = apply_plan(client, "2026-08", plan, expense_type_for=lambda cid: "FIXED_DAILY")
+        apply_plan(client, "2026-08", plan, expense_type_for=lambda cid: "FIXED_DAILY")
 
         self.assertTrue(client.logged_in)
-        self.assertEqual(client.deleted, [9])
         [(period, records)] = client.posted
         self.assertEqual(period, "2026-08")
         self.assertEqual(records[0]["minorCategoryId"], 68)
@@ -582,6 +581,33 @@ class TestApplyPlan(unittest.TestCase):
         self.assertEqual(client.posted, [])
         self.assertEqual(client.deleted, [])
 
+    def test_stale_rows_are_reported_not_deleted(self) -> None:
+        """The backend protects this family's data: DELETE is refused outright.
+
+        Reporting the leftovers keeps the correction in the user's hands while
+        still making it impossible for a superseded category to sit in the
+        database unnoticed — which is the failure reconciling existed to stop.
+        """
+        client = RecordingClient(existing=[remote(9, 72, "500.00")])
+        plan = reconcile(local={68: Decimal("259.24")}, remote=client.get_records("2026-08"))
+
+        result = apply_plan(
+            client, "2026-08", plan, expense_type_for=lambda cid: "FIXED_DAILY"
+        )
+
+        self.assertEqual(client.deleted, [], "must not attempt a delete")
+        self.assertEqual([r.id for r in result.stale], [9])
+
+    def test_stale_report_is_empty_when_nothing_was_superseded(self) -> None:
+        client = RecordingClient(existing=[remote(1, 68, "259.24")])
+        plan = reconcile(local={68: Decimal("259.24")}, remote=client.get_records("2026-08"))
+
+        result = apply_plan(
+            client, "2026-08", plan, expense_type_for=lambda cid: "FIXED_DAILY"
+        )
+
+        self.assertEqual(result.stale, [])
+
     def test_never_deletes_foreign_currency_rows(self) -> None:
         client = RecordingClient(existing=[remote(2, 67, "500.00", "CNY")])
         plan = reconcile(local={}, remote=client.get_records("2026-08"))
@@ -597,7 +623,7 @@ class TestApplyPlan(unittest.TestCase):
         result = apply_plan(client, "2026-08", plan, expense_type_for=lambda cid: "FIXED_DAILY")
 
         self.assertEqual(result.posted_categories, [68])
-        self.assertEqual(result.deleted_ids, [9])
+        self.assertEqual([r.id for r in result.stale], [9])
 
 
 if __name__ == "__main__":

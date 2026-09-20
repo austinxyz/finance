@@ -55,17 +55,25 @@ Phase A 已在 `tools/expense-import/` 落地原型：规则引擎（`rules.toml
 
 **备选**：存 DB 并做管理页 —— 与 D1 同理否决。
 
-### D3: 对账式写入（GET + POST + DELETE），而非只 POST
+### D3: 对账式写入（GET + POST + 报告），而非只 POST
 
 **选择**：写入前 `GET /api/expenses/records?period=<期间>` 取远端现状，
 diff 后 `POST /api/expenses/records/batch` 写入本次有的，
-`DELETE /api/expenses/records/{id}` 清除本次无的。
+本次无的**报告给用户**，不删除。
+
+**实施期修正**：原设计为 `DELETE /api/expenses/records/{id}` 清除。
+端点确实存在，但后端 `DataProtectionService` 对开启 `is_protected` 的家庭
+拒绝一切删除（资产/负债/收入/支出全覆盖），family 1 正是如此。
+这是用户主动设的防线，不应为导入便利关闭 —— 改为报告。
+报告保留了「不会无声残留」这个核心性质，只是清除动作交回用户。
 
 **理由**：`batchSave` 只 upsert 不删除。若只 POST，第一次因规则错误写入的小类
 在规则修正后会永久残留 —— 「重跑幂等」表面成立（重跑结果一致），
 实际上库里混着历次错误的沉积。规则会持续演进，这个问题只会越来越严重。
 
-**三个端点均已存在，无需改后端。**
+**两个端点均已存在，无需改后端。**
+（`DELETE` 端点存在但对本家庭被策略拒绝 —— 端点可用性与策略许可是两件事，
+验证时必须分别确认。）
 
 **备选**：后端加一个「按期间全量替换」端点 —— 更干净，但破坏「后端零改动」，
 且该端点对手工录入路径有误删风险。否决。
