@@ -9,6 +9,8 @@
 #   desc      正则，匹配交易描述
 #   type_is   精确匹配机构自己的类型码（如 Chase 的 LOAN_PMT）
 #   source_is 只对某个 parser 生效（如 chase_checking）
+#   direction "in" 只匹配入账，"out" 只匹配出账，不写则两者都匹配
+#             （amount_min/max 比的是绝对值，表达不了方向）
 #   amount_min / amount_max  按金额绝对值过滤
 #   note      备注，会写进 review.csv
 #
@@ -262,11 +264,19 @@ category = 72
 note = "流媒体订阅"
 
 [[rule]]
-name = "tennis"
-desc = '(?i)(utr power|\butr\b|tennis|usta|racquet)'
+name = "tennis-reimbursement-passthrough"
+desc = '(?i)(utr power|\butr\b|tennis|usta|racquet|球|比赛|华运|队长|court)'
+direction = "in"
+action = "IGNORE"
+note = "球友还的场地费。你垫付的那笔是现金、从未入账，所以这钱两头都不记 —— 只记收入侧会让娱乐健身变成负数"
+
+[[rule]]
+name = "tennis-outbound"
+desc = '(?i)(utr power|\butr\b|tennis|usta|racquet|球|比赛|华运|队长|court)'
+direction = "out"
 action = "EXPENSE"
 category = 72
-note = "网球场地/评级"
+note = "真实付出的网球支出（UTR 订阅、刷卡付的场地费等）"
 
 [[rule]]
 name = "gym"
@@ -342,14 +352,6 @@ note = "假设为生活用品；处方药应改 97 门诊"
 # 八、PayPal / Venmo 平台内规则
 #     这两家的描述来自备注或对方姓名，与银行的商户名不同
 # ============================================================
-
-[[rule]]
-name = "venmo-tennis"
-desc = '(?i)(tennis|球|比赛|华运|队长|court)'
-source_is = "venmo"
-action = "EXPENSE"
-category = 72
-note = "网球代付/还款，冲抵娱乐健身"
 
 [[rule]]
 name = "venmo-meal"

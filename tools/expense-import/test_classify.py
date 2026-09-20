@@ -181,6 +181,59 @@ class TestRuleValidation(unittest.TestCase):
         self.assertEqual(result.funding_target, "paypal")
 
 
+class TestDirectionMatcher(unittest.TestCase):
+    """Sign is a first-class property of a transaction, not a detail of its text.
+
+    ``amount_min``/``amount_max`` compare on magnitude, so they cannot separate
+    an outflow from an inflow. Inferring direction from wording ("payment from")
+    holds only until an institution phrases it differently.
+    """
+
+    INBOUND = (
+        '[[rule]]\n'
+        'name = "reimbursement"\n'
+        'desc = "(?i)tennis"\n'
+        'direction = "in"\n'
+        'action = "IGNORE"\n'
+    )
+    OUTBOUND = (
+        '[[rule]]\n'
+        'name = "court-fee"\n'
+        'desc = "(?i)tennis"\n'
+        'direction = "out"\n'
+        'action = "EXPENSE"\n'
+        'category = 67\n'
+    )
+
+    def test_inbound_rule_ignores_outflows(self) -> None:
+        [result] = classify([txn("TENNIS COURT FEE", "-12.00")], rules_from(self.INBOUND))
+        self.assertIs(result.action, Action.UNKNOWN)
+
+    def test_inbound_rule_matches_inflows(self) -> None:
+        [result] = classify([txn("Tennis", "45.00")], rules_from(self.INBOUND))
+        self.assertIs(result.action, Action.IGNORE)
+
+    def test_outbound_rule_ignores_inflows(self) -> None:
+        [result] = classify([txn("Tennis", "45.00")], rules_from(self.OUTBOUND))
+        self.assertIs(result.action, Action.UNKNOWN)
+
+    def test_outbound_rule_matches_outflows(self) -> None:
+        [result] = classify([txn("TENNIS COURT FEE", "-12.00")], rules_from(self.OUTBOUND))
+        self.assertIs(result.action, Action.EXPENSE)
+
+    def test_rule_without_direction_matches_both(self) -> None:
+        rules = rules_from('[[rule]]\nname = "any"\ndesc = "(?i)tennis"\naction = "IGNORE"\n')
+        both = classify([txn("Tennis", "45.00"), txn("TENNIS FEE", "-12.00")], rules)
+        self.assertTrue(all(r.action is Action.IGNORE for r in both))
+
+    def test_invalid_direction_is_rejected_at_load_time(self) -> None:
+        with self.assertRaises(RuleError) as ctx:
+            rules_from(
+                '[[rule]]\nname = "x"\ndesc = "a"\ndirection = "sideways"\naction = "IGNORE"\n'
+            )
+        self.assertIn("direction", str(ctx.exception))
+
+
 class TestShippedRules(unittest.TestCase):
     """The real rules.toml must load cleanly against the real category list."""
 

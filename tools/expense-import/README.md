@@ -129,7 +129,11 @@ note = "加油"                 # 会显示在 review.csv 便于核对
 ```
 
 匹配条件：`desc`（正则）、`type_is`（机构类型码精确匹配）、`source_is`（限定解析器）、
-`amount_min` / `amount_max`（按金额绝对值）。
+`direction`（`"in"` 只匹配入账 / `"out"` 只匹配出账）、`amount_min` / `amount_max`（按金额绝对值）。
+
+`direction` 用于「同一个关键词，出账入账含义不同」的情况。比如网球：
+刷卡付的 UTR 订阅是真实支出，球友还的场地费是过路钱（你垫的那笔是现金、从未入账），
+两者都含 "tennis" 但一个记一个不记。`amount_min/max` 比的是绝对值，表达不了方向。
 
 `FUNDING` 规则必须带 `funding_target`（如 `"paypal"`），否则闸门 2 无从判断缺的是哪家。
 

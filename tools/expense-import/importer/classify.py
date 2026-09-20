@@ -25,6 +25,9 @@ class Rule:
     source_is: str | None = None
     amount_min: Decimal | None = None   # inclusive, compares on magnitude
     amount_max: Decimal | None = None   # inclusive, compares on magnitude
+    #: "in" matches only inflows, "out" only outflows, None matches both.
+    #: amount_min/amount_max compare on magnitude and cannot express this.
+    direction: str | None = None
     minor_category_id: int | None = None
     funding_target: str | None = None
     note: str = ""
@@ -35,6 +38,10 @@ class Rule:
         if self.type_is is not None and txn.raw_type != self.type_is:
             return False
         if self.source_is is not None and txn.source != self.source_is:
+            return False
+        if self.direction == "out" and not txn.is_outflow:
+            return False
+        if self.direction == "in" and txn.is_outflow:
             return False
         magnitude = abs(txn.amount)
         if self.amount_min is not None and magnitude < self.amount_min:
@@ -83,6 +90,12 @@ def load_rules(path: Path, valid_categories: set[int] | None = None) -> list[Rul
         if funding_target is not None and action is not Action.FUNDING:
             raise RuleError(f"{where}: 只有 FUNDING 规则可以设置 'funding_target'")
 
+        direction = entry.get("direction")
+        if direction is not None and direction not in ("in", "out"):
+            raise RuleError(
+                f"{where}: direction 只能是 \"in\" 或 \"out\"，收到 {direction!r}"
+            )
+
         pattern = entry.get("desc")
         try:
             compiled = re.compile(pattern) if pattern else None
@@ -100,6 +113,7 @@ def load_rules(path: Path, valid_categories: set[int] | None = None) -> list[Rul
                 amount_max=_opt_decimal(entry.get("amount_max"), where, "amount_max"),
                 minor_category_id=category,
                 funding_target=funding_target,
+                direction=direction,
                 note=entry.get("note", ""),
             )
         )

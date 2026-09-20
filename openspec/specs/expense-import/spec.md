@@ -55,6 +55,11 @@
 分类动作限于：`EXPENSE`（计入统计）、`INCOME`、`TRANSFER`、`FUNDING`、`IGNORE`、`UNKNOWN`。
 只有 `EXPENSE` 计入月度聚合。
 
+规则 MAY 通过 `direction`（`"in"` / `"out"`）限定只匹配入账或出账。
+`amount_min` / `amount_max` 比较的是金额绝对值，无法表达方向 ——
+当同一关键词在两个方向上语义不同时（如网球：刷卡支出要计，球友还款是过路钱不计），
+必须靠 `direction` 区分。非法取值 MUST 在加载期报错。
+
 #### Scenario: 每笔分类可追溯
 
 - **WHEN** 分类完成后生成 `review.csv`
